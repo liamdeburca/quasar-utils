@@ -1,7 +1,7 @@
-from collections.abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Self
 
-from quasar_typing.pathlib import AbsoluteFileLike
+from quasar_typing.pathlib import AbsoluteFilePath
 
 from pydantic_core import PydanticCustomError
 from pydantic_core.core_schema import no_info_plain_validator_function
@@ -19,24 +19,20 @@ class _Info(ABC):
         
         return s.removesuffix(', ') + '.'
     
-    @classmethod
-    def __getitem__(cls, key: str) -> Any:
-        if key in cls._keys: return getattr(cls, key)
+    def __getitem__(self, key: str) -> Any:
+        if key in self._keys: return getattr(self, key)
         else:                 raise KeyError(key)
 
-    @classmethod
-    def __setitem__(cls, key: str, value: Any) -> None:
-        if key in cls._keys: return setattr(cls, key, value)
-        else:                raise KeyError(key)
+    def __setitem__(self, key: str, value: Any) -> None:
+        if key in self._keys: return setattr(self, key, value)
+        else:                 raise KeyError(key)
 
-    @classmethod
-    def __bool__(cls) -> bool:
-        return cls.is_updated
+    def __bool__(self) -> bool:
+        return self.is_updated
     
-    @classmethod
-    def __getstate__(cls) -> dict:
-        state: dict = {'_keys': cls._keys}
-        state.update({key: getattr(cls, key) for key in cls._keys})
+    def __getstate__(self) -> dict:
+        state: dict = {'_keys': self._keys}
+        state.update({key: getattr(self, key) for key in self._keys})
         return state
     
     @classmethod
@@ -78,8 +74,9 @@ class _Info(ABC):
     @classmethod
     def _validate(cls, value: object) -> Self:
         if not isinstance(value, cls):
-            msg = "Expected '{}', but got '{}'!".format(
-                cls.__name__, type(value),
+            msg = "Expected a {} instance, got {}".format(
+                cls.__name__, 
+                type(value).__name__,
             )
             raise PydanticCustomError('validation_error', msg)
         return value
@@ -99,7 +96,7 @@ class _Info(ABC):
 
     @classmethod
     @abstractmethod
-    def from_file(cls, path: AbsoluteFileLike = None):
+    def from_file(cls, path: AbsoluteFilePath = None):
         """
         Creates and configures an instance from a file.
         """

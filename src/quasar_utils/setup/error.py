@@ -3,57 +3,20 @@ from typing import Literal, ClassVar, Self
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 from quasar_typing.misc.literals import Scale, Variant, BootstrapType, \
     FWHMStrategy, OutMeasures, OutWaves, VaryLines
 
 logger = getLogger(__name__)
 
-@dataclass
 class ErrorInfo(_Info):
-    method: Literal['bootstrap'] = 'bootstrap'
-    remodel: bool = False
-    replace_missing: bool = True
-
-    scale: Scale = 'global'
-    variant: Variant = 'standard'
-    bootstrap_type: BootstrapType = 'spectrum'
-    fwhm_strategy: FWHMStrategy = 'average'
-
-    iterations: int = 100
-    random_state: int = 42
-    renew_rng: bool = True
-    n_sigmas: float | int = 2
-
-    res: int = 1000
-    render_width: float | int = 5
-    exact: bool = True
-
-    _v_int: float | Quantity_ = 18_000 * Unit('km/s')
-    ipv_int: float | int = 0
-    _dx_int: float | Quantity_ = 50 * Unit('angstrom')
-
-    _vary_lines: set[Literal['all'] | Quantity_] | None = None
-    _out_waves: set[Literal['all'] | Quantity_] | None = None
-    out_measures: OutMeasures | None = None
-    percentiles: set[int] | None= None
-
-    tqdm_disable: bool = False
-    tqdm_leave: bool = False
-
-    v_int: float | None = None
-    dx_int: float | None = None
-    vary_lines: VaryLines | None = None
-    out_waves: OutWaves | None = None
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         'method', 'scale', 'remodel', 'variant', 'replace_missing',
         'bootstrap_type', 
@@ -65,6 +28,63 @@ class ErrorInfo(_Info):
         'v_int', 'dx_int', 'vary_lines', 'out_waves',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        method: Literal['bootstrap'] = 'bootstrap',
+        remodel: bool = False,
+        replace_missing: bool = True,
+        scale: Scale = 'global',
+        variant: Variant = 'standard',
+        bootstrap_type: BootstrapType = 'spectrum',
+        fwhm_strategy: FWHMStrategy = 'average',
+        iterations: int = 100,
+        random_state: int = 42,
+        renew_rng: bool = True,
+        n_sigmas: float | int = 2,
+        res: int = 1000,
+        render_width: float | int = 5,
+        exact: bool = True,
+        _v_int: float | Quantity_ = 18_000 * Unit('km/s'),
+        ipv_int: float | int = 0,
+        _dx_int: float | Quantity_ = 50 * Unit('angstrom'),
+        _vary_lines: set[Literal['all'] | Quantity_] = {'all'},
+        _out_waves: set[Literal['all'] | Quantity_] = {'all'},
+        out_measures: OutMeasures | None = None,
+        percentiles: set[int] | None = None,
+        tqdm_disable: bool = False,
+        tqdm_leave: bool = False,
+    ):
+        self.method: Literal['bootstrap'] = method
+        self.remodel: bool = remodel
+        self.replace_missing: bool = replace_missing
+        self.scale: Scale = scale
+        self.variant: Variant = variant
+        self.bootstrap_type: BootstrapType = bootstrap_type
+        self.fwhm_strategy: FWHMStrategy = fwhm_strategy
+        self.iterations: int = iterations
+        self.random_state: int = random_state
+        self.renew_rng: bool = renew_rng
+        self.n_sigmas: float | int = n_sigmas
+        self.res: int = res
+        self.render_width: float | int = render_width
+        self.exact: bool = exact
+        self._v_int: float | Quantity_ = _v_int
+        self.ipv_int: float | int = ipv_int
+        self._dx_int: float | Quantity_ = _dx_int
+        self._vary_lines: set[Literal['all'] | Quantity_] = _vary_lines
+        self._out_waves: set[Literal['all'] | Quantity_] = _out_waves
+        self.out_measures: OutMeasures | None = out_measures
+        self.percentiles: set[int] | None = percentiles
+        self.tqdm_disable: bool = tqdm_disable
+        self.tqdm_leave: bool = tqdm_leave
+
+        # Set by 'update' method
+        self.v_int: float | None = None
+        self.dx_int: float | None = None
+        self.vary_lines: VaryLines | None = None
+        self.out_waves: OutWaves | None = None
 
     def update(self, info) -> None:
         logger.debug("Updating 'ErrorInfo' class...")
@@ -129,11 +149,11 @@ class ErrorInfo(_Info):
 
         logger.debug("... finished updating 'ErrorInfo' class!")
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

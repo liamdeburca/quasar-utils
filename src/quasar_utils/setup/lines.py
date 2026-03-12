@@ -4,16 +4,15 @@ from numpy import array
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
 logger = getLogger(__name__)
 
@@ -26,48 +25,7 @@ def _replace_nan_with_none(bounds: tuple):
         for bound in bounds
     ])
 
-@dataclass
 class LinesInfo(_Info):
-    _x_limit: float | Quantity_ = 1220 * Unit('angstrom')
-    x_limit: float | None = None
-
-    _v_sep: float | Quantity_ = 10_000 * Unit('km/s')
-    v_sep: float | None = None
-
-    _v_off_bounds: AstropyBounds | Quantity_ = \
-        (-5_000, 5_000) * Unit('km/s')
-    v_off_bounds: AstropyBounds | None = None
-
-    _sigma_v_bounds: AstropyBounds | Quantity_ = \
-        (250, 5_000) * Unit('km/s')
-    sigma_v_bounds: AstropyBounds | None = None
-
-    _strength_bounds: AstropyBounds | Quantity_ = \
-        (1e-16, 1) * Unit('erg/(s.cm2)')
-    strength_bounds: AstropyBounds | None = None
-    
-    _w: int | Quantity_ = 25
-    w: int | None = None
-
-    _forced_splits: list[float] | Quantity_ = \
-        [1450, 1680, 2000] * Unit('angstrom')
-    forced_splits: list[float] | None = None
-
-    min_fittable_total: int = 50
-    min_fittable_ratio: float = 0.6
-
-    evaluate_initial: int = 3
-    aggressive: bool = False
-    crop: bool = False
-    measure: str = 'getFluxSNR'
-    reverse: bool = False
-    snr: float | int = 10
-
-    make_copies: bool = False
-    adapt_scale: bool = True
-    scale_init: float = 1.0
-    scale_bounds: AstropyBounds = (0.0, 100.0)
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         '_x_limit', 'x_limit',
         '_v_sep', 'v_sep',
@@ -92,6 +50,58 @@ class LinesInfo(_Info):
         'scale_bounds',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        _x_limit: float | Quantity_ = 1220 * Unit('angstrom'),
+        _v_sep: float | Quantity_ = 10_000 * Unit('km/s'),
+        _v_off_bounds: AstropyBounds | Quantity_ = (-5_000, 5_000) * Unit('km/s'),
+        _sigma_v_bounds: AstropyBounds | Quantity_ = (250, 5_000) * Unit('km/s'),
+        _strength_bounds: AstropyBounds | Quantity_ = (1e-16, 1) * Unit('erg/(s.cm2)'),
+        _w: int | Quantity_ = 25,
+        _forced_splits: list[float] | Quantity_ = [1450, 1680, 2000] * Unit('angstrom'),
+        min_fittable_total: int = 50,
+        min_fittable_ratio: float = 0.6,
+        evaluate_initial: int = 3,
+        aggressive: bool = False,
+        crop: bool = False,
+        measure: str = 'getFluxSNR',
+        reverse: bool = False,
+        snr: float | int = 10,
+        make_copies: bool = False,
+        adapt_scale: bool = True,
+        scale_init: float = 1.0,
+        scale_bounds: AstropyBounds = (0.0, 100.0),
+    ):
+        self._x_limit: float | Quantity_ = _x_limit
+        self._v_sep: float | Quantity_ = _v_sep
+        self._v_off_bounds: AstropyBounds | Quantity_ = _v_off_bounds
+        self._sigma_v_bounds: AstropyBounds | Quantity_ = _sigma_v_bounds
+        self._strength_bounds: AstropyBounds | Quantity_ = _strength_bounds
+        self._w: int | Quantity_ = _w
+        self._forced_splits: list[float] | Quantity_ = _forced_splits
+        self.min_fittable_total: int = min_fittable_total
+        self.min_fittable_ratio: float = min_fittable_ratio
+        self.evaluate_initial: int = evaluate_initial
+        self.aggressive: bool = aggressive
+        self.crop: bool = crop
+        self.measure: str = measure
+        self.reverse: bool = reverse
+        self.snr: float | int = snr
+        self.make_copies: bool = make_copies
+        self.adapt_scale: bool = adapt_scale
+        self.scale_init: float = scale_init
+        self.scale_bounds: AstropyBounds = scale_bounds
+
+        # Set by 'update' method
+        self.x_limit: float | None = None
+        self.v_sep: float | None = None
+        self.v_off_bounds: AstropyBounds | None = None
+        self.sigma_v_bounds: AstropyBounds | None = None
+        self.strength_bounds: AstropyBounds | None = None
+        self.w: int | None = None
+        self.forced_splits: list[float] | None = None
 
     def update(self, info) -> None:
         """
@@ -165,11 +175,11 @@ class LinesInfo(_Info):
 
         logger.debug("... finished updating 'LinesInfo' class!")
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

@@ -3,39 +3,46 @@ from typing import ClassVar, Self, Any
 from numpy import finfo
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 from .. import fitting
 
 from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Fitter_, FitterInstance, Fittable1DModel_, \
-    CompoundModel_, FitInfo_
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.astropy import Fitter_, FitterInstance, Model_, FitInfo
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
 logger = getLogger(__name__)
 
 MACHINE_PRECISION = finfo(float).eps
 
-@dataclass
 class NonLinearInfo(_Info):
-    algo: Fitter_ = fitting.TRFLSQFitter
-    loss: str = 'linear'
-
-    maxiter: int = 100
-    ftol: float = 1e-8
-    xtol: float = MACHINE_PRECISION
-    gtol: float = MACHINE_PRECISION
-    f_scale: float = 1
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         'algo', 'loss', 'maxiter', 'ftol', 'xtol', 'gtol', 'f_scale',
         'fitter',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        algo: Fitter_ = fitting.TRFLSQFitter,
+        loss: str = 'linear',
+        maxiter: int = 100,
+        ftol: float = 1e-8,
+        xtol: float = MACHINE_PRECISION,
+        gtol: float = MACHINE_PRECISION,
+        f_scale: float = 1,
+    ):
+        self.algo: Fitter_ = algo
+        self.loss: str = loss
+        self.maxiter: int = maxiter
+        self.ftol: float = ftol
+        self.xtol: float = xtol
+        self.gtol: float = gtol
+        self.f_scale: float = f_scale
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -71,14 +78,13 @@ class NonLinearInfo(_Info):
         algo = self['algo'](calc_uncertainties=True)
         kwargs = self.kwargs
 
-        @validate_call
         def fitter(
-            model: Fittable1DModel_ | CompoundModel_,
+            model: Model_,
             x: FittableFloatVector,
             y: FittableFloatVector,
             dy: FittableFloatVector,
             inplace: bool = False,
-        ) -> tuple[Fittable1DModel_ | CompoundModel_, FitInfo_]:
+        ) -> tuple[Model_, FitInfo]:
             fit = algo(
                 model,
                 x,
@@ -91,11 +97,11 @@ class NonLinearInfo(_Info):
         
         return fitter
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

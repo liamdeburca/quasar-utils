@@ -5,55 +5,20 @@ from astropy.units import Unit, Quantity
 from numpy import arange, stack, array
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.numpy import FittableFloatVector
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
-from quasar_typing.pathlib import Path_, AbsoluteFileLike, AbsoluteFITSPath
+from quasar_typing.pathlib import Path_, AbsoluteFilePath, AbsoluteFITSPath
 
 logger = getLogger(__name__)
 
-@dataclass
 class IronInfo(_Info):
-    windows: list[tuple[float, float]] | None = None
-    _windows: list[list] | Quantity_ = [
-        [2050, 2700],
-        [3000, 3500],
-    ] * Unit('angstrom')
-
-    template_files: list[AbsoluteFITSPath] = [
-        Path('vw_2001.fits'), Path('bev_wills.fits'), Path('vc_2003.fits'),
-    ]
-    resample: bool = True
-    
-    fwhm: FittableFloatVector | None = None
-    _fwhm: list[float] | Quantity_ = \
-        arange(1_000, 20_000+1, 250) * Unit('km/s')
-    
-    flux_bounds: AstropyBounds | None = None
-    _flux_bounds: AstropyBounds | Quantity_ = \
-        [1e-17, 1e-14] * Unit('erg/(s.cm2.angstrom)')
-    
-    split: FittableFloatVector | None = None
-    _split: list[float] | Quantity_ = [0, 0, 0] * Unit('angstrom')
-
-    bias: list[str] = [
-        'right', 'right', 'right',
-    ]
-    ratio: list[float] = [1.0, 1.0, 1.0]
-    fixed: list[bool] = [True, True, True]
-
-    _scale: float | Quantity_ = 140.0
-    scale: float | None = None
-
-    fine_tune: bool = False
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         'windows', '_windows',
         'template_files', 'resample', 'fwhm', '_fwhm', 
@@ -61,6 +26,45 @@ class IronInfo(_Info):
         'bias', 'ratio', 'fixed', '_scale', 'scale', 'fine_tune',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+    
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        _windows: list[list] | Quantity_ = [
+            [2050, 2700],
+            [3000, 3500],
+        ] * Unit('angstrom'),
+        template_files: list[AbsoluteFITSPath] = [
+            Path('vw_2001.fits'), Path('bev_wills.fits'), Path('vc_2003.fits'),
+        ],
+        resample: bool = True,
+        _fwhm: list[float] | Quantity_ = arange(1_000, 20_000+1, 250) * Unit('km/s'),
+        _flux_bounds: AstropyBounds | Quantity_ = [1e-17, 1e-14] * Unit('erg/(s.cm2.angstrom)'),
+        _split: list[float] | Quantity_ = [0, 0, 0] * Unit('angstrom'),
+        bias: list[str] = ['right', 'right', 'right'],
+        ratio: list[float] = [1.0, 1.0, 1.0],
+        fixed: list[bool] = [True, True, True],
+        _scale: float | Quantity_ = 140.0,
+        fine_tune: bool = False,
+    ):
+        self._windows: list[list] | Quantity_ = _windows
+        self.template_files: list[AbsoluteFITSPath] = template_files
+        self.resample: bool = resample
+        self._fwhm: list[float] | Quantity_ = _fwhm
+        self._flux_bounds: AstropyBounds | Quantity_ = _flux_bounds
+        self._split: list[float] | Quantity_ = _split
+        self.bias: list[str] = bias
+        self.ratio: list[float] = ratio
+        self.fixed: list[bool] = fixed
+        self._scale: float | Quantity_ = _scale
+        self.fine_tune: bool = fine_tune
+
+        # Set by 'update' method
+        self.windows: list[tuple[float, float]] | None = None
+        self.fwhm: FittableFloatVector | None = None
+        self.flux_bounds: AstropyBounds | None = None
+        self.split: FittableFloatVector | None = None
+        self.scale: float | None = None
 
     def update(self, info) -> None:
 
@@ -109,11 +113,11 @@ class IronInfo(_Info):
         msg += f"{val_and_type(old)} -> {val_and_type(new)}."
         logger.debug(msg)
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

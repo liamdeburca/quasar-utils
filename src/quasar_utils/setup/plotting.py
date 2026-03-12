@@ -4,7 +4,7 @@ from pydantic import validate_call
 
 from ....utils.utils import _Info
 from ..plotting.colors import pet10
-from ..typing_.paths import AbsoluteFileLike
+from ..typing_.paths import AbsoluteFilePath
 
 logger = getLogger(__name__)
 
@@ -130,7 +130,7 @@ class PlottingInfo(_Info):
 
     @staticmethod
     @validate_call
-    def from_file(path: Optional[AbsoluteFileLike] = None):
+    def from_file(path: Optional[AbsoluteFilePath] = None):
         from matplotlib import rcParams
         from ..plotting import colors
         from ....utils.utils import _get_lines_from_file

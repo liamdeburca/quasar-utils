@@ -1,7 +1,7 @@
 __all__ = ['Info']
 
 from logging import getLogger
-from typing import Iterable, Any, Self
+from typing import Iterable, Any, Self, ClassVar
 
 from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
@@ -9,7 +9,7 @@ from .continuum import ContinuumInfo
 from .error import ErrorInfo
 from .iron import IronInfo
 from .lines import LinesInfo
-from .loading import LoadingInfoß
+from .loading import LoadingInfo
 from .nonlinear import NonLinearInfo
 from .units import UnitsInfo
 
@@ -18,61 +18,97 @@ logger = getLogger(__name__)
 from pydantic import validate_call
 from pydantic_core import PydanticCustomError
 from pydantic_core.core_schema import no_info_plain_validator_function
-from pydantic.dataclasses import dataclass
+
 from quasar_typing.pathlib import AbsoluteFilePath
 
-@dataclass
 class Info:
-    absorption:  AbsorptionInfo
-    balmer:      BalmerInfo
-    continuum:   ContinuumInfo
-    error:       ErrorInfo
-    iron:        IronInfo
-    lines:       LinesInfo
-    loading:     LoadingInfo
-    nonlinear:   NonLinearInfo
-    units:       UnitsInfo
-
-    _keys: frozenset[str] = frozenset([
+    _keys: ClassVar[frozenset[str]] = frozenset([
         'absorption', 'balmer', 'continuum', 'error', 'iron', 'lines', 
         'loading', 'nonlinear', 'units',
     ])
-    
-    @validate_call
-    def __init__(
-        self, 
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ):
-        self.absorption = AbsorptionInfo.from_file.__wrapped__(
-            AbsorptionInfo, path=path, create_copy=create_copy,
-        )
-        self.balmer = BalmerInfo.from_file.__wrapped__(
-            BalmerInfo, path=path, create_copy=create_copy,
-        )
-        self.continuum = ContinuumInfo.from_file.__wrapped__(
-            ContinuumInfo, path=path, create_copy=create_copy,
-        )
-        self.error = ErrorInfo.from_file.__wrapped__(
-            ErrorInfo, path=path, create_copy=create_copy,
-        )
-        self.iron = IronInfo.from_file.__wrapped__(
-            IronInfo, path=path, create_copy=create_copy,
-        )
-        self.lines = LinesInfo.from_file.__wrapped__(
-            LinesInfo, path=path, create_copy=create_copy,
-        )
-        self.loading = LoadingInfo.from_file.__wrapped__(
-            LoadingInfo, path=path, create_copy=create_copy,
-        )
-        self.nonlinear = NonLinearInfo.from_file.__wrapped__(
-            NonLinearInfo, path=path, create_copy=create_copy,
-        )
-        self.units = UnitsInfo.from_file.__wrapped__(
-            UnitsInfo, path=path, create_copy=create_copy,
-        )
 
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        absorption_info: AbsorptionInfo | None = None,
+        balmer_info: BalmerInfo | None = None,
+        continuum_info: ContinuumInfo | None = None,
+        error_info: ErrorInfo | None = None,
+        iron_info: IronInfo | None = None,
+        lines_info: LinesInfo | None = None,
+        loading_info: LoadingInfo | None = None,
+        nonlinear_info: NonLinearInfo | None = None,
+        units_info: UnitsInfo | None = None,
+        *,
+        path: AbsoluteFilePath | None = None,
+        create_copy: bool = True
+    ):
+        """
+        ** PYDANTIC VALIDATED METHOD **
+        """
+        self.absorption: AbsorptionInfo = (
+            AbsorptionInfo.from_file(path=path, create_copy=create_copy)
+            if absorption_info is None \
+            else absorption_info \
+        )
+        self.balmer: BalmerInfo = (
+            BalmerInfo.from_file(path=path, create_copy=create_copy)
+            if balmer_info is None \
+            else balmer_info \
+        )
+        self.continuum: ContinuumInfo = (
+            ContinuumInfo.from_file(path=path, create_copy=create_copy)
+            if continuum_info is None \
+            else continuum_info \
+        )
+        self.error: ErrorInfo = (
+            ErrorInfo.from_file(path=path, create_copy=create_copy)
+            if error_info is None \
+            else error_info \
+        )
+        self.iron: IronInfo = (
+            IronInfo.from_file(path=path, create_copy=create_copy)
+            if iron_info is None \
+            else iron_info \
+        )
+        self.lines: LinesInfo = (
+            LinesInfo.from_file(path=path, create_copy=create_copy)
+            if lines_info is None \
+            else lines_info \
+        )
+        self.loading: LoadingInfo = (
+            LoadingInfo.from_file(path=path, create_copy=create_copy)
+            if loading_info is None \
+            else loading_info \
+        )
+        self.nonlinear: NonLinearInfo = (
+            NonLinearInfo.from_file(path=path, create_copy=create_copy)
+            if nonlinear_info is None \
+            else nonlinear_info \
+        )
+        self.units: UnitsInfo = (
+            UnitsInfo.from_file(path=path, create_copy=create_copy)
+            if units_info is None \
+            else units_info \
+        )
         self.update()
+
+    @classmethod
+    def _validate(cls, value: object) -> Self:
+        if value is None: value = Info()
+
+        if not isinstance(value, Info):
+            msg = f"Expected an Info instance, got {type(value).__name__}"
+            raise PydanticCustomError('validation_error', msg)
+
+        if not value.is_updated:
+            value.update()
+
+        return value
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        return no_info_plain_validator_function(cls._validate)
 
     def __getstate__(self) -> dict:
         state: dict = {'_keys': self._keys}
@@ -117,21 +153,3 @@ class Info:
                 break
 
         return result
-    
-    @classmethod
-    def _validate(cls, value: object) -> Self:
-        if value is None: 
-            value = Info()
-        
-        elif not isinstance(value, Info):
-            msg = "Expected 'Info' or 'None', but got '{}'!".format(type(value))
-            raise PydanticCustomError('validation_error', msg)
-        
-        if not value.is_updated: 
-            value.update()
-
-        return value
-    
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type, handler):
-        return no_info_plain_validator_function(cls._validate)

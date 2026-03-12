@@ -3,47 +3,19 @@ from typing import ClassVar, Self
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import CoordBounds
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
 logger = getLogger(__name__)
 
-@dataclass
 class LoadingInfo(_Info):
-    loader: str = 'fits'
-    x: tuple[int, str, str] = (1, 'ttype1', 'tunit1')
-    y: tuple[int, str, str] = (1, 'ttype2', 'tunit2')
-    dy: tuple[int, str, str] = (1, 'ttype3', 'tunit3')
-    z: float | tuple[int, str] = (0, 'qzc_z')
-
-    name: tuple[int, str] = (0, 'obj_name')
-    ra: tuple[int, str] = (0, 'obj_ra')
-    dec: tuple[int, str] = (0, 'obj_dec')
-
-    plate: str = 'p'
-    fiber: str = 'f'
-    mjd: str = 'mjd'
-
-    naming: str = 'IGR'
-    rebin: bool = True
-    load: bool = True
-    conserve: bool = False
-    covariance: bool = False
-    _sigma_res: float | Quantity_ = 69 * Unit('km/s')
-    _x_bounds: CoordBounds | Quantity_ = \
-        (1000, 3000) * Unit('angstrom')
-    
-    sigma_res: float | None = None
-    x_bounds: CoordBounds | None = None
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         'loader', 'x', 'y', 'dy', 'z',
         'name', 'ra', 'dec',
@@ -53,6 +25,51 @@ class LoadingInfo(_Info):
         'sigma_res', 'x_bounds',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        loader: str = 'fits',
+        x: tuple[int, str, str] = (1, 'ttype1', 'tunit1'),
+        y: tuple[int, str, str] = (1, 'ttype2', 'tunit2'),
+        dy: tuple[int, str, str] = (1, 'ttype3', 'tunit3'),
+        z: float | tuple[int, str] = (0, 'qzc_z'),
+        name: tuple[int, str] = (0, 'obj_name'),
+        ra: tuple[int, str] = (0, 'obj_ra'),
+        dec: tuple[int, str] = (0, 'obj_dec'),
+        plate: str = 'p',
+        fiber: str = 'f',
+        mjd: str = 'mjd',
+        naming: str = 'IGR',
+        rebin: bool = True,
+        load: bool = True,
+        conserve: bool = False,
+        covariance: bool = False,
+        _sigma_res: float | Quantity_ = 69 * Unit('km/s'),
+        _x_bounds: CoordBounds | Quantity_ = (1000, 3000) * Unit('angstrom'),
+        sigma_res: float | None = None,
+        x_bounds: CoordBounds | None = None,
+    ):
+        self.loader: str = loader
+        self.x: tuple[int, str, str] = x
+        self.y: tuple[int, str, str] = y
+        self.dy: tuple[int, str, str] = dy
+        self.z: float | tuple[int, str] = z
+        self.name: tuple[int, str] = name
+        self.ra: tuple[int, str] = ra
+        self.dec: tuple[int, str] = dec
+        self.plate: str = plate
+        self.fiber: str = fiber
+        self.mjd: str = mjd
+        self.naming: str = naming
+        self.rebin: bool = rebin
+        self.load: bool = load
+        self.conserve: bool = conserve
+        self.covariance: bool = covariance
+        self._sigma_res: float | Quantity_ = _sigma_res
+        self._x_bounds: CoordBounds | Quantity_ = _x_bounds
+        self.sigma_res: float | None = sigma_res
+        self.x_bounds: CoordBounds | None = x_bounds
 
     def update(self, info) -> None:
         """
@@ -80,11 +97,11 @@ class LoadingInfo(_Info):
 
         logger.debug("... finished updating 'LoadingInfo' class!")
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

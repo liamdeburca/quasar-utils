@@ -4,36 +4,19 @@ from astropy.units import Unit, Quantity
 from astropy.constants import c, h, k_B
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import check_val
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Unit_, Quantity_, CompositeUnit_
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
 
 logger = getLogger(__name__)
 
-@dataclass
 class UnitsInfo(_Info):
-    wavelength_unit: CompositeUnit_ = Unit('1 angstrom')
-    energy_unit:     CompositeUnit_ = Unit('1e-17 erg')
-    time_unit:       CompositeUnit_ = Unit('1 s')
-    area_unit:       CompositeUnit_ = Unit('1 cm2')
-    temp_unit:       CompositeUnit_ = Unit('1 K')
-    dens_unit:       CompositeUnit_ = Unit('1 cm^-3')
-    c_unit:          CompositeUnit_ = Unit(c)
-    velocity_unit:   CompositeUnit_ = Unit('1 km/s')
-
-    wavelength_format: str = '.3f'
-    velocity_format: str = '.3f'
-    flux_format: str = '.3e'
-    strength_format: str = '.3e'
-    other_format: str = '.3e'
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         'wavelength_unit', 'energy_unit', 'time_unit', 'area_unit', 
         'temp_unit', 'dens_unit','c_unit', 'velocity_unit', 
@@ -42,8 +25,39 @@ class UnitsInfo(_Info):
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
 
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        wavelength_unit: CompositeUnit_ = Unit('1 angstrom'),
+        energy_unit: CompositeUnit_ = Unit('1e-17 erg'),
+        time_unit: CompositeUnit_ = Unit('1 s'),
+        area_unit: CompositeUnit_ = Unit('1 cm2'),
+        temp_unit: CompositeUnit_ = Unit('1 K'),
+        dens_unit: CompositeUnit_ = Unit('1 cm^-3'),
+        c_unit: CompositeUnit_ = Unit(c),
+        velocity_unit: CompositeUnit_ = Unit('1 km/s'),
+        wavelength_format: str = '.3f',
+        velocity_format: str = '.3f',
+        flux_format: str = '.3e',
+        strength_format: str = '.3e',
+        other_format: str = '.3e',
+    ):
+        self.wavelength_unit: CompositeUnit_ = wavelength_unit
+        self.energy_unit: CompositeUnit_ = energy_unit
+        self.time_unit: CompositeUnit_ = time_unit
+        self.area_unit: CompositeUnit_ = area_unit
+        self.temp_unit: CompositeUnit_ = temp_unit
+        self.dens_unit: CompositeUnit_ = dens_unit
+        self.c_unit: CompositeUnit_ = c_unit
+        self.velocity_unit: CompositeUnit_ = velocity_unit
+        self.wavelength_format: str = wavelength_format
+        self.velocity_format: str = velocity_format
+        self.flux_format: str = flux_format
+        self.strength_format: str = strength_format
+        self.other_format: str = other_format
+
     def update(self, info) -> None:
-        logger.debug("Updating 'LinesInfo' class (does nothing).")
+        logger.debug("Updating 'UnitsInfo' class (does nothing).")
     
     def getFluxUnit(self) -> CompositeUnit_:
         return self.getStrengthUnit() / self['wavelength_unit']
@@ -51,11 +65,11 @@ class UnitsInfo(_Info):
     def getStrengthUnit(self) -> CompositeUnit_:
         return self['energy_unit'] / self['time_unit'] / self['area_unit']
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

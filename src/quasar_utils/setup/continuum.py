@@ -3,45 +3,50 @@ from typing import Iterable, ClassVar, Self
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
 logger = getLogger(__name__)
 
-@dataclass
 class ContinuumInfo(_Info):
-    _x0: float | Quantity_ = 1450 * Unit('angstrom')
-    _y0: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)')
-    _windows: Iterable[float] | Quantity_ = [
-        [1425, 1475],
-        [1675, 1690],
-        [1975, 2050],
-        [2150, 2250],
-    ] * Unit('angstrom')
-
-    _flux_bounds: Iterable[float] | Quantity_ = [1e-17, 1e-14] * Unit('erg/(s.cm2.angstrom)')
-
-    sigmas: list[float] = [3.00, 2.75, 2.50]
-    
-    x0: float | None = None
-    y0: float | None = None
-    windows: list[CoordBounds] | None = None
-    flux_bounds: AstropyBounds | None = None
-    alpha_bounds: AstropyBounds = (-5.0, 0.0)
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         '_x0', '_y0', '_windows', '_flux_bounds',
         'sigmas', 'x0', 'y0', 'windows', 'flux_bounds', 'alpha_bounds',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        *,
+        _x0: float | Quantity_ = 1450 * Unit('angstrom'),
+        _y0: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)'),
+        _windows: Iterable[tuple[float, float]] | Quantity_ = [
+            [1425, 1475], [1675, 1690], [1975, 2050], [2150, 2250]
+        ] * Unit('angstrom'),
+        _flux_bounds: Iterable[float] | Quantity_ = [1e-17, 1e-14] * Unit('erg/(s.cm2.angstrom)'),
+        sigmas: list[float] = [3.00, 2.75, 2.50],
+        alpha_bounds: AstropyBounds = (-5.0, 0.0),
+    ):
+        self._x0: float | Quantity_ = _x0
+        self._y0: float | Quantity_ = _y0
+        self._windows: Iterable[tuple[float, float]] | Quantity_ = _windows
+        self._flux_bounds: Iterable[float] | Quantity_ = _flux_bounds
+        self.sigmas: list[float] = sigmas
+        self.alpha_bounds: AstropyBounds = alpha_bounds
+
+        # Set by 'update' method
+        self.x0: float | None = None
+        self.y0: float | None = None
+        self.windows: list[CoordBounds] | None = None
+        self.flux_bounds: AstropyBounds | None = None
 
     def update(self, info) -> None:
         """
@@ -90,11 +95,11 @@ class ContinuumInfo(_Info):
 
         logger.debug("... finished updating 'ContinuumInfo' class!")
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls,
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
 

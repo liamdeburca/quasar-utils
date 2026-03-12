@@ -3,66 +3,19 @@ from typing import Literal, Iterable, ClassVar, Self
 from astropy.units import Quantity, Unit
 
 from pydantic import validate_call
-from pydantic.dataclasses import dataclass
 
-from . import parsing
 from ..utils._info import _Info
 from ..utils.utils import val_and_type
+from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
-from quasar_typing.pathlib import Path_, AbsoluteFileLike
+from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
 logger = getLogger(__name__)
 
-@dataclass
 class BalmerInfo(_Info):
-    source: Literal['SH1995'] = 'SH1995'
-    n_u_min: int = 7  # From QSFit, Calderone et al. (2017)
-    n_u_max: int = 50 # From QSFit, Calderone et al. (2017)
-    _edge: float | Quantity_ = 3646 * Unit('angstrom')
-    _dens: float | Quantity_ = 1e9 * Unit('cm^-3')
-
-    edge: float | None = None
-    dens: float | None = None
-
-    # Initial guesses for fit parameters
-    _flux: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)')
-    _fwhm: float | Quantity_ = 5_000 * Unit('km/s')
-    _temp: float | Quantity_ = 15_000 * Unit('K')
-    tau: float = 1.0
-    scale: float = 3.0
-    ratio: float = 0.3 # From QSFit, Calderone et al.
-
-    flux: float | None = None
-    fwhm: float | None = None
-    temp: float | None = None
-
-    # Bounds on fit parameters
-    _flux_bounds: Iterable[float] | Quantity_ = [1e-18, 1e-15] * Unit('erg/(s.cm2.angstrom)')
-    _fwhm_bounds: Iterable[float] | Quantity_ = [1000, 20_000] * Unit('km/s')
-    _temp_bounds: Iterable[float] | Quantity_ = [5_000, 30_000] * Unit('K')
-    
-    flux_bounds: AstropyBounds | None = None
-    fwhm_bounds: AstropyBounds | None = None
-    temp_bounds: AstropyBounds | None = None
-
-    tau_bounds:   AstropyBounds = (0.1, 10.0)
-    scale_bounds: AstropyBounds = (1.0, 10.0)
-    ratio_bounds: AstropyBounds = (0.5, 2.0)
-
-    # Which parameters to fix
-    _fixed: set[str] = {'temp', 'tau', 'scale', 'ratio'}
-    fixed: dict[str, bool] | None = None
-
-    # Raster-fit resolution
-    raster_n: int = 20
-    
-    # Minimum requirements for fitting blue/red sides
-    min_fittable_ratio: float = 0.6
-    min_fittable_total: int   = 100
-
     _keys: ClassVar[frozenset[str]] = frozenset([
         'source', 'n_u_min', 'n_u_max', '_edge', '_dens',
         'edge', 'dens',
@@ -76,6 +29,69 @@ class BalmerInfo(_Info):
         'min_fittable_ratio', 'min_fittable_total',
     ])
     _cache: ClassVar[dict[Path_, Self]] = {}
+
+    @validate_call(validate_return=False)
+    def __init__(
+        self,
+        *,
+        source: Literal['SH1995'] = 'SH1995',
+        n_u_min: int = 7,
+        n_u_max: int = 50,
+        _edge: float | Quantity_ = 3646 * Unit('angstrom'),
+        _dens: float | Quantity_ = 1e9 * Unit('cm^-3'),
+        _flux: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)'),
+        _fwhm: float | Quantity_ = 5_000 * Unit('km/s'),
+        _temp: float | Quantity_ = 15_000 * Unit('K'),
+        tau: float = 1.0,
+        scale: float = 3.0,
+        ratio: float = 0.3,
+        _flux_bounds: Iterable[float] | Quantity_ = [1e-18, 1e-15] * Unit('erg/(s.cm2.angstrom)'),
+        _fwhm_bounds: Iterable[float] | Quantity_ = [1000, 20_000] * Unit('km/s'),
+        _temp_bounds: Iterable[float] | Quantity_ = [5_000, 30_000] * Unit('K'),
+        tau_bounds: AstropyBounds = (0.1, 10.0),
+        scale_bounds: AstropyBounds = (1.0, 10.0),
+        ratio_bounds: AstropyBounds = (0.5, 2.0),
+        _fixed: set[str] = {'temp', 'tau', 'scale', 'ratio'},
+        raster_n: int = 20,
+        min_fittable_ratio: float = 0.6,
+        min_fittable_total: int = 100,
+    ):
+        self.source: Literal['SH1995'] = source
+        self.n_u_min: int = n_u_min
+        self.n_u_max: int = n_u_max
+        self._edge: float | Quantity_ = _edge
+        self._dens: float | Quantity_ = _dens
+
+        self._flux: float | Quantity_ = _flux
+        self._fwhm: float | Quantity_ = _fwhm
+        self._temp: float | Quantity_ = _temp
+        self.tau: float = tau
+        self.scale: float = scale
+        self.ratio: float = ratio
+
+        self._flux_bounds: Iterable[float] | Quantity_ = _flux_bounds
+        self._fwhm_bounds: Iterable[float] | Quantity_ = _fwhm_bounds
+        self._temp_bounds: Iterable[float] | Quantity_ = _temp_bounds
+
+        self.tau_bounds: AstropyBounds = tau_bounds
+        self.scale_bounds: AstropyBounds = scale_bounds
+        self.ratio_bounds: AstropyBounds = ratio_bounds
+        self._fixed: set[str] = _fixed
+
+        self.raster_n: int = raster_n
+        self.min_fittable_ratio: float = min_fittable_ratio
+        self.min_fittable_total: int = min_fittable_total
+
+        # Set by 'update' method
+        self.edge: float | None = None
+        self.dens: float | None = None
+        self.flux: float | None = None
+        self.fwhm: float | None = None
+        self.temp: float | None = None
+        self.flux_bounds: AstropyBounds | None = None
+        self.fwhm_bounds: AstropyBounds | None = None
+        self.temp_bounds: AstropyBounds | None = None
+        self.fixed: dict[str, bool] | None = None
 
     def update(self, info) -> None:
         """
@@ -179,11 +195,11 @@ class BalmerInfo(_Info):
  
         logger.debug("... finished updating 'BalmerInfo' class.")
 
-    @validate_call
     @classmethod
+    @validate_call(validate_return=False)
     def from_file(
         cls, 
-        path: AbsoluteFileLike | None = None,
+        path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
         
