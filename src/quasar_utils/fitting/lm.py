@@ -6,7 +6,7 @@ from .baseclasses import _BaseClass, DEFAULT_MAXITER, DEFAULT_FTOL, \
     DEFAULT_XTOL, DEFAULT_GTOL, DEFAULT_EPS
 
 from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Fittable1DModel_, CompoundModel_
+from quasar_typing.astropy import Model_
 
 class LMLSQFitter(_BaseClass):
     """
@@ -31,7 +31,7 @@ class LMLSQFitter(_BaseClass):
     @fitter_unit_support
     def __call__(
         self,
-        model: Fittable1DModel_ | CompoundModel_,
+        model: Model_,
         x: FittableFloatVector,
         y: FittableFloatVector,
         z: FittableFloatVector = None,
@@ -48,7 +48,7 @@ class LMLSQFitter(_BaseClass):
         inplace: bool = False,
         warn_me: bool = False,
         verbose: bool = False,
-    ):
+    ) -> Model_:
         # Since there are several fitters with proper support for bounds, it
         # is not a good idea to keep supporting the hacky bounds algorithm
         # from LevMarLSQFitter here, and better to communicate with users

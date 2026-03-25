@@ -28,7 +28,7 @@ DEFAULT_GTOL: float = PRECISION
 DEFAULT_EPS: float = float64(1.4901161193847656e-08)
 
 from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Fittable1DModel_, CompoundModel_
+from quasar_typing.astropy import Model_
 
 class _NonLinearLSQFitter(_NonLinearLSQFitter):
     """
@@ -52,7 +52,7 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
     @fitter_unit_support
     def __call__(
         self,
-        model: Fittable1DModel_ | CompoundModel_,
+        model: Model_,
         x: FittableFloatVector,
         y: FittableFloatVector,
         z: FittableFloatVector = None,
@@ -70,7 +70,7 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
         inplace: bool = False,
         warn_me: bool = False,
         verbose: bool = False,
-    ) -> Fittable1DModel_ | CompoundModel_:
+    ) -> Model_:
         """
         Fit data to this model.
 
