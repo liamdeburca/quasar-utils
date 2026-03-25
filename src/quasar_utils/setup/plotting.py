@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Optional, Any
+from typing import Optional, Any, Self
 from pydantic import validate_call
 
 from ....utils.utils import _Info
@@ -141,7 +141,7 @@ class PlottingInfo(_Info):
             return pinfo
 
         logger.debug(f"Configuring 'PlottingInfo' using '{path}'.")  
-        lines = _get_lines_from_file.__wrapped__(logger, 'PLOTTING', path)      
+        lines = _get_lines_from_file.__wrapped__('PLOTTING', path, logger)      
 
         for count, line in enumerate(lines, start=1):
             key = line[0].lower()
@@ -174,3 +174,12 @@ class PlottingInfo(_Info):
         pinfo.update_from_self()
 
         return pinfo
+
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "plotting", logger)

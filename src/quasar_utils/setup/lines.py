@@ -1,11 +1,18 @@
 from logging import getLogger
+
+from quasar_utils.setup.absorption import AbsorptionInfo
+logger = getLogger("quasar_utils.setup.lines")
+
 from typing import ClassVar, Self
+from json import load as load_json
+from pathlib import Path
 from numpy import array
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
+from .utils.json_field import JSONField
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
@@ -14,7 +21,6 @@ from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
 from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
-logger = getLogger(__name__)
 
 def _replace_nan_with_none(bounds: tuple):
     from numpy import isfinite
@@ -49,7 +55,16 @@ class LinesInfo(_Info):
         'scale_init',
         'scale_bounds',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'x_limit': "to_wavelength",
+        'v_sep': "to_velocity",
+        'v_off_bounds': "to_velocity_bounds",
+        'sigma_v_bounds': "to_velocity_bounds",
+        'strength_bounds': "to_flux_bounds",
+        'w': "to_n_pixels",
+        'forced_splits': "to_wavelength_list",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
@@ -107,6 +122,8 @@ class LinesInfo(_Info):
         """
         Converts parameters with units into their dimensionless equivalents.
         """
+        super().update(info, logger)
+        return
         logger.debug("Updating 'LinesInfo' class:")
 
         # Convert velocities to no. of pixels
@@ -183,10 +200,10 @@ class LinesInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'LinesInfo' for '{path}'.")
             
-            linfo = cls._cache[path]
+            linfo = cls._cache[str(path)]
             if create_copy: return linfo.copy()
             else:           return linfo
 
@@ -195,7 +212,7 @@ class LinesInfo(_Info):
             return linfo
 
         logger.debug(f"Configuring 'LinesInfo' using '{path}'.")        
-        lines = get_lines_from_file.__wrapped__(logger, 'LINES', path)
+        lines = get_lines_from_file.__wrapped__('LINES', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key = line[0].lower()
@@ -239,6 +256,15 @@ class LinesInfo(_Info):
                 f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
             )
 
-        cls._cache[path] = linfo
+        cls._cache[str(path)] = linfo
                         
         return linfo
+    
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "lines", logger)

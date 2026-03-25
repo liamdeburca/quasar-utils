@@ -1,25 +1,29 @@
 from logging import getLogger
+logger = getLogger("quasar_utils.setup.absorption")
+
 from typing import Self, ClassVar
-from astropy.units import Quantity
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
+from quasar_typing.pathlib import AbsoluteFilePath
 
-logger = getLogger(__name__)
 
 class AbsorptionInfo(_Info):
     _keys: ClassVar[frozenset[str]] = frozenset([
         '_w', 'p', 'p_crit', 'z_crit', '_join', 'refine', 'logspace',
         'w', 'join',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'w': "to_n_pixels", 
+        'join': "to_n_pixels",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
@@ -49,29 +53,7 @@ class AbsorptionInfo(_Info):
         """
         Converts parameters with units into their dimensionless equivalents. 
         """
-        sigma_res: float = info.loading['sigma_res']
-
-        logger.debug("Updating 'AbsorptionInfo' class:")
-
-        msg = ">>> [1/2] 'w': "
-        if isinstance(old := self['_w'], Quantity):
-            self['w'] = new = info.units.getC(old) // sigma_res
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['w'] = int(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-    
-        msg = ">>> [2/2] 'join': "
-        if isinstance(old := self['_join'], Quantity):
-            self['join'] = new = info.units.getC(old) // sigma_res
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['join'] = int(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        logger.debug("... finished updating 'AbsorptionInfo' class!")
+        super().update(info, logger)
         
     @classmethod
     @validate_call(validate_return=False)
@@ -81,10 +63,10 @@ class AbsorptionInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'AbsorptionInfo' for '{path}'.")
             
-            ainfo = cls._cache[path]
+            ainfo = cls._cache[str(path)]
             if create_copy: return ainfo.copy()
             else:           return ainfo
 
@@ -92,7 +74,7 @@ class AbsorptionInfo(_Info):
         if path is None: return ainfo
         
         logger.debug(f"Configuring 'AbsorptionInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__(logger, 'ABSORPTION', path)
+        lines = get_lines_from_file.__wrapped__('ABSORPTION', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key = line[0].lower()
@@ -113,6 +95,15 @@ class AbsorptionInfo(_Info):
                 f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
             )
 
-        cls._cache[path] = ainfo
+        AbsorptionInfo._cache[str(path)] = ainfo
 
         return ainfo
+    
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "absorption", logger)

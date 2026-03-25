@@ -1,10 +1,15 @@
 from logging import getLogger
-from typing import ClassVar, Self
+logger = getLogger("quasar_utils.setup.loading")
+
+from typing import ClassVar, Self, Literal
+from json import load as load_json
+from pathlib import Path
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
+from .utils.json_field import JSONField
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
@@ -13,34 +18,26 @@ from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import CoordBounds
 from quasar_typing.pathlib import Path_, AbsoluteFilePath
 
-logger = getLogger(__name__)
 
 class LoadingInfo(_Info):
     _keys: ClassVar[frozenset[str]] = frozenset([
-        'loader', 'x', 'y', 'dy', 'z',
-        'name', 'ra', 'dec',
-        'plate', 'fiber', 'mjd',
-        'naming', 'rebin', 'load', 'conserve', 'covariance', 
+        'loader',
+        'naming', 'deredden', 'rebin', 'load', 'conserve', 'covariance', 
         '_sigma_res', '_x_bounds',
         'sigma_res', 'x_bounds',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'sigma_res': "to_velocity", 
+        'x_bounds': "to_wavelength_bounds",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
         self,
         loader: str = 'fits',
-        x: tuple[int, str, str] = (1, 'ttype1', 'tunit1'),
-        y: tuple[int, str, str] = (1, 'ttype2', 'tunit2'),
-        dy: tuple[int, str, str] = (1, 'ttype3', 'tunit3'),
-        z: float | tuple[int, str] = (0, 'qzc_z'),
-        name: tuple[int, str] = (0, 'obj_name'),
-        ra: tuple[int, str] = (0, 'obj_ra'),
-        dec: tuple[int, str] = (0, 'obj_dec'),
-        plate: str = 'p',
-        fiber: str = 'f',
-        mjd: str = 'mjd',
         naming: str = 'IGR',
+        deredden: tuple[bool, Literal['sfd', 'csfd'] | None, Literal['ccm89', 'o94'] | None] = (True, 'sfd', 'ccm89'),
         rebin: bool = True,
         load: bool = True,
         conserve: bool = False,
@@ -51,17 +48,8 @@ class LoadingInfo(_Info):
         x_bounds: CoordBounds | None = None,
     ):
         self.loader: str = loader
-        self.x: tuple[int, str, str] = x
-        self.y: tuple[int, str, str] = y
-        self.dy: tuple[int, str, str] = dy
-        self.z: float | tuple[int, str] = z
-        self.name: tuple[int, str] = name
-        self.ra: tuple[int, str] = ra
-        self.dec: tuple[int, str] = dec
-        self.plate: str = plate
-        self.fiber: str = fiber
-        self.mjd: str = mjd
         self.naming: str = naming
+        self.deredden: tuple[bool, Literal['sfd', 'csfd'] | None, Literal['ccm89', 'o94'] | None] = deredden
         self.rebin: bool = rebin
         self.load: bool = load
         self.conserve: bool = conserve
@@ -76,6 +64,8 @@ class LoadingInfo(_Info):
         Calculate and assign the dimensionless velocity resolution, sigma_res,
         and the dimensionless rest-wavelength bounds, x_bounds.
         """
+        super().update(info, logger)
+        return 
         logger.debug("Updating 'LoadingInfo' class:")
 
         # Calculate velocity resolution (in units of the speed of light)
@@ -105,10 +95,10 @@ class LoadingInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'LoadingInfo' for '{path}'.")
             
-            linfo = cls._cache[path]
+            linfo = cls._cache[str(path)]
             if create_copy: return linfo.copy()
             else:           return linfo
 
@@ -117,7 +107,7 @@ class LoadingInfo(_Info):
             return linfo
 
         logger.debug(f"Configuring 'LoadingInfo' using '{path}'.")        
-        lines = get_lines_from_file.__wrapped__(logger, 'LOADING', path)
+        lines = get_lines_from_file.__wrapped__('LOADING', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key: str = line[0].lower()
@@ -126,7 +116,10 @@ class LoadingInfo(_Info):
                 case 'z':
                     val = parsing.as_loading_z(line[1:])
 
-                case 'name' | 'ra' | 'dec' | 'x' | 'y' | 'dy':
+                case 'name' | 'ra' | 'dec':
+                    val = parsing.as_loading_tuple(line[1:])
+                
+                case 'x' | 'y' | 'dy':
                     val = tuple(line[1:])
 
                 case 'naming':
@@ -151,6 +144,15 @@ class LoadingInfo(_Info):
                 f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
             )
 
-        cls._cache[path] = linfo
+        cls._cache[str(path)] = linfo
 
         return linfo
+    
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "loading", logger)

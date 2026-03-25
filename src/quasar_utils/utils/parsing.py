@@ -190,8 +190,7 @@ def as_pairs_of_floats_or_quantity(l: list[str]) -> Union[list, Quantity]:
 ### SPECIAL CASES
 
 def as_loading_z(l: list[str]) -> Union[float, tuple]:
-    if len(l) == 1: return as_float(l[0])
-    else:           return tuple(*l)
+    return as_float(l[0]) if len(l) == 1 else as_loading_tuple(l)
 
 def as_loading_tuple(l: list[str]) -> tuple:
     return (as_int(l[0]), *l[1:])

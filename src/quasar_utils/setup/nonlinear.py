@@ -1,34 +1,38 @@
 from logging import getLogger
-from typing import ClassVar, Self, Any
+logger = getLogger(__name__)
+
+from typing import ClassVar, Self, Any, Literal
 from numpy import finfo
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
-from .. import fitting
+from ..fitting import TRFLSQFitter, DogBoxLSQFitter, LMLSQFitter
 
 from quasar_typing.numpy import FittableFloatVector
 from quasar_typing.astropy import Fitter_, FitterInstance, Model_, FitInfo
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
+from quasar_typing.pathlib import AbsoluteFilePath
 
-logger = getLogger(__name__)
 
 MACHINE_PRECISION = finfo(float).eps
 
 class NonLinearInfo(_Info):
     _keys: ClassVar[frozenset[str]] = frozenset([
-        'algo', 'loss', 'maxiter', 'ftol', 'xtol', 'gtol', 'f_scale',
+        '_algo', 'algo', 'loss', 'maxiter', 'ftol', 'xtol', 'gtol', 'f_scale',
         'fitter',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'algo': "to_algo",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
         self,
-        algo: Fitter_ = fitting.TRFLSQFitter,
+        _algo: Literal['trf', 'dogbox', 'lm'] | None = 'trf',
         loss: str = 'linear',
         maxiter: int = 100,
         ftol: float = 1e-8,
@@ -36,13 +40,15 @@ class NonLinearInfo(_Info):
         gtol: float = MACHINE_PRECISION,
         f_scale: float = 1,
     ):
-        self.algo: Fitter_ = algo
+        self._algo: Literal['trf', 'dogbox', 'lm'] = _algo
         self.loss: str = loss
         self.maxiter: int = maxiter
         self.ftol: float = ftol
         self.xtol: float = xtol
         self.gtol: float = gtol
         self.f_scale: float = f_scale
+
+        self.algo: Fitter_ | None = None
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -60,7 +66,7 @@ class NonLinearInfo(_Info):
         else:               return super().__getitem__(key)
 
     def update(self, info) -> None:
-        logger.debug("Updating 'NonLinearInfo' class (does nothing):")
+        super().update(info, logger)
 
     @property
     def kwargs(self) -> dict[str, float | int | str]:
@@ -105,10 +111,10 @@ class NonLinearInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'NonLinearInfo' for '{path}'.")
             
-            ninfo = cls._cache[path]
+            ninfo = cls._cache[str(path)]
             if create_copy: return ninfo.copy()
             else:           return ninfo
 
@@ -117,14 +123,15 @@ class NonLinearInfo(_Info):
             return ninfo
 
         logger.debug(f"Configuring 'NonLinearInfo' using '{path}':")        
-        lines = get_lines_from_file.__wrapped__(logger, 'NONLINEAR', path)
+        lines = get_lines_from_file.__wrapped__('NONLINEAR', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key = line[0].lower()
 
             match key:
                 case 'algo':
-                    val = getattr(fitting, line[1])
+                    key = "_" + key
+                    val = parsing.as_str(line[1])
                 case 'loss':
                     val = line[1]
                 case 'maxiter':
@@ -137,6 +144,15 @@ class NonLinearInfo(_Info):
                 f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
             )
 
-        cls._cache[path] = ninfo
+        cls._cache[str(path)] = ninfo
 
         return ninfo
+    
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "nonlinear", logger)

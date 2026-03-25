@@ -1,18 +1,18 @@
 from logging import getLogger
-from typing import Literal, ClassVar, Self
+from typing import ClassVar, Self
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
-from quasar_typing.misc.literals import Scale, Variant, BootstrapType, \
-    FWHMStrategy, OutMeasures, OutWaves, VaryLines
+from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.misc.literals import Method, Scale, Variant, BootstrapType, \
+    FWHMStrategy, OutMeasures, OutLines, VaryLines
 
 logger = getLogger(__name__)
 
@@ -22,17 +22,21 @@ class ErrorInfo(_Info):
         'bootstrap_type', 
         'iterations', 'random_state', 'renew_rng', 'n_sigmas',
         'res', 'render_width', 'fwhm_strategy', 'exact', 
-        '_v_int', 'ipv_int', '_dx_int', '_vary_lines',
-        '_out_waves', 'out_measures', 'percentiles', 
+        '_v_int', 'ipv_int', '_dx_int',
+        'vary_lines', 'out_lines', 'out_measures', 'percentiles', 
         'tqdm_disable', 'tqdm_leave',
-        'v_int', 'dx_int', 'vary_lines', 'out_waves',
+        'v_int', 'dx_int',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'v_int': "to_velocity",
+        'dx_int': "to_wavelength",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
         self,
-        method: Literal['bootstrap'] = 'bootstrap',
+        method: Method = 'bootstrap',
         remodel: bool = False,
         replace_missing: bool = True,
         scale: Scale = 'global',
@@ -42,21 +46,21 @@ class ErrorInfo(_Info):
         iterations: int = 100,
         random_state: int = 42,
         renew_rng: bool = True,
-        n_sigmas: float | int = 2,
+        n_sigmas: float = 2.0,
         res: int = 1000,
         render_width: float | int = 5,
         exact: bool = True,
         _v_int: float | Quantity_ = 18_000 * Unit('km/s'),
-        ipv_int: float | int = 0,
+        ipv_int: float = 0,
         _dx_int: float | Quantity_ = 50 * Unit('angstrom'),
-        _vary_lines: set[Literal['all'] | Quantity_] = {'all'},
-        _out_waves: set[Literal['all'] | Quantity_] = {'all'},
-        out_measures: OutMeasures | None = None,
-        percentiles: set[int] | None = None,
+        vary_lines: VaryLines = frozenset({'all'}),
+        out_lines: OutLines = frozenset({'all'}),
+        out_measures: OutMeasures = frozenset({'all'}),
+        percentiles: set[int] | None = {5, 50, 95},
         tqdm_disable: bool = False,
         tqdm_leave: bool = False,
     ):
-        self.method: Literal['bootstrap'] = method
+        self.method: Method = method
         self.remodel: bool = remodel
         self.replace_missing: bool = replace_missing
         self.scale: Scale = scale
@@ -66,16 +70,16 @@ class ErrorInfo(_Info):
         self.iterations: int = iterations
         self.random_state: int = random_state
         self.renew_rng: bool = renew_rng
-        self.n_sigmas: float | int = n_sigmas
+        self.n_sigmas: float = n_sigmas
         self.res: int = res
         self.render_width: float | int = render_width
         self.exact: bool = exact
         self._v_int: float | Quantity_ = _v_int
-        self.ipv_int: float | int = ipv_int
+        self.ipv_int: float = ipv_int
         self._dx_int: float | Quantity_ = _dx_int
-        self._vary_lines: set[Literal['all'] | Quantity_] = _vary_lines
-        self._out_waves: set[Literal['all'] | Quantity_] = _out_waves
-        self.out_measures: OutMeasures | None = out_measures
+        self.vary_lines: VaryLines = vary_lines
+        self.out_lines: OutLines = out_lines
+        self.out_measures: OutMeasures = out_measures
         self.percentiles: set[int] | None = percentiles
         self.tqdm_disable: bool = tqdm_disable
         self.tqdm_leave: bool = tqdm_leave
@@ -83,10 +87,10 @@ class ErrorInfo(_Info):
         # Set by 'update' method
         self.v_int: float | None = None
         self.dx_int: float | None = None
-        self.vary_lines: VaryLines | None = None
-        self.out_waves: OutWaves | None = None
 
     def update(self, info) -> None:
+        super().update(info, logger)
+        return 
         logger.debug("Updating 'ErrorInfo' class...")
 
         # Calculate dimensionless quantities
@@ -111,40 +115,31 @@ class ErrorInfo(_Info):
         msg = ">>> [3/4] 'out_waves': "
         old = self['_out_waves']
         self['out_waves'] = set()
-        if 'all' in old:
-            self['out_waves'].add('all')
-            msg += "all except "
-
-        for val in old:
-            if val in self['out_waves']:
-                continue
-
-            self['out_waves'].add(
-                info.units.getWavelength(val) \
-                if isinstance(val, Quantity) \
-                else float(val)
-            )
-        msg += f"{list(self['out_waves'])[1:]}."
+        for val in self['_out_waves']:
+            if val == 'all':
+                self['out_waves'].add('all')
+            else:
+                self['out_waves'].add(
+                    info.units.getWavelength(val) \
+                    if isinstance(val, Quantity) \
+                    else float(val)
+                )
+        msg += f"{self['out_waves']}."
         logger.debug(msg)
 
         msg = ">>> [4/4] 'vary_lines': "
-        old = self['_vary_lines']
         self['vary_lines'] = set()
-        if 'all' in old:
-            old.remove('all')
-            self['vary_lines'].add('all')
-            msg += "all except "
+        for val in self['_vary_lines']:
+            if val == 'all':
+                self['vary_lines'].add('all')
+            else:
+                self['vary_lines'].add(
+                    info.units.getWavelength(val) \
+                    if isinstance(val, Quantity) \
+                    else float(val)
+                )
 
-        for val in old:
-            if val in self['vary_lines']:
-                continue
-            
-            self['vary_lines'].add(
-                info.units.getWavelength(val) \
-                if isinstance(val, Quantity) \
-                else float(val)
-            )
-        msg += f"{list(self['vary_lines'])[1:]}."
+        msg += f"{self['vary_lines']}."
         logger.debug(msg)
 
         logger.debug("... finished updating 'ErrorInfo' class!")
@@ -169,7 +164,7 @@ class ErrorInfo(_Info):
             return einfo
         
         logger.debug(f"Configuring 'ErrorInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__(logger, 'ERROR', path)
+        lines = get_lines_from_file.__wrapped__('ERROR', path, logger)
 
         for count, line in enumerate(lines, start=1):
             prefix = ''
@@ -218,3 +213,12 @@ class ErrorInfo(_Info):
         cls._cache[path] = einfo
 
         return einfo
+
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "error", logger)

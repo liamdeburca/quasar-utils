@@ -2,6 +2,10 @@ __all__ = ['Info']
 
 from logging import getLogger
 from typing import Iterable, Any, Self, ClassVar
+from json import load as load_json
+from numpy import array, float64
+from numpy.typing import NDArray
+from astropy.units import Quantity
 
 from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
@@ -12,6 +16,7 @@ from .lines import LinesInfo
 from .loading import LoadingInfo
 from .nonlinear import NonLinearInfo
 from .units import UnitsInfo
+from ..fitting import TRFLSQFitter, DogBoxLSQFitter, LMLSQFitter
 
 logger = getLogger(__name__)
 
@@ -30,6 +35,7 @@ class Info:
     @validate_call(validate_return=False)
     def __init__(
         self,
+        *,
         absorption_info: AbsorptionInfo | None = None,
         balmer_info: BalmerInfo | None = None,
         continuum_info: ContinuumInfo | None = None,
@@ -39,59 +45,111 @@ class Info:
         loading_info: LoadingInfo | None = None,
         nonlinear_info: NonLinearInfo | None = None,
         units_info: UnitsInfo | None = None,
-        *,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True
     ):
         """
         ** PYDANTIC VALIDATED METHOD **
         """
         self.absorption: AbsorptionInfo = (
-            AbsorptionInfo.from_file(path=path, create_copy=create_copy)
-            if absorption_info is None \
-            else absorption_info \
+            absorption_info
+            if absorption_info is not None else
+            AbsorptionInfo()
         )
         self.balmer: BalmerInfo = (
-            BalmerInfo.from_file(path=path, create_copy=create_copy)
-            if balmer_info is None \
-            else balmer_info \
+            balmer_info
+            if balmer_info is not None else
+            BalmerInfo()
         )
         self.continuum: ContinuumInfo = (
-            ContinuumInfo.from_file(path=path, create_copy=create_copy)
-            if continuum_info is None \
-            else continuum_info \
+            continuum_info
+            if continuum_info is not None else
+            ContinuumInfo()
         )
         self.error: ErrorInfo = (
-            ErrorInfo.from_file(path=path, create_copy=create_copy)
-            if error_info is None \
-            else error_info \
+            error_info
+            if error_info is not None else
+            ErrorInfo()
         )
         self.iron: IronInfo = (
-            IronInfo.from_file(path=path, create_copy=create_copy)
-            if iron_info is None \
-            else iron_info \
+            iron_info
+            if iron_info is not None else
+            IronInfo()
         )
         self.lines: LinesInfo = (
-            LinesInfo.from_file(path=path, create_copy=create_copy)
-            if lines_info is None \
-            else lines_info \
+            lines_info
+            if lines_info is not None else
+            LinesInfo()
         )
         self.loading: LoadingInfo = (
-            LoadingInfo.from_file(path=path, create_copy=create_copy)
-            if loading_info is None \
-            else loading_info \
+            loading_info
+            if loading_info is not None else
+            LoadingInfo()
         )
         self.nonlinear: NonLinearInfo = (
-            NonLinearInfo.from_file(path=path, create_copy=create_copy)
-            if nonlinear_info is None \
-            else nonlinear_info \
+            nonlinear_info
+            if nonlinear_info is not None else
+            NonLinearInfo()
         )
         self.units: UnitsInfo = (
-            UnitsInfo.from_file(path=path, create_copy=create_copy)
-            if units_info is None \
-            else units_info \
+            units_info
+            if units_info is not None else
+            UnitsInfo()
         )
         self.update()
+
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_file(
+        cls, 
+        path: AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        if path is None: 
+            return Info()
+
+        kwargs = {'path': path, 'create_copy': create_copy}
+        inner = lambda cls: cls.from_file.__wrapped__(cls, **kwargs)
+
+        return Info(
+            absorption_info=inner(AbsorptionInfo),
+            balmer_info=inner(BalmerInfo),
+            continuum_info=inner(ContinuumInfo),
+            error_info=inner(ErrorInfo),
+            iron_info=inner(IronInfo),
+            lines_info=inner(LinesInfo),
+            loading_info=inner(LoadingInfo),
+            nonlinear_info=inner(NonLinearInfo),
+            units_info=inner(UnitsInfo),
+        )
+    
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        
+        if json is None:
+            return Info()
+        
+        if not isinstance(json, dict):
+            with open(json, 'r') as f:
+                json = load_json(f)
+
+        kwargs = {'json': json, 'create_copy': create_copy}
+        inner = lambda cls: cls.from_json.__wrapped__(cls, **kwargs)
+        
+        return Info(
+            absorption_info=inner(AbsorptionInfo),
+            balmer_info=inner(BalmerInfo),
+            continuum_info=inner(ContinuumInfo),
+            error_info=inner(ErrorInfo),
+            iron_info=inner(IronInfo),
+            lines_info=inner(LinesInfo),
+            loading_info=inner(LoadingInfo),
+            nonlinear_info=inner(NonLinearInfo),
+            units_info=inner(UnitsInfo),
+        )
 
     @classmethod
     def _validate(cls, value: object) -> Self:
@@ -152,4 +210,118 @@ class Info:
                 result = subinfo[key]
                 break
 
+        return result
+    
+    def update_value(
+        self,
+        value: Any,
+        conversion_name: str,
+    ) -> Any:
+        
+        uinfo = self.units
+        
+        match conversion_name:
+            case "to_n_pixels":
+                result: int = (
+                    int(uinfo.getC(value) / self.loading['sigma_res'])
+                    if isinstance(value, Quantity) else 
+                    int(value)
+                )
+            case "to_wavelength":
+                result: float = (
+                    uinfo.getWavelength(value) 
+                    if isinstance(value, Quantity) else 
+                    float(value)
+                )
+            case "to_wavelength_bounds":
+                result: tuple[float | None, float | None] = (
+                    None if b is None else self.update_value(b, "to_wavelength")
+                    for b in value
+                )
+            case "to_wavelength_list":
+                result: list[float] = [
+                    self.update_value(v, "to_wavelength") for v in value
+                ]
+            case "to_wavelength_array":
+                result: NDArray[float64] = (
+                    uinfo.getWavelength(value)
+                    if isinstance(value, Quantity) else
+                    array(value, dtype=float64)
+                )
+            case "to_wavelength_windows":
+                result: list[tuple[float | None, float | None]] = list(map(
+                    tuple, 
+                    uinfo.getWavelength(value) if isinstance(value, Quantity) else value
+                ))
+            case "to_density":
+                result: float = (
+                    uinfo.getDensity(value)
+                    if isinstance(value, Quantity) else 
+                    float(value)
+                )
+            case "to_temperature":
+                result: float = (
+                    uinfo.getTemperature(value)
+                    if isinstance(value, Quantity) else
+                    float(value)
+                )
+            case "to_temperature_bounds":
+                result: tuple[float | None, float | None] = (
+                    None if b is None else self.update_value(b, "to_temperature")
+                    for b in value
+                )
+            case "to_flux":
+                result: float = (
+                    uinfo.getFlux(value)
+                    if isinstance(value, Quantity) else 
+                    float(value)
+                )
+            case "to_flux_bounds":
+                result: tuple[float | None, float | None] = (
+                    None if b is None else self.update_value(b, "to_flux")
+                    for b in value
+                )
+            case "to_strength":
+                result: float = (
+                    uinfo.getStrength(value)
+                    if isinstance(value, Quantity) else 
+                    float(value)
+                )
+            case "to_strength_bounds":
+                result: tuple[float | None, float | None] = (
+                    None if b is None else self.update_value(b, "to_strength")
+                    for b in value
+                )
+            case "to_velocity":
+                if not isinstance(value, Quantity):
+                    value *= uinfo["velocity_unit"]
+                result: float = uinfo.getC(value)
+
+            case "to_velocity_bounds":
+                result: tuple[float | None, float | None] = (
+                    None if b is None else self.update_value(b, "to_velocity")
+                    for b in value
+                )
+            case "to_scale":
+                result: float = self.update_value(value, "to_velocity") \
+                    / self.loading['sigma_res']
+            case "to_scale_list":
+                result: list[float] = [
+                    self.update_value(v, "to_scale") 
+                    for v in value
+                ]
+            case "to_fixed":
+                result: dict[str, bool] = {
+                    'fwhm': 'fwhm' in value,
+                    'temp': 'temp' in value,
+                    'tau': 'tau' in value,
+                    'scale': 'scale' in value,
+                    'ratio': 'ratio' in value,
+                }
+            case "to_algo":
+                match value:
+                    case "trf": result = TRFLSQFitter
+                    case "dogbox": result = DogBoxLSQFitter
+                    case "lm": result = LMLSQFitter
+                    case _: raise ValueError(f"Unknown algorithm: {value}")
         return result

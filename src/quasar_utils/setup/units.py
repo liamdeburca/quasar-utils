@@ -1,20 +1,19 @@
 from logging import getLogger
+logger = getLogger(__name__)
+
 from typing import ClassVar, Self, Iterable
 from astropy.units import Unit, Quantity
 from astropy.constants import c, h, k_B
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
 from ..utils.utils import check_val
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Unit_, Quantity_, CompositeUnit_
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
-
-
-logger = getLogger(__name__)
+from quasar_typing.pathlib import AbsoluteFilePath
 
 class UnitsInfo(_Info):
     _keys: ClassVar[frozenset[str]] = frozenset([
@@ -23,7 +22,8 @@ class UnitsInfo(_Info):
         'wavelength_format', 'velocity_format', 
         'flux_format', 'strength_format', 'other_format',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {}
 
     @validate_call(validate_return=False)
     def __init__(
@@ -57,7 +57,8 @@ class UnitsInfo(_Info):
         self.other_format: str = other_format
 
     def update(self, info) -> None:
-        logger.debug("Updating 'UnitsInfo' class (does nothing).")
+        super().update(info, logger)
+        # logger.debug("Updating 'UnitsInfo' class (does nothing).")
     
     def getFluxUnit(self) -> CompositeUnit_:
         return self.getStrengthUnit() / self['wavelength_unit']
@@ -73,10 +74,10 @@ class UnitsInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'UnitsInfo' for '{path}'.")
             
-            uinfo = cls._cache[path]
+            uinfo = cls._cache[str(path)]
             if create_copy: return uinfo.copy()
             else:           return uinfo
         
@@ -85,7 +86,7 @@ class UnitsInfo(_Info):
             return uinfo
                 
         logger.debug(f"Configuring 'UnitsInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__(logger, 'UNITS', path)
+        lines = get_lines_from_file.__wrapped__('UNITS', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key = line.pop(0).lower()
@@ -98,10 +99,19 @@ class UnitsInfo(_Info):
                 f">>> [{count}/{len(lines)}] Configured '{key}' as '{val}'."
             )
 
-        cls._cache[path] = uinfo
+        cls._cache[str(path)] = uinfo
 
         return uinfo
     
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "units", logger)
+
     ###
 
     def getFormat(

@@ -1,26 +1,32 @@
 from logging import getLogger
+logger = getLogger("quasar_utils.setup.continuum")
+
 from typing import Iterable, ClassVar, Self
 from astropy.units import Unit, Quantity
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
-
-logger = getLogger(__name__)
+from quasar_typing.pathlib import AbsoluteFilePath
 
 class ContinuumInfo(_Info):
     _keys: ClassVar[frozenset[str]] = frozenset([
         '_x0', '_y0', '_windows', '_flux_bounds',
         'sigmas', 'x0', 'y0', 'windows', 'flux_bounds', 'alpha_bounds',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'x0': "to_wavelength",
+        'y0': "to_flux",
+        'windows': "to_wavelength_windows",
+        'flux_bounds': "to_flux_bounds",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
@@ -52,6 +58,8 @@ class ContinuumInfo(_Info):
         """
         Convert to unitless.
         """
+        super().update(info, logger)
+        return 
         logger.debug("Updating 'ContinuumInfo' class:")
 
         # Calculate dimensionless quantities
@@ -103,10 +111,10 @@ class ContinuumInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'ContinuumInfo' for '{path}'.")
             
-            cinfo = cls._cache[path]
+            cinfo = cls._cache[str(path)]
             if create_copy: return cinfo.copy()
             else:           return cinfo
 
@@ -115,7 +123,7 @@ class ContinuumInfo(_Info):
             return cinfo
         
         logger.debug(f"Configuring 'ContinuumInfo' using '{path}':")  
-        lines = get_lines_from_file.__wrapped__(logger, 'CONTINUUM', path)
+        lines = get_lines_from_file.__wrapped__('CONTINUUM', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key = line[0].lower()
@@ -148,6 +156,15 @@ class ContinuumInfo(_Info):
             ])
             logger.debug(msg)
 
-        cls._cache[path] = cinfo
+        cls._cache[str(path)] = cinfo
 
         return cinfo
+
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "continuum", logger)

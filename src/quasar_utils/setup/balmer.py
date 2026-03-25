@@ -1,24 +1,25 @@
 from logging import getLogger
+logger = getLogger("quasar_utils.setup.balmer")
+
 from typing import Literal, Iterable, ClassVar, Self
 from astropy.units import Quantity, Unit
 
 from pydantic import validate_call
 
-from ..utils._info import _Info
+from .utils._info import _Info
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
+from quasar_typing.pathlib import AbsoluteFilePath
 
-logger = getLogger(__name__)
 
 class BalmerInfo(_Info):
     _keys: ClassVar[frozenset[str]] = frozenset([
-        'source', 'n_u_min', 'n_u_max', '_edge', '_dens',
-        'edge', 'dens',
+        'source', 'allow_interp_fitting', 
+        'n_u_min', 'n_u_max', '_edge', '_dens', 'edge', 'dens',
         '_flux', '_fwhm', '_temp', 'tau', 'scale', 'ratio',
         'flux', 'fwhm', 'temp',
         '_flux_bounds', '_fwhm_bounds', '_temp_bounds',
@@ -28,13 +29,25 @@ class BalmerInfo(_Info):
         'raster_n',
         'min_fittable_ratio', 'min_fittable_total',
     ])
-    _cache: ClassVar[dict[Path_, Self]] = {}
+    _cache: ClassVar[dict[str, Self]] = {}
+    _values_to_update: ClassVar[dict[str, str]] = {
+        'edge': "to_wavelength", 
+        'dens': "to_density", 
+        'flux': "to_flux", 
+        'fwhm': "to_velocity", 
+        'temp': "to_temperature",
+        'flux_bounds': "to_flux_bounds", 
+        'fwhm_bounds': "to_velocity_bounds", 
+        'temp_bounds': "to_temperature_bounds",
+        'fixed': "to_fixed",
+    }
 
     @validate_call(validate_return=False)
     def __init__(
         self,
         *,
         source: Literal['SH1995'] = 'SH1995',
+        allow_interp_fitting: bool = True,
         n_u_min: int = 7,
         n_u_max: int = 50,
         _edge: float | Quantity_ = 3646 * Unit('angstrom'),
@@ -57,6 +70,8 @@ class BalmerInfo(_Info):
         min_fittable_total: int = 100,
     ):
         self.source: Literal['SH1995'] = source
+        self.allow_interp_fitting: bool = allow_interp_fitting
+
         self.n_u_min: int = n_u_min
         self.n_u_max: int = n_u_max
         self._edge: float | Quantity_ = _edge
@@ -97,103 +112,104 @@ class BalmerInfo(_Info):
         """
         Convert to unitsless.
         """
-        from collections import defaultdict
+        super().update(info, logger)
+        # from collections import defaultdict
 
-        logger.debug("Updating 'BalmerInfo' class:")
+        # logger.debug("Updating 'BalmerInfo' class:")
 
-        # The Balmer edge: 'edge
-        msg = ">>> [?/?] 'edge':"
-        if isinstance(old := self['_edge'], Quantity):
-            self['edge'] = new = info.units.getWavelength(old)
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['edge'] = float(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # The Balmer edge: 'edge
+        # msg = ">>> [?/?] 'edge':"
+        # if isinstance(old := self['_edge'], Quantity):
+        #     self['edge'] = new = info.units.getWavelength(old)
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['edge'] = float(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # The electron density: 'dens'
-        msg = ">>> [?/?] 'dens':"
-        if isinstance(old := self['_dens'], Quantity):
-            self['dens'] = new = info.units.getDensity(old)
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['dens'] = float(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # The electron density: 'dens'
+        # msg = ">>> [?/?] 'dens':"
+        # if isinstance(old := self['_dens'], Quantity):
+        #     self['dens'] = new = info.units.getDensity(old)
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['dens'] = float(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # The flux density at the Balmer edge: 'flux'
-        msg = ">>> [?/?] 'flux':"
-        if isinstance(old := self['_flux'], Quantity):
-            self['flux'] = new = info.units.getFlux(old)
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['flux'] = float(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # The flux density at the Balmer edge: 'flux'
+        # msg = ">>> [?/?] 'flux':"
+        # if isinstance(old := self['_flux'], Quantity):
+        #     self['flux'] = new = info.units.getFlux(old)
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['flux'] = float(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # The FWHM: 'fwhm'
-        msg = ">>> [?/?] 'fwhm':"
-        if isinstance(old := self['_fwhm'], Quantity):
-            self['fwhm'] = new = info.units.getC(old)
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['fwhm'] = float(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # The FWHM: 'fwhm'
+        # msg = ">>> [?/?] 'fwhm':"
+        # if isinstance(old := self['_fwhm'], Quantity):
+        #     self['fwhm'] = new = info.units.getC(old)
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['fwhm'] = float(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # The electron temperature: 'temp'
-        msg = ">>> [?/?] 'temp':"
-        if isinstance(old := self['_temp'], Quantity):
-            self['temp'] = new = info.units.getTemperature(old)
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['temp'] = float(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # The electron temperature: 'temp'
+        # msg = ">>> [?/?] 'temp':"
+        # if isinstance(old := self['_temp'], Quantity):
+        #     self['temp'] = new = info.units.getTemperature(old)
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['temp'] = float(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # Bounds on 'flux': 'flux_bounds'
-        msg = ">>> [?/?] 'flux_bounds':"
-        if isinstance(old := self['_flux_bounds'], Quantity):
-            self['flux_bounds'] = new = tuple(info.units.getFlux(old))
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['flux_bounds'] = tuple(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # Bounds on 'flux': 'flux_bounds'
+        # msg = ">>> [?/?] 'flux_bounds':"
+        # if isinstance(old := self['_flux_bounds'], Quantity):
+        #     self['flux_bounds'] = new = tuple(info.units.getFlux(old))
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['flux_bounds'] = tuple(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # Bounds on 'fwhm': 'fwhm_bounds'
-        msg = ">>> [?/?] 'fwhm_bounds':"
-        if isinstance(old := self['_fwhm_bounds'], Quantity):
-            self['fwhm_bounds'] = new = tuple(info.units.getC(old))
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['fwhm_bounds'] = tuple(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # Bounds on 'fwhm': 'fwhm_bounds'
+        # msg = ">>> [?/?] 'fwhm_bounds':"
+        # if isinstance(old := self['_fwhm_bounds'], Quantity):
+        #     self['fwhm_bounds'] = new = tuple(info.units.getC(old))
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['fwhm_bounds'] = tuple(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # Bounds on 'temp': 'temp_bounds'
-        msg = ">>> [?/?] 'temp_bounds':"
-        if isinstance(old := self['_temp_bounds'], Quantity):
-            self['temp_bounds'] = new = tuple(info.units.getTemperature(old))
-            msg += f" {val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['temp_bounds'] = tuple(old)
-            msg += f" {val_and_type(old)}."
-        logger.debug(msg)
+        # # Bounds on 'temp': 'temp_bounds'
+        # msg = ">>> [?/?] 'temp_bounds':"
+        # if isinstance(old := self['_temp_bounds'], Quantity):
+        #     self['temp_bounds'] = new = tuple(info.units.getTemperature(old))
+        #     msg += f" {val_and_type(old)} -> {val_and_type(new)}."
+        # else:
+        #     self['temp_bounds'] = tuple(old)
+        #     msg += f" {val_and_type(old)}."
+        # logger.debug(msg)
 
-        # Fixed parameters: 'fixed'
-        msg = ">>> [?/?] 'fixed':"
-        if self['fixed'] is None:
-            self['fixed'] = defaultdict(lambda: False)
-            for key in self._fixed:
-                self['fixed'][key] = True
+        # # Fixed parameters: 'fixed'
+        # msg = ">>> [?/?] 'fixed':"
+        # if self['fixed'] is None:
+        #     self['fixed'] = defaultdict(lambda: False)
+        #     for key in self._fixed:
+        #         self['fixed'][key] = True
 
-            msg += f" {self['_fixed']} have been fixed."
-        else:
-            msg += f" {self['_fixed']} are already fixed."
-        logger.debug(msg)
+        #     msg += f" {self['_fixed']} have been fixed."
+        # else:
+        #     msg += f" {self['_fixed']} are already fixed."
+        # logger.debug(msg)
  
-        logger.debug("... finished updating 'BalmerInfo' class.")
+        # logger.debug("... finished updating 'BalmerInfo' class.")
 
     @classmethod
     @validate_call(validate_return=False)
@@ -203,10 +219,10 @@ class BalmerInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
         
-        if path is not None and path in cls._cache.keys():
+        if path is not None and str(path) in cls._cache.keys():
             logger.debug(f"Using cached 'BalmerInfo' for '{path}'.")
             
-            binfo = cls._cache[path]
+            binfo = cls._cache[str(path)]
             if create_copy: return binfo.copy()
             else:           return binfo
 
@@ -214,7 +230,7 @@ class BalmerInfo(_Info):
         if path is None: return binfo
 
         logger.debug(f"Configuring 'BalmerInfo' using '{path}':")
-        lines = get_lines_from_file.__wrapped__(logger, 'BALMER', path)
+        lines = get_lines_from_file.__wrapped__('BALMER', path, logger)
 
         for count, line in enumerate(lines, start=1):
             prefix: str = ''
@@ -223,6 +239,9 @@ class BalmerInfo(_Info):
             match key:
                 case 'source':
                     val = parsing.as_str(line[1])
+
+                case 'allow_interp_fitting':
+                    val = parsing.as_bool(line[1])
 
                 case 'n_u_min' | 'n_u_max' | 'min_fittable_total' | 'raster_n':
                     val = parsing.as_int(line[1])
@@ -247,4 +266,15 @@ class BalmerInfo(_Info):
                 f"{val_and_type(val)}"
             )
 
+        BalmerInfo._cache[str(path)] = binfo
+
         return binfo
+    
+    @classmethod
+    @validate_call(validate_return=False)
+    def from_json(
+        cls,
+        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        create_copy: bool = True,
+    ) -> Self:
+        return super().from_json(json, create_copy, "balmer", logger)
