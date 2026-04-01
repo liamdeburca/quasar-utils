@@ -11,6 +11,7 @@ __all__ = [
 ]
 
 from typing import Literal
+from numpy import exp
 from astropy.units import Unit
 from pydantic import validate_call
 
@@ -19,9 +20,9 @@ from quasar_typing.misc.coords_tuple import CoordsTuple
 from quasar_typing.astropy import Unit_, CompositeUnit_, SkyCoord_
 
 from .dustmaps import setup_dustmaps, get_dust_map
-setup_dustmaps()
+from .dust_extinction import get_dust_law
 
-from .dust_extinction import get_dust_curve
+setup_dustmaps()
 
 @validate_call(validate_return=False)
 def get_correction(
@@ -29,7 +30,7 @@ def get_correction(
     sky_coords: SkyCoord_,
     *,
     map_name: Literal['sfd', 'csfd'] = 'sfd',
-    curve_name: Literal['ccm89', 'o94'] = 'ccm89',
+    law_name: Literal['ccm89', 'o94'] = 'ccm89',
     wavelength_unit: Unit_ | CompositeUnit_ = Unit('angstrom'),
     Rv: float = 3.1,
 ) -> FloatVector:
@@ -49,8 +50,8 @@ def get_correction(
     map_name: Literal['sfd', 'csfd'], optional
         Name of the dust map to use for querying the extinction value.
         Default is 'sfd'.
-    curve_name: Literal['ccm89', 'o94'], optional
-        Name of the dust curve to use for dereddening the spectrum.
+    law_name: Literal['ccm89', 'o94'], optional
+        Name of the dust law to use for dereddening the spectrum.
         Default is 'ccm89'.
     wavelength_unit: Unit_ | CompositeUnit_, optional
         Unit of the wavelength values in the input spectrum. Default is 'angstrom'.
@@ -63,13 +64,14 @@ def get_correction(
         Correction factor for the input spectrum.
     """
     dust_map = get_dust_map(map_name)
-    dust_curve = get_dust_curve(curve_name)
+    dust_law = get_dust_law(law_name)
 
-    k = (1 / (x * wavelength_unit)).to(dust_curve.x_unit).value
+    k = (1 / (x * wavelength_unit)).to(dust_law.x_unit).value
     ebv = dust_map.query(sky_coords)
-    ext = Rv * ebv * dust_curve.evaluate(k, Rv=Rv)
+    ext = Rv * ebv * dust_law.evaluate(k, Rv=Rv)
+    corr = exp(ext / 1.086) # equivalent to 10**(0.4 * ext)
 
-    return 10**(0.4 * ext)
+    return corr
 
 @validate_call(validate_return=False)
 def deredden_spectrum(
@@ -77,7 +79,7 @@ def deredden_spectrum(
     sky_coords: SkyCoord_,
     *,
     map_name: Literal['sfd', 'csfd'] = 'sfd',
-    curve_name: Literal['ccm89', 'o94'] = 'ccm89',
+    law_name: Literal['ccm89', 'o94'] = 'ccm89',
     wavelength_unit: Unit_ | CompositeUnit_ = Unit('angstrom'),
     Rv: float = 3.1,
 ) -> CoordsTuple:
@@ -96,8 +98,8 @@ def deredden_spectrum(
     map_name: Literal['sfd', 'csfd'], optional
         Name of the dust map to use for querying the extinction value. 
         Default is 'sfd'.
-    curve_name: Literal['ccm89', 'o94'], optional
-        Name of the dust curve to use for dereddening the spectrum. 
+    law_name: Literal['ccm89', 'o94'], optional
+        Name of the dust law to use for dereddening the spectrum. 
         Default is 'ccm89'.
     wavelength_unit: Unit | CompositeUnit, optional
         Unit of the wavelength values in the input spectrum. Default is 'angstrom'.
@@ -108,7 +110,7 @@ def deredden_spectrum(
         x=coords[0],
         sky_coords=sky_coords,
         map_name=map_name,
-        curve_name=curve_name,
+        law_name=law_name,
         wavelength_unit=wavelength_unit,
         Rv=Rv,
     )
