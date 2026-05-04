@@ -1,3 +1,11 @@
 # Ignore compiled Python files
 __pycache__/
 *.pyc
+.DS_Store
+
+notebooks/
+*.ipynb
+
+*.fits
+
+vito_loader.py

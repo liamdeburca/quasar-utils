@@ -15,8 +15,7 @@ from numpy import exp
 from astropy.units import Unit
 from pydantic import validate_call
 
-from quasar_typing.numpy import FloatVector
-from quasar_typing.misc.coords_tuple import CoordsTuple
+from quasar_typing.numpy import FloatVector, CoordsTuple
 from quasar_typing.astropy import Unit_, CompositeUnit_, SkyCoord_
 
 from .dustmaps import setup_dustmaps, get_dust_map
@@ -24,7 +23,7 @@ from .dust_extinction import get_dust_law
 
 setup_dustmaps()
 
-@validate_call(validate_return=False)
+@validate_call
 def get_correction(
     x: FloatVector,
     sky_coords: SkyCoord_,
@@ -73,7 +72,7 @@ def get_correction(
 
     return corr
 
-@validate_call(validate_return=False)
+@validate_call
 def deredden_spectrum(
     coords: CoordsTuple,
     sky_coords: SkyCoord_,

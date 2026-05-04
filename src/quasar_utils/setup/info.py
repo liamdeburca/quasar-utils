@@ -6,6 +6,7 @@ from json import load as load_json
 from numpy import array, float64
 from numpy.typing import NDArray
 from astropy.units import Quantity
+from dataclasses import field
 
 from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
@@ -16,88 +17,36 @@ from .lines import LinesInfo
 from .loading import LoadingInfo
 from .nonlinear import NonLinearInfo
 from .units import UnitsInfo
-from ..fitting import TRFLSQFitter, DogBoxLSQFitter, LMLSQFitter
-
-logger = getLogger(__name__)
 
 from pydantic import validate_call
-from pydantic_core import PydanticCustomError
-from pydantic_core.core_schema import no_info_plain_validator_function
+from pydantic.dataclasses import dataclass
 
 from quasar_typing.pathlib import AbsoluteFilePath
 
+logger = getLogger(__name__)
+
+@dataclass
 class Info:
+    absorption: AbsorptionInfo = field(kw_only=True, default_factory=AbsorptionInfo)
+    balmer: BalmerInfo = field(kw_only=True, default_factory=BalmerInfo)
+    continuum: ContinuumInfo = field(kw_only=True, default_factory=ContinuumInfo)
+    error: ErrorInfo = field(kw_only=True, default_factory=ErrorInfo)
+    iron: IronInfo = field(kw_only=True, default_factory=IronInfo)
+    lines: LinesInfo = field(kw_only=True, default_factory=LinesInfo)
+    loading: LoadingInfo = field(kw_only=True, default_factory=LoadingInfo)
+    nonlinear: NonLinearInfo = field(kw_only=True, default_factory=NonLinearInfo)
+    units: UnitsInfo = field(kw_only=True, default_factory=UnitsInfo)
+
     _keys: ClassVar[frozenset[str]] = frozenset([
         'absorption', 'balmer', 'continuum', 'error', 'iron', 'lines', 
         'loading', 'nonlinear', 'units',
     ])
 
-    @validate_call(validate_return=False)
-    def __init__(
-        self,
-        *,
-        absorption_info: AbsorptionInfo | None = None,
-        balmer_info: BalmerInfo | None = None,
-        continuum_info: ContinuumInfo | None = None,
-        error_info: ErrorInfo | None = None,
-        iron_info: IronInfo | None = None,
-        lines_info: LinesInfo | None = None,
-        loading_info: LoadingInfo | None = None,
-        nonlinear_info: NonLinearInfo | None = None,
-        units_info: UnitsInfo | None = None,
-    ):
-        """
-        ** PYDANTIC VALIDATED METHOD **
-        """
-        self.absorption: AbsorptionInfo = (
-            absorption_info
-            if absorption_info is not None else
-            AbsorptionInfo()
-        )
-        self.balmer: BalmerInfo = (
-            balmer_info
-            if balmer_info is not None else
-            BalmerInfo()
-        )
-        self.continuum: ContinuumInfo = (
-            continuum_info
-            if continuum_info is not None else
-            ContinuumInfo()
-        )
-        self.error: ErrorInfo = (
-            error_info
-            if error_info is not None else
-            ErrorInfo()
-        )
-        self.iron: IronInfo = (
-            iron_info
-            if iron_info is not None else
-            IronInfo()
-        )
-        self.lines: LinesInfo = (
-            lines_info
-            if lines_info is not None else
-            LinesInfo()
-        )
-        self.loading: LoadingInfo = (
-            loading_info
-            if loading_info is not None else
-            LoadingInfo()
-        )
-        self.nonlinear: NonLinearInfo = (
-            nonlinear_info
-            if nonlinear_info is not None else
-            NonLinearInfo()
-        )
-        self.units: UnitsInfo = (
-            units_info
-            if units_info is not None else
-            UnitsInfo()
-        )
+    def __post_init__(self) -> None:
         self.update()
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_file(
         cls, 
         path: AbsoluteFilePath | None = None,
@@ -107,22 +56,24 @@ class Info:
             return Info()
 
         kwargs = {'path': path, 'create_copy': create_copy}
-        inner = lambda cls: cls.from_file.__wrapped__(cls, **kwargs)
+        def inner(cls):
+            nonlocal kwargs
+            return cls.from_file.__wrapped__(cls, **kwargs)
 
         return Info(
-            absorption_info=inner(AbsorptionInfo),
-            balmer_info=inner(BalmerInfo),
-            continuum_info=inner(ContinuumInfo),
-            error_info=inner(ErrorInfo),
-            iron_info=inner(IronInfo),
-            lines_info=inner(LinesInfo),
-            loading_info=inner(LoadingInfo),
-            nonlinear_info=inner(NonLinearInfo),
-            units_info=inner(UnitsInfo),
+            absorption=inner(AbsorptionInfo),
+            balmer=inner(BalmerInfo),
+            continuum=inner(ContinuumInfo),
+            error=inner(ErrorInfo),
+            iron=inner(IronInfo),
+            lines=inner(LinesInfo),
+            loading=inner(LoadingInfo),
+            nonlinear=inner(NonLinearInfo),
+            units=inner(UnitsInfo),
         )
     
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,
@@ -137,36 +88,21 @@ class Info:
                 json = load_json(f)
 
         kwargs = {'json': json, 'create_copy': create_copy}
-        inner = lambda cls: cls.from_json.__wrapped__(cls, **kwargs)
-        
+        def inner(cls):
+            nonlocal kwargs
+            return cls.from_json.__wrapped__(cls, **kwargs)
+
         return Info(
-            absorption_info=inner(AbsorptionInfo),
-            balmer_info=inner(BalmerInfo),
-            continuum_info=inner(ContinuumInfo),
-            error_info=inner(ErrorInfo),
-            iron_info=inner(IronInfo),
-            lines_info=inner(LinesInfo),
-            loading_info=inner(LoadingInfo),
-            nonlinear_info=inner(NonLinearInfo),
-            units_info=inner(UnitsInfo),
+            absorption=inner(AbsorptionInfo),
+            balmer=inner(BalmerInfo),
+            continuum=inner(ContinuumInfo),
+            error=inner(ErrorInfo),
+            iron=inner(IronInfo),
+            lines=inner(LinesInfo),
+            loading=inner(LoadingInfo),
+            nonlinear=inner(NonLinearInfo),
+            units=inner(UnitsInfo),
         )
-
-    @classmethod
-    def _validate(cls, value: object) -> Self:
-        if value is None: value = Info()
-
-        if not isinstance(value, Info):
-            msg = f"Expected an Info instance, got {type(value).__name__}"
-            raise PydanticCustomError('validation_error', msg)
-
-        if not value.is_updated:
-            value.update()
-
-        return value
-
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type, handler):
-        return no_info_plain_validator_function(cls._validate)
 
     def __getstate__(self) -> dict:
         state: dict = {'_keys': self._keys}
@@ -182,11 +118,13 @@ class Info:
         if self.is_updated:
             logger.debug("'Info' class is already updated!")
         else:
-            logger.debug("Updating 'Info' class.")
-            
-            self.loading.update(self)
-            for key in self._keys:
-                getattr(self, key).update(self)
+            self.force_update()
+
+    def force_update(self) -> None:
+        logger.debug("Updating 'Info' class.")
+        self.loading.update(self)
+        for key in self._keys:
+            getattr(self, key).update(self)
 
     @property
     def is_updated(self) -> bool:
@@ -207,7 +145,7 @@ class Info:
         result = None
         for subinfo in (getattr(self, subject) for subject in subjects):
             if key in subinfo._keys: 
-                result = subinfo[key]
+                result = getattr(subinfo, key)
                 break
 
         return result
@@ -220,108 +158,113 @@ class Info:
         
         uinfo = self.units
         
-        match conversion_name:
-            case "to_n_pixels":
-                result: int = (
-                    int(uinfo.getC(value) / self.loading['sigma_res'])
-                    if isinstance(value, Quantity) else 
-                    int(value)
-                )
-            case "to_wavelength":
-                result: float = (
-                    uinfo.getWavelength(value) 
-                    if isinstance(value, Quantity) else 
-                    float(value)
-                )
-            case "to_wavelength_bounds":
-                result: tuple[float | None, float | None] = (
+        match conversion_name, isinstance(value, Quantity):
+            case "to_n_pixels", True:
+                result: int = int(uinfo.getC(value) / self.loading['sigma_res'])
+            case "to_n_pixels", False:
+                result: int = int(value)
+
+            case "to_wavelength", True:
+                result: float = uinfo.getWavelength(value)
+            case "to_wavelength", False:
+                result: float = float(value)
+
+            case "to_wavelength_bounds", _:
+                result: tuple[float | None, float | None] = tuple(
                     None if b is None else self.update_value(b, "to_wavelength")
                     for b in value
                 )
-            case "to_wavelength_list":
+
+            case "to_wavelength_bounds", _:
+                result: tuple[float | None, float | None] = tuple(
+                    None if b is None else float(b)
+                    for b in value
+                )
+
+            case "to_wavelength_list", _:
                 result: list[float] = [
                     self.update_value(v, "to_wavelength") for v in value
                 ]
-            case "to_wavelength_array":
-                result: NDArray[float64] = (
-                    uinfo.getWavelength(value)
-                    if isinstance(value, Quantity) else
-                    array(value, dtype=float64)
-                )
-            case "to_wavelength_windows":
+
+            case "to_wavelength_array", True:
+                result: NDArray[float64] = uinfo.getWavelength(value)
+            case "to_wavelength_array", False:
+                result: NDArray[float64] = array(value, dtype=float64)
+
+            case "to_wavelength_windows", True:
                 result: list[tuple[float | None, float | None]] = list(map(
                     tuple, 
-                    uinfo.getWavelength(value) if isinstance(value, Quantity) else value
+                    uinfo.getWavelength(value),
                 ))
-            case "to_density":
-                result: float = (
-                    uinfo.getDensity(value)
-                    if isinstance(value, Quantity) else 
-                    float(value)
-                )
-            case "to_temperature":
-                result: float = (
-                    uinfo.getTemperature(value)
-                    if isinstance(value, Quantity) else
-                    float(value)
-                )
-            case "to_temperature_bounds":
-                result: tuple[float | None, float | None] = (
+            case "to_wavelength_windows", False:
+                result: list[tuple[float | None, float | None]] = list(map(
+                    tuple, 
+                    value,
+                ))
+
+            case "to_density", True:
+                result: float = uinfo.getDensity(value)
+            case "to_density", False:
+                result: float = float(value)
+
+            case "to_temperature", True:
+                result: float = uinfo.getTemperature(value)
+            case "to_temperature", False:
+                result: float = float(value)
+
+            case "to_temperature_bounds", _:
+                result: tuple[float | None, float | None] = tuple(
                     None if b is None else self.update_value(b, "to_temperature")
                     for b in value
                 )
-            case "to_flux":
-                result: float = (
-                    uinfo.getFlux(value)
-                    if isinstance(value, Quantity) else 
-                    float(value)
-                )
-            case "to_flux_bounds":
-                result: tuple[float | None, float | None] = (
+
+            case "to_flux", True:
+                result: float = uinfo.getFlux(value)
+            case "to_flux", False: 
+                result: float = float(value)
+
+            case "to_flux_bounds", _:
+                result: tuple[float | None, float | None] = tuple(
                     None if b is None else self.update_value(b, "to_flux")
                     for b in value
                 )
-            case "to_strength":
-                result: float = (
-                    uinfo.getStrength(value)
-                    if isinstance(value, Quantity) else 
-                    float(value)
-                )
-            case "to_strength_bounds":
-                result: tuple[float | None, float | None] = (
+
+            case "to_strength", True:
+                result: float = uinfo.getStrength(value)
+            case "to_strength", False:
+                result: float = float(value)
+
+            case "to_strength_bounds", _:
+                result: tuple[float | None, float | None] = tuple(
                     None if b is None else self.update_value(b, "to_strength")
                     for b in value
                 )
-            case "to_velocity":
+
+            case "to_velocity", _:
                 if not isinstance(value, Quantity):
                     value *= uinfo["velocity_unit"]
                 result: float = uinfo.getC(value)
 
-            case "to_velocity_bounds":
-                result: tuple[float | None, float | None] = (
+            case "to_velocity_bounds", _:
+                result: tuple[float | None, float | None] = tuple(
                     None if b is None else self.update_value(b, "to_velocity")
                     for b in value
                 )
-            case "to_scale":
+
+            case "to_scale", _:
                 result: float = self.update_value(value, "to_velocity") \
                     / self.loading['sigma_res']
-            case "to_scale_list":
+                
+            case "to_scale_list", _:
                 result: list[float] = [
                     self.update_value(v, "to_scale") 
                     for v in value
                 ]
-            case "to_fixed":
+
+            case "to_fixed", _:
                 result: dict[str, bool] = {
-                    'fwhm': 'fwhm' in value,
-                    'temp': 'temp' in value,
-                    'tau': 'tau' in value,
-                    'scale': 'scale' in value,
-                    'ratio': 'ratio' in value,
+                    key: value(key)
+                    for key in ('fwhm', 'temp', 'tau', 'scale', 'ratio')
                 }
-            case "to_algo":
-                match value:
-                    case "trf": result = TRFLSQFitter
-                    case "dogbox": result = DogBoxLSQFitter
-                    case "lm": result = LMLSQFitter
-                    case _: raise ValueError(f"Unknown algorithm: {value}")
+
         return result

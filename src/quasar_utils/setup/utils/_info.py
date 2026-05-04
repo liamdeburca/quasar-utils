@@ -1,6 +1,4 @@
 from logging import getLogger, Logger
-logger = getLogger("quasar_utils.setup.utils._info")
-
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Self, ClassVar
 from pathlib import Path
@@ -9,10 +7,9 @@ from json import load as load_json
 from .json_field import JSONField
 from ...utils.utils import val_and_type
 
-from pydantic_core import PydanticCustomError
-from pydantic_core.core_schema import no_info_plain_validator_function
-
 from quasar_typing.pathlib import AbsoluteFilePath
+
+logger = getLogger(__name__)
 
 class _Info(ABC):
     """
@@ -32,12 +29,14 @@ class _Info(ABC):
         return s.removesuffix(', ') + '.'
     
     def __getitem__(self, key: str) -> Any:
-        if key in self._keys: return getattr(self, key)
-        else:                 raise KeyError(key)
+        if key in self._keys: 
+            return getattr(self, key)
+        raise KeyError(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        if key in self._keys: return setattr(self, key, value)
-        else:                 raise KeyError(key)
+        if key in self._keys: 
+            return setattr(self, key, value)
+        raise KeyError(key)
 
     def __bool__(self) -> bool:
         return self.is_updated
@@ -83,19 +82,19 @@ class _Info(ABC):
     
     # ----- Pydantic ----- #
 
-    @classmethod
-    def _validate(cls, value: object) -> Self:
-        if not isinstance(value, cls):
-            msg = "Expected a {} instance, got {}".format(
-                cls.__name__, 
-                type(value).__name__,
-            )
-            raise PydanticCustomError('validation_error', msg)
-        return value
+    # @classmethod
+    # def _validate(cls, value: object) -> Self:
+    #     if not isinstance(value, cls):
+    #         msg = "(TEST) Expected a {} instance, got {}".format(
+    #             cls.__name__, 
+    #             type(value).__name__,
+    #         )
+    #         raise PydanticCustomError('validation_error', msg)
+    #     return value
     
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type, handler):
-        return no_info_plain_validator_function(cls._validate)
+    # @classmethod
+    # def __get_pydantic_core_schema__(cls, source_type, handler):
+    #     return no_info_plain_validator_function(cls._validate)
 
     # ----- Abstract Methods ----- #
 
@@ -150,11 +149,11 @@ class _Info(ABC):
             logger.debug(f"Using cached '{cls.__name__}' for '{json}'.")
             
             info = cls._cache[str(json)]
-            if create_copy: return info.copy()
-            else:           return info
+            return info.copy() if create_copy else info
 
         info: _Info = cls()
-        if json is None: return info
+        if json is None: 
+            return info
 
         if (add_to_cache := isinstance(json, Path)):
             cache_key = str(json)

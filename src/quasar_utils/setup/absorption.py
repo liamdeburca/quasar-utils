@@ -1,7 +1,7 @@
 from logging import getLogger
-logger = getLogger("quasar_utils.setup.absorption")
-
 from typing import Self, ClassVar
+from dataclasses import field
+from pydantic.dataclasses import dataclass
 
 from pydantic import validate_call
 
@@ -13,10 +13,25 @@ from ..utils.parsing import get_lines_from_file
 from quasar_typing.astropy import Quantity_
 from quasar_typing.pathlib import AbsoluteFilePath
 
+logger = getLogger(__name__)
 
+@dataclass
 class AbsorptionInfo(_Info):
+    fit: bool = True
+
+    p: int = 3
+    p_crit: float = 0.01
+    z_crit: float = -2
+    refine: bool = True
+    logspace: bool = True
+    _w: int | Quantity_ = 25
+    _join: int | Quantity_ = 3
+
+    w: int | None = field(default=None, init=False)
+    join: int | None = field(default=None, init=False)
+
     _keys: ClassVar[frozenset[str]] = frozenset([
-        '_w', 'p', 'p_crit', 'z_crit', '_join', 'refine', 'logspace',
+        'fit', '_w', 'p', 'p_crit', 'z_crit', '_join', 'refine', 'logspace',
         'w', 'join',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
@@ -25,30 +40,6 @@ class AbsorptionInfo(_Info):
         'join': "to_n_pixels",
     }
 
-    @validate_call(validate_return=False)
-    def __init__(
-        self,
-        p: int = 3,
-        p_crit: float = 0.01,
-        z_crit: float = -2,
-        refine: bool = True,
-        logspace: bool = True,
-        _w: int | Quantity_ = 25,
-        _join: int | Quantity_ = 3,
-    ):
-        self.p: int = p
-        self.p_crit: float = p_crit
-        self.z_crit: float = z_crit
-        self.refine: bool = refine
-        self.logspace: bool = logspace
-        
-        self._w: int | Quantity_ = _w
-        self._join: int | Quantity_ = _join
-
-        # Set by 'update' method
-        self.w: int | None = None
-        self.join: int | None = None
-
     def update(self, info) -> None:
         """
         Converts parameters with units into their dimensionless equivalents. 
@@ -56,7 +47,7 @@ class AbsorptionInfo(_Info):
         super().update(info, logger)
         
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_file(
         cls, 
         path: AbsoluteFilePath | None = None,
@@ -100,7 +91,7 @@ class AbsorptionInfo(_Info):
         return ainfo
     
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,

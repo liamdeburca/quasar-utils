@@ -1,10 +1,9 @@
 from logging import getLogger
-logger = getLogger(__name__)
-
-from typing import ClassVar, Self, Iterable
+from typing import ClassVar, Self, Iterable, Any
 from astropy.units import Unit, Quantity
 from astropy.constants import c, h, k_B
-
+from dataclasses import field
+from pydantic.dataclasses import dataclass
 from pydantic import validate_call
 
 from .utils._info import _Info
@@ -15,7 +14,40 @@ from ..utils.parsing import get_lines_from_file
 from quasar_typing.astropy import Unit_, Quantity_, CompositeUnit_
 from quasar_typing.pathlib import AbsoluteFilePath
 
+logger = getLogger(__name__)
+
+DEFAULT_VALUES: dict[str, Any] = {
+    'wavelength_unit': Unit('1 angstrom'),
+    'energy_unit': Unit('1e-17 erg'),
+    'time_unit': Unit('1 s'),
+    'area_unit': Unit('1 cm2'),
+    'temp_unit': Unit('1 K'),
+    'dens_unit': Unit('1 cm^-3'),
+    'c_unit': Unit(c),
+    'velocity_unit': Unit('1 km/s'),
+    'wavelength_format': '.3f',
+    'velocity_format': '.3f',
+    'flux_format': '.3e',
+    'strength_format': '.3e',
+    'other_format': '.3e',
+}
+
+@dataclass
 class UnitsInfo(_Info):
+    wavelength_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['wavelength_unit'])
+    energy_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['energy_unit'])
+    time_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['time_unit'])
+    area_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['area_unit'])
+    temp_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['temp_unit'])
+    dens_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['dens_unit'])
+    c_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['c_unit'])
+    velocity_unit: CompositeUnit_ = field(default=DEFAULT_VALUES['velocity_unit'])
+    wavelength_format: str = field(default=DEFAULT_VALUES['wavelength_format'])
+    velocity_format: str = field(default=DEFAULT_VALUES['velocity_format'])
+    flux_format: str = field(default=DEFAULT_VALUES['flux_format'])
+    strength_format: str = field(default=DEFAULT_VALUES['strength_format'])
+    other_format: str = field(default=DEFAULT_VALUES['other_format'])
+
     _keys: ClassVar[frozenset[str]] = frozenset([
         'wavelength_unit', 'energy_unit', 'time_unit', 'area_unit', 
         'temp_unit', 'dens_unit','c_unit', 'velocity_unit', 
@@ -24,37 +56,6 @@ class UnitsInfo(_Info):
     ])
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {}
-
-    @validate_call(validate_return=False)
-    def __init__(
-        self,
-        wavelength_unit: CompositeUnit_ = Unit('1 angstrom'),
-        energy_unit: CompositeUnit_ = Unit('1e-17 erg'),
-        time_unit: CompositeUnit_ = Unit('1 s'),
-        area_unit: CompositeUnit_ = Unit('1 cm2'),
-        temp_unit: CompositeUnit_ = Unit('1 K'),
-        dens_unit: CompositeUnit_ = Unit('1 cm^-3'),
-        c_unit: CompositeUnit_ = Unit(c),
-        velocity_unit: CompositeUnit_ = Unit('1 km/s'),
-        wavelength_format: str = '.3f',
-        velocity_format: str = '.3f',
-        flux_format: str = '.3e',
-        strength_format: str = '.3e',
-        other_format: str = '.3e',
-    ):
-        self.wavelength_unit: CompositeUnit_ = wavelength_unit
-        self.energy_unit: CompositeUnit_ = energy_unit
-        self.time_unit: CompositeUnit_ = time_unit
-        self.area_unit: CompositeUnit_ = area_unit
-        self.temp_unit: CompositeUnit_ = temp_unit
-        self.dens_unit: CompositeUnit_ = dens_unit
-        self.c_unit: CompositeUnit_ = c_unit
-        self.velocity_unit: CompositeUnit_ = velocity_unit
-        self.wavelength_format: str = wavelength_format
-        self.velocity_format: str = velocity_format
-        self.flux_format: str = flux_format
-        self.strength_format: str = strength_format
-        self.other_format: str = other_format
 
     def update(self, info) -> None:
         super().update(info, logger)
@@ -67,7 +68,7 @@ class UnitsInfo(_Info):
         return self['energy_unit'] / self['time_unit'] / self['area_unit']
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_file(
         cls,
         path: AbsoluteFilePath | None = None,
@@ -78,8 +79,7 @@ class UnitsInfo(_Info):
             logger.debug(f"Using cached 'UnitsInfo' for '{path}'.")
             
             uinfo = cls._cache[str(path)]
-            if create_copy: return uinfo.copy()
-            else:           return uinfo
+            return uinfo.copy() if create_copy else uinfo
         
         uinfo: UnitsInfo = UnitsInfo()
         if path is None:
@@ -91,8 +91,10 @@ class UnitsInfo(_Info):
         for count, line in enumerate(lines, start=1):
             key = line.pop(0).lower()
             match key.split('_')[1]:
-                case 'unit':   val = parsing.as_composite_unit(line)
-                case 'format': val = line[0]
+                case 'unit':   
+                    val = parsing.as_composite_unit(line)
+                case 'format': 
+                    val = line[0]
             
             uinfo[key] = val
             logger.debug(
@@ -104,7 +106,7 @@ class UnitsInfo(_Info):
         return uinfo
     
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,

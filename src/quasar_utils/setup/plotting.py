@@ -176,7 +176,7 @@ class PlottingInfo(_Info):
         return pinfo
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,

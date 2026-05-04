@@ -3,32 +3,32 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-class TestGetDustCurve:
-    """Tests for the get_dust_curve factory function."""
+class TestGetDustLaw:
+    """Tests for the get_dust_law factory function."""
 
     def test_returns_ccm89(self):
-        from quasar_utils.dereddening.dust_extinction import get_dust_curve
+        from quasar_utils.dereddening.dust_extinction import get_dust_law
         from quasar_utils.dereddening.dust_extinction.ccm89 import CCM89
-        curve = get_dust_curve('ccm89')
+        curve = get_dust_law('ccm89')
         assert isinstance(curve, CCM89)
 
     def test_returns_o94(self):
-        from quasar_utils.dereddening.dust_extinction import get_dust_curve
+        from quasar_utils.dereddening.dust_extinction import get_dust_law
         from quasar_utils.dereddening.dust_extinction.o94 import O94
-        curve = get_dust_curve('o94')
+        curve = get_dust_law('o94')
         assert isinstance(curve, O94)
 
     def test_case_insensitive(self):
-        from quasar_utils.dereddening.dust_extinction import get_dust_curve
+        from quasar_utils.dereddening.dust_extinction import get_dust_law
         from quasar_utils.dereddening.dust_extinction.ccm89 import CCM89
         from quasar_utils.dereddening.dust_extinction.o94 import O94
-        assert isinstance(get_dust_curve('CCM89'), CCM89)
-        assert isinstance(get_dust_curve('O94'), O94)
+        assert isinstance(get_dust_law('CCM89'), CCM89)
+        assert isinstance(get_dust_law('O94'), O94)
 
-    def test_unsupported_curve_raises(self):
-        from quasar_utils.dereddening.dust_extinction import get_dust_curve
-        with pytest.raises(NotImplementedError):
-            get_dust_curve('fitzpatrick99')
+    def test_unsupported_law_raises(self):
+        from quasar_utils.dereddening.dust_extinction import get_dust_law
+        with pytest.raises(ValueError):
+            get_dust_law('fitzpatrick99')
 
 
 class TestCCM89:

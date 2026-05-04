@@ -1,7 +1,10 @@
 from typing import Any, Self
 from numpy import arange, float64, finfo
+from numpy.random import RandomState
 from dataclasses import dataclass
 from astropy.units import Unit, CompositeUnit
+
+from quasar_typing.misc.string_selection import StringSelection
 
 from . import unit_checking
 
@@ -52,6 +55,8 @@ class JSONField:
                     val = [str(v) for v in val]
                 case "str_set":
                     val = set(str(v) for v in val)
+                case "str_selection":
+                    val = StringSelection(set(str(v) for v in val))
                 case "unit":
                     val = Unit(val)
                 case "composite_unit":
@@ -84,7 +89,7 @@ class JSONField:
                     if unit_str:
                         unit = Unit(unit_str)
                         unit_checking.check_is_wavelength_unit(unit)
-                        val = [v * unit for v in val]
+                        val *= unit
                 case "wavelength_bounds":
                     if unit_str:
                         unit = Unit(unit_str)
@@ -122,9 +127,30 @@ class JSONField:
                         )
                     else:
                         val = tuple(
-                            v if v is not None else v
+                            float(v) if v is not None else v
                             for v in val
                         )
+                case "strength":
+                    if unit_str:
+                        unit = Unit(unit_str)
+                        unit_checking.check_is_strength_unit(unit)
+                        val *= unit
+                    else:
+                        val = float(val)
+                case "strength_bounds":
+                    if unit_str:
+                        unit = Unit(unit_str)
+                        unit_checking.check_is_strength_unit(unit)
+                        val = tuple(
+                            v * unit if v is not None else v
+                            for v in val
+                        )
+                    else:
+                        val = tuple(
+                            float(v) if v is not None else v
+                            for v in val
+                        )
+
                 case "velocity":
                     if unit_str:
                         unit = Unit(unit_str)
@@ -187,7 +213,7 @@ class JSONField:
                         )
                 case "balmer_fixed_params":
                     possible_values = {'fwhm', 'temp', 'tau', 'scale', 'ratio'}
-                    val = set(v for v in val if v in possible_values)
+                    val = StringSelection(v for v in val if v in possible_values)
                 case "loader":
                     possible_values = {'ascii', 'fits', 'paqs', 'sdss'}
                     val = val.strip().lower()
@@ -199,14 +225,13 @@ class JSONField:
                 case "deredden":
                     possible_maps = {'sfd', 'csfd'}
                     possible_laws = {'ccm89', 'o94'}
-                    if val[0]:
-                        map_ = val[1].strip().lower()
-                        law_ = val[2].strip().lower()
-                        assert map_ in possible_maps
-                        assert law_ in possible_laws
-                        val = (True, map_, law_)
-                    else:
-                        val = (False, None, None)
+                    
+                    b = val[0]
+                    assert (map_ := val[1].strip().lower()) in possible_maps
+                    assert (law_ := val[2].strip().lower()) in possible_laws
+                    Rv = val[3]
+
+                    val = (b, map_, law_, Rv)
                 case "bias":
                     possible_values = {'left', 'right'}
                     val = [v.strip().lower() for v in val]
@@ -223,6 +248,8 @@ class JSONField:
                     assert val in possible_values
                 case "tol":
                     val = max(val, MACHINE_PRECISION)
+                case "random_state":
+                    val = RandomState(int(val))
                 case _:
                     msg = f"Parsing algorithm '{parse_as}' is not implemented!"
                     raise NotImplementedError(msg)

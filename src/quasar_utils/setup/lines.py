@@ -1,38 +1,77 @@
 from logging import getLogger
-
-from quasar_utils.setup.absorption import AbsorptionInfo
-logger = getLogger("quasar_utils.setup.lines")
-
-from typing import ClassVar, Self
-from json import load as load_json
-from pathlib import Path
-from numpy import array
-from astropy.units import Unit, Quantity
-
+from typing import ClassVar, Self, Any
+from astropy.units import Unit
+from dataclasses import field
+from pydantic.dataclasses import dataclass
 from pydantic import validate_call
 
 from .utils._info import _Info
-from .utils.json_field import JSONField
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
+from quasar_typing.pathlib import AbsoluteFilePath
 
+logger = getLogger(__name__)
 
-def _replace_nan_with_none(bounds: tuple):
-    from numpy import isfinite
-    return tuple([
-        bound \
-        if isfinite(bound) \
-        else None \
-        for bound in bounds
-    ])
+DEFAULT_VALUES: dict[str, Any] = {
+    '_x_limit': 1220 * Unit('angstrom'),
+    '_v_sep': 10_000 * Unit('km/s'),
+    '_v_off_bounds': (-5_000, 5_000) * Unit('km/s'),
+    '_sigma_v_bounds': (250, 5_000) * Unit('km/s'),
+    '_strength_bounds': (1e-16, 1) * Unit('erg/(s.cm2)'),
+    '_w': 25,
+    '_forced_splits': [1450, 1680, 2000] * Unit('angstrom'),
+    'min_fittable_total': 50,
+    'min_fittable_ratio': 0.6,
+    'evaluate_initial': 3,
+    'aggressive': False,
+    'crop': False,
+    'measure': 'getFluxSNR',
+    'reverse': False,
+    'snr': 10,
+    'make_copies': False,
+    'adapt_scale': True,
+    'scale_init': 1.0,
+    'scale_bounds': (0.0, 100.0),
+}
 
+@dataclass
 class LinesInfo(_Info):
+    fit: bool = True
+
+    _x_limit: float | Quantity_ = field(default=DEFAULT_VALUES['_x_limit'])
+    _v_sep: float | Quantity_ = field(default=DEFAULT_VALUES['_v_sep'])
+    _v_off_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_v_off_bounds'])
+    _sigma_v_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_sigma_v_bounds'])
+    _strength_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_strength_bounds'])
+    _w: int | Quantity_ = field(default=DEFAULT_VALUES['_w'])
+    _forced_splits: list[float] | Quantity_ = field(default=DEFAULT_VALUES['_forced_splits'])
+    min_fittable_total: int = field(default=DEFAULT_VALUES['min_fittable_total'])
+    min_fittable_ratio: float = field(default=DEFAULT_VALUES['min_fittable_ratio'])
+    evaluate_initial: int = field(default=DEFAULT_VALUES['evaluate_initial'])
+    aggressive: bool = field(default=DEFAULT_VALUES['aggressive'])
+    crop: bool = field(default=DEFAULT_VALUES['crop'])
+    measure: str = field(default=DEFAULT_VALUES['measure'])
+    reverse: bool = field(default=DEFAULT_VALUES['reverse'])
+    snr: float | int = field(default=DEFAULT_VALUES['snr'])
+    make_copies: bool = field(default=DEFAULT_VALUES['make_copies'])
+    adapt_scale: bool = field(default=DEFAULT_VALUES['adapt_scale'])
+    scale_init: float = field(default=DEFAULT_VALUES['scale_init'])
+    scale_bounds: AstropyBounds = field(default=DEFAULT_VALUES['scale_bounds'])
+
+    x_limit: float | None = field(default=None, init=False)
+    v_sep: float | None = field(default=None, init=False)
+    v_off_bounds: AstropyBounds | None = field(default=None, init=False)
+    sigma_v_bounds: AstropyBounds | None = field(default=None, init=False)
+    strength_bounds: AstropyBounds | None = field(default=None, init=False)
+    w: int | None = field(default=None, init=False)
+    forced_splits: list[float] | None = field(default=None, init=False)
+    
     _keys: ClassVar[frozenset[str]] = frozenset([
+        'fit',
         '_x_limit', 'x_limit',
         '_v_sep', 'v_sep',
         '_v_off_bounds', 'v_off_bounds',
@@ -61,139 +100,19 @@ class LinesInfo(_Info):
         'v_sep': "to_velocity",
         'v_off_bounds': "to_velocity_bounds",
         'sigma_v_bounds': "to_velocity_bounds",
-        'strength_bounds': "to_flux_bounds",
+        'strength_bounds': "to_strength_bounds",
         'w': "to_n_pixels",
-        'forced_splits': "to_wavelength_list",
+        'forced_splits': "to_wavelength_array",
     }
-
-    @validate_call(validate_return=False)
-    def __init__(
-        self,
-        _x_limit: float | Quantity_ = 1220 * Unit('angstrom'),
-        _v_sep: float | Quantity_ = 10_000 * Unit('km/s'),
-        _v_off_bounds: AstropyBounds | Quantity_ = (-5_000, 5_000) * Unit('km/s'),
-        _sigma_v_bounds: AstropyBounds | Quantity_ = (250, 5_000) * Unit('km/s'),
-        _strength_bounds: AstropyBounds | Quantity_ = (1e-16, 1) * Unit('erg/(s.cm2)'),
-        _w: int | Quantity_ = 25,
-        _forced_splits: list[float] | Quantity_ = [1450, 1680, 2000] * Unit('angstrom'),
-        min_fittable_total: int = 50,
-        min_fittable_ratio: float = 0.6,
-        evaluate_initial: int = 3,
-        aggressive: bool = False,
-        crop: bool = False,
-        measure: str = 'getFluxSNR',
-        reverse: bool = False,
-        snr: float | int = 10,
-        make_copies: bool = False,
-        adapt_scale: bool = True,
-        scale_init: float = 1.0,
-        scale_bounds: AstropyBounds = (0.0, 100.0),
-    ):
-        self._x_limit: float | Quantity_ = _x_limit
-        self._v_sep: float | Quantity_ = _v_sep
-        self._v_off_bounds: AstropyBounds | Quantity_ = _v_off_bounds
-        self._sigma_v_bounds: AstropyBounds | Quantity_ = _sigma_v_bounds
-        self._strength_bounds: AstropyBounds | Quantity_ = _strength_bounds
-        self._w: int | Quantity_ = _w
-        self._forced_splits: list[float] | Quantity_ = _forced_splits
-        self.min_fittable_total: int = min_fittable_total
-        self.min_fittable_ratio: float = min_fittable_ratio
-        self.evaluate_initial: int = evaluate_initial
-        self.aggressive: bool = aggressive
-        self.crop: bool = crop
-        self.measure: str = measure
-        self.reverse: bool = reverse
-        self.snr: float | int = snr
-        self.make_copies: bool = make_copies
-        self.adapt_scale: bool = adapt_scale
-        self.scale_init: float = scale_init
-        self.scale_bounds: AstropyBounds = scale_bounds
-
-        # Set by 'update' method
-        self.x_limit: float | None = None
-        self.v_sep: float | None = None
-        self.v_off_bounds: AstropyBounds | None = None
-        self.sigma_v_bounds: AstropyBounds | None = None
-        self.strength_bounds: AstropyBounds | None = None
-        self.w: int | None = None
-        self.forced_splits: list[float] | None = None
 
     def update(self, info) -> None:
         """
         Converts parameters with units into their dimensionless equivalents.
         """
         super().update(info, logger)
-        return
-        logger.debug("Updating 'LinesInfo' class:")
-
-        # Convert velocities to no. of pixels
-        msg = ">>> [1/9] 'x_limit': "
-        if isinstance(old := self['_x_limit'], Quantity):
-            self['x_limit'] = new = info.units.getWavelength(old)
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['x_limit'] = float(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        msg = ">>> [2/9] 'v_sep': "
-        if not isinstance(old := self['_v_sep'], Quantity):
-            old *= info.units['velocity_unit']
-        self['v_sep'] = new = info.units.getC(old)
-        msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        logger.debug(msg)
-
-        msg = ">>> [3/9] 'v_off_bounds': "
-        if not isinstance(old := self['_v_off_bounds'], Quantity):
-            old *= info.units['velocity_unit']
-        self['v_off_bounds'] = new = _replace_nan_with_none(
-            tuple(info.units.getC(old))
-        )
-        msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        logger.debug(msg)
-
-        msg = ">>> [4/9] 'sigma_v_bounds': "
-        if not isinstance(old := self['_sigma_v_bounds'], Quantity):
-            old *= info.units['velocity_unit']
-        self['sigma_v_bounds'] = new = _replace_nan_with_none(
-            tuple(info.units.getC(old))
-        )
-        msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        logger.debug(msg)
-
-        msg = ">>> [5/9] 'strength_bounds': "
-        if isinstance(old := self['_strength_bounds'], Quantity):
-            self['strength_bounds'] = new = _replace_nan_with_none(tuple(
-                info.units.getStrength(old)
-            ))
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['strength_bounds'] = _replace_nan_with_none(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        msg = ">>> [6/9] 'w': "
-        if isinstance(old := self['_w'], Quantity):
-            self['w'] = new = info.units.getC(old) // info.units['sigma_res']
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['w'] = int(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        msg = ">>> [7/9] 'forced_splits': "
-        if isinstance(old := self['_forced_splits'], Quantity):
-            self['forced_splits'] = new = info.units.getWavelength(old)
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['forced_splits'] = array(old, dtype=float)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        logger.debug("... finished updating 'LinesInfo' class!")
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_file(
         cls,
         path: AbsoluteFilePath | None = None,
@@ -261,7 +180,7 @@ class LinesInfo(_Info):
         return linfo
     
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,

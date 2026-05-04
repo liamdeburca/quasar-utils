@@ -1,5 +1,5 @@
 from functools import lru_cache
-from numpy import log, arange, exp, pad, searchsorted, int_
+from numpy import log, ones, arange, exp, pad, searchsorted, zeros_like, int_, float64
 from scipy.signal import fftconvolve
 from math import pi
 
@@ -40,10 +40,11 @@ def kernel(
     """
     Creates a Gaussian kernel with the appropriate FWHM. 
     """
+    if fwhm == 0: return ones(1, dtype=float64)
+
     s = _scale(fwhm, sigma_res)
     z = _pixels(s) / s
     k = gauss_amp * exp(-0.5 * z**2) / s
-
     return k / k.sum()
 
 @lru_cache
@@ -55,18 +56,21 @@ def kernel_deriv(
     """
     Creates a kernel equivalent to a Gaussian derivative w.r.t. its FWHM. 
     """
+    if fwhm == 0: return -sigma_to_fwhm * ones(1, dtype=float64)
+    
     k = kernel(fwhm, sigma_res)
     s = _scale(fwhm, sigma_res)
     z = _pixels(s) / s
-
     return sigma_to_fwhm * k * (z**2 - 1)
 
-@validate_call(validate_return=False)
+@validate_call
 def convolve_signal(
     signal: FloatVector, 
     kernel: FloatVector,
 ) -> FloatVector:
     """
+    **PYDANTIC VALIDATED FUNCTION**
+    
     Convolves (fft) a given signal with a kernel. The signal is padded using its
     edge values. 
     """    
@@ -82,27 +86,35 @@ def convolve_signal(
 def _identify_closest_idx(
     fwhm: FloatVector,
     fwhm_final: float,
+    for_deriv: bool = False,
 ) -> int:
     """
-    Identifies the index of the closest (but smaller) FWHM in the template's 
-    FWHM array. 
+    Identifies the index of the closest FWHM in the template's FWHM array. 
     """
-    if fwhm_final >= fwhm[-1]: return fwhm.size - 1
-    else:                      return searchsorted(fwhm, fwhm_final) - 1
+    if fwhm_final >= fwhm[-1]: 
+        idx = fwhm.size - 1
+    else:
+        idx = searchsorted(fwhm, fwhm_final, side='right') - 1
+
+    if for_deriv and idx != 0 and fwhm[idx] == fwhm_final:
+        idx -= 1
+
+    return idx
 
 def _identify_closest(
     data: FloatMatrix,
     fwhm: FloatVector,
     fwhm_final: float,
+    for_deriv: bool = False,
 ) -> tuple[float, FloatVector]:
     """
     Identifies the closest (but smaller) FWHM in the template's FWHM array,
     and returns its corresponding spectrum. 
     """
-    idx = _identify_closest_idx(fwhm, fwhm_final)
-    return fwhm[idx], data[idx]
+    idx = _identify_closest_idx(fwhm, fwhm_final, for_deriv=for_deriv)
+    return fwhm[idx], data[idx]    
 
-@validate_call(validate_return=False)
+@validate_call
 def convolve(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -110,6 +122,8 @@ def convolve(
     sigma_res: float,
 ) -> FloatVector:
     """
+    **PYDANTIC VALIDATED FUNCTION**
+    
     Convolves a template, defined by spectra and FWHM values, to a desired FWHM
     value:
 
@@ -124,15 +138,16 @@ def convolve(
     """
     assert fwhm_final >= fwhm[0], \
         "Desired FWHM is smaller than template's minimum FWHM."
-    
+        
     fwhm_init, signal = _identify_closest(data, fwhm, fwhm_final)
-    
+    if fwhm_init == fwhm_final: return signal
+
     fwhm_kernel: float = (fwhm_final**2 - fwhm_init**2)**0.5
     k: FloatVector = kernel(fwhm_kernel, sigma_res)
 
     return convolve_signal.__wrapped__(signal, k)
 
-@validate_call(validate_return=False)
+@validate_call
 def convolve_deriv(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -140,14 +155,22 @@ def convolve_deriv(
     sigma_res: float,
 ) -> FloatVector:
     """
+    **PYDANTIC VALIDATED FUNCTION**
+    
     Computes the derivative of a convolved template w.r.t. the final FWHM.
     """
     assert fwhm_final >= fwhm[0], \
         "Desired FWHM is smaller than template's minimum FWHM."
     
-    fwhm_init, signal = _identify_closest(data, fwhm, fwhm_final)
+    fwhm_init, signal = _identify_closest(
+        data, fwhm, fwhm_final, 
+        for_deriv=True,
+    )
+    # If: fwhm_final == fwhm[0] -> no convolutions is possible!
+    if fwhm_init == fwhm_final: return zeros_like(signal, dtype=float64)
 
     fwhm_kernel: float = (fwhm_final**2 - fwhm_init**2)**0.5
+    assert fwhm_kernel > 0, "Kernel FWHM must be positive."
     dk: FloatVector = kernel_deriv(fwhm_kernel, sigma_res)
 
     return convolve_signal.__wrapped__(signal, dk)

@@ -85,7 +85,7 @@ def _build_interp_data(
     
     return row_indices[:count], col_indices[:count], values[:count], bias
 
-@validate_call(validate_return=False)
+@validate_call
 def create_interp_matrix(
     x_in: SortedFloatVector, 
     x_out: FittableFloatVector, 

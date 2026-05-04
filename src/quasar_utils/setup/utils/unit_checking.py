@@ -25,6 +25,13 @@ def check_is_flux_unit(unit: Unit) -> None:
     if not is_flux_unit(unit):
         raise ValueError(f"Expected a flux unit, but got {unit}.")
     
+def is_strength_unit(unit: Unit) -> bool:
+    return unit.is_equivalent("erg/(s.cm2)")
+
+def check_is_strength_unit(unit: Unit) -> None:
+    if not is_strength_unit(unit):
+        raise ValueError(f"Expected a strength unit, but got {unit}.")
+    
 def is_density_unit(unit: Unit) -> bool:
     return unit.is_equivalent("1/cm3")
     

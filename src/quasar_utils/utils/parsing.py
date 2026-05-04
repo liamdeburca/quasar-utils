@@ -5,7 +5,7 @@ from itertools import batched
 
 from pydantic import validate_call
 from quasar_typing.pathlib import AbsoluteFilePath
-from quasar_typing.misc.logger import Logger_
+from quasar_typing.logging import Logger_
 
 def check_if_comment(string:str):
     return string[0] == '#'
@@ -17,7 +17,7 @@ def trim_line(line:str):
         out.append(string)
     return out
 
-@validate_call(validate_return=False)
+@validate_call
 def get_lines_from_file(
     hdr: str,
     path: AbsoluteFilePath,

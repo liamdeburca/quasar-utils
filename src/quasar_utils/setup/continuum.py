@@ -1,9 +1,8 @@
 from logging import getLogger
-logger = getLogger("quasar_utils.setup.continuum")
-
-from typing import Iterable, ClassVar, Self
-from astropy.units import Unit, Quantity
-
+from typing import Any, Iterable, ClassVar, Self
+from astropy.units import Unit
+from dataclasses import field
+from pydantic.dataclasses import dataclass
 from pydantic import validate_call
 
 from .utils._info import _Info
@@ -15,9 +14,40 @@ from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
 from quasar_typing.pathlib import AbsoluteFilePath
 
+logger = getLogger(__name__)
+
+DEFAULT_VALUES: dict[str, Any] = {
+    '_x0': 1450 * Unit('angstrom'),
+    '_y0': 1e-17 * Unit('erg/(s.cm2.angstrom)'),
+    '_windows': [
+        (1425, 1475), 
+        (1675, 1690), 
+        (1975, 2050), 
+        (2150, 2250),
+    ] * Unit('angstrom'),
+    '_flux_bounds': [1e-17, 1e-14] * Unit('erg/(s.cm2.angstrom)'),
+    'sigmas': [3.00, 2.75, 2.50],
+    'alpha_bounds': (-5.0, 0.0),
+}
+
+@dataclass
 class ContinuumInfo(_Info):
+    fit: bool = True
+
+    _x0: float | Quantity_ = field(default=DEFAULT_VALUES['_x0'])
+    _y0: float | Quantity_ = field(default=DEFAULT_VALUES['_y0'])
+    _windows: Iterable[CoordBounds] | Quantity_ = field(default_factory=lambda: DEFAULT_VALUES['_windows'])
+    _flux_bounds: Iterable[float] | Quantity_ = field(default_factory=lambda: DEFAULT_VALUES['_flux_bounds'])
+    sigmas: list[float] = field(default_factory=lambda: DEFAULT_VALUES['sigmas'])
+    alpha_bounds: AstropyBounds = field(default_factory=lambda: DEFAULT_VALUES['alpha_bounds'])
+
+    x0: float | None = field(default=None, init=False)
+    y0: float | None = field(default=None, init=False)
+    windows: list[CoordBounds] | None = field(default=None, init=False)
+    flux_bounds: AstropyBounds | None = field(default=None, init=False)
+
     _keys: ClassVar[frozenset[str]] = frozenset([
-        '_x0', '_y0', '_windows', '_flux_bounds',
+        'fit', '_x0', '_y0', '_windows', '_flux_bounds',
         'sigmas', 'x0', 'y0', 'windows', 'flux_bounds', 'alpha_bounds',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
@@ -28,83 +58,15 @@ class ContinuumInfo(_Info):
         'flux_bounds': "to_flux_bounds",
     }
 
-    @validate_call(validate_return=False)
-    def __init__(
-        self,
-        *,
-        _x0: float | Quantity_ = 1450 * Unit('angstrom'),
-        _y0: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)'),
-        _windows: Iterable[tuple[float, float]] | Quantity_ = [
-            [1425, 1475], [1675, 1690], [1975, 2050], [2150, 2250]
-        ] * Unit('angstrom'),
-        _flux_bounds: Iterable[float] | Quantity_ = [1e-17, 1e-14] * Unit('erg/(s.cm2.angstrom)'),
-        sigmas: list[float] = [3.00, 2.75, 2.50],
-        alpha_bounds: AstropyBounds = (-5.0, 0.0),
-    ):
-        self._x0: float | Quantity_ = _x0
-        self._y0: float | Quantity_ = _y0
-        self._windows: Iterable[tuple[float, float]] | Quantity_ = _windows
-        self._flux_bounds: Iterable[float] | Quantity_ = _flux_bounds
-        self.sigmas: list[float] = sigmas
-        self.alpha_bounds: AstropyBounds = alpha_bounds
-
-        # Set by 'update' method
-        self.x0: float | None = None
-        self.y0: float | None = None
-        self.windows: list[CoordBounds] | None = None
-        self.flux_bounds: AstropyBounds | None = None
-
     def update(self, info) -> None:
         """
         Convert to unitless.
         """
         super().update(info, logger)
         return 
-        logger.debug("Updating 'ContinuumInfo' class:")
-
-        # Calculate dimensionless quantities
-        msg = ">>> [1/4] 'x0': "
-        if isinstance(old := self['_x0'], Quantity):
-            self['x0'] = new = info.units.getWavelength(old)
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['x0'] = float(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)        
-
-        msg = ">>> [2/4] 'y0': "
-        if isinstance(old := self['_y0'], Quantity):
-            self['y0'] = new = info.units.getFlux(old)
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['y0'] = float(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        msg = ">>> [3/4] 'windows': "
-        if isinstance(old := self['_windows'], Quantity):
-            self['windows'] = new = [
-                tuple(w) for w in info.units.getWavelength(old)
-            ]
-            msg += f"\n{val_and_type(old)} -> \n{val_and_type(new)}."
-        else:
-            self['windows'] = old
-            msg += f"\n{val_and_type(old)}."
-        logger.debug(msg)
-
-        msg = ">>> [4/4] 'flux_bounds': "
-        if isinstance(old := self['_flux_bounds'], Quantity):
-            self['flux_bounds'] = new = tuple(info.units.getFlux(old))
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['flux_bounds'] = tuple(old)
-            msg += f"{val_and_type(old)}."
-        logger.debug(msg)
-
-        logger.debug("... finished updating 'ContinuumInfo' class!")
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_file(
         cls,
         path: AbsoluteFilePath | None = None,
@@ -161,7 +123,7 @@ class ContinuumInfo(_Info):
         return cinfo
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,

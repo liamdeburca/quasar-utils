@@ -1,0 +1,949 @@
+{
+    "absorption": {
+        "fit": {
+            "desc": "Whether to perform the NAL identification pipeline.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the NAL identification pipeline is performed.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "w": {
+            "desc": "Window size used for Savtzky-Golay smoothing.",
+            "dtype": "int | float",
+            "value": 25, 
+            "unit": null,
+            "comment": "If 'unit' is null, 'w' is interpreted as an integer number of pixels. If 'unit' is a velocity unit (e.g., 'km/s'), 'w' is converted to a corresponding number of pixels using the spectrum's velocity resolution.",
+            "default": 25,
+            "parse_as": "n_pixels"
+        },
+        "p": {
+            "desc": "Polynomial order used for Savtzky-Golay smoothing.",
+            "dtype": "int",
+            "value": 3,
+            "comment": "Always an integer.",
+            "default": 3,
+            "parse_as": "int"
+        },
+        "p_crit": {
+            "desc": "Critical significance for identifying absorption features.",
+            "dtype": "float",
+            "value": 0.01,
+            "comment": "If the p-value of an absorption feature is below 'p_crit', the feature is considered significant.",
+            "default": 0.01,
+            "parse_as": "float"
+        },
+        "z_crit": {
+            "desc": "Critical residual value for identifying absorption features.",
+            "dtype": "float",
+            "value": -2,
+            "comment": "If the residual value of an absorption feature is below 'z_crit', the feature is considered significant.",
+            "default": -2,
+            "parse_as": "float"
+        },
+        "join": {
+            "desc": "Number of binary dilations performed to join nearby absorption features.",
+            "dtype": "int | float",
+            "value": 3,
+            "unit": null,
+            "comment": "If 'unit' is null, 'join' is interpreted as an integer number of pixels. If 'unit' is a velocity unit (e.g., 'km/s'), 'join' is converted to a corresponding number of pixels using the spectrum's velocity resolution.",
+            "default": 3,
+            "parse_as": "n_pixels"
+        },
+        "refine": {
+            "desc": "Whether to refine the selection of absorbed pixels.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the selection of absorbed pixels is refined.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "logspace": {
+            "desc": "Whether to smooth the spectrum in log-space.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the spectrum is smoothed in log-space. This corresponds to smoothing over velocity space for SDSS-like spectra with constant velocity resolution.",
+            "default": true,
+            "parse_as": "bool"
+        }
+    },
+
+    "balmer": {
+        "fit": {
+            "desc": "Whether to fit the Balmer continuum.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the Balmer continuum is fitted.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "source": {
+            "desc": "Source to use for Balmer series line ratios.",
+            "dtype": "str",
+            "value": "SH1995",
+            "comment": "Options: 'SH1995' (Storey & Hummer 1995).",
+            "default": "SH1995",
+            "parse_as": "str"
+        },
+        "n_u_min": {
+            "desc": "Minimum upper level, n_u, of the Balmer series to consider when querying line ratios.",
+            "dtype": "int",
+            "value": 7,
+            "comment": "",
+            "default": 7,
+            "parse_as": "int"
+        },
+        "n_u_max": {
+            "desc": "Maximum upper level, n_u, of the Balmer series to consider when querying line ratios.",
+            "dtype": "int",
+            "value": 50,
+            "comment": "",
+            "default": 50,
+            "parse_as": "int"
+        },
+        "dens": {
+            "desc": "Density used when querying the Balmer series' line ratios.",
+            "dtype": "float",
+            "value": 1e9,
+            "unit": "cm-3",
+            "comment": "'unit' should be either 'null' or a density unit (e.g., 'cm-3'). If 'unit' is null, the density unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "density"
+        },
+        "edge": {
+            "desc": "Choice of Balmer edge.",
+            "dtype": "float",
+            "value": 3646.0,
+            "unit": "angstrom",
+            "comment": "'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "wavelength"
+        },
+        "flux": {
+            "desc": "Initial guess for the flux density at the Balmer edge.",
+            "dtype": "float",
+            "value": 1e-17,
+            "unit": "erg/(s.cm2.angstrom)",
+            "comment": "'unit' should be either 'null' or a flux density unit (e.g., 'erg/(s.cm2.angstrom)'). If 'unit' is null, the flux density unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "flux"
+        },
+        "fwhm": {
+            "desc": "Initial guess for the FWHM.",
+            "dtype": "float",
+            "value": 5000.0,
+            "unit": "km/s",
+            "comment": "'unit' should be either 'null' or a velocity unit (e.g., 'km/s'). If 'unit' is null, the velocity unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "velocity"
+        },
+        "temp": {
+            "desc": "Temperature to use for modelling and querying.",
+            "dtype": "float",
+            "value": 15e3,
+            "unit": "K",
+            "comment": "'unit' should be either 'null' or a temperature unit (e.g., 'K'). If 'unit' is null, the temperature unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "temperature"
+        },
+        "tau": {
+            "desc": "Initial guess for the attenuation parameter, 'tau'.",
+            "dtype": "float",
+            "value": 1.0,
+            "comment": "See: https://ui.adsabs.harvard.edu/abs/2017MNRAS.472.4051C/abstract",
+            "parse_as": "float"
+        },
+        "scale": {
+            "desc": "Initial guess for the attenuation parameter, 'scale'.",
+            "dtype": "float",
+            "value": 3.0,
+            "comment": "See: https://ui.adsabs.harvard.edu/abs/2017MNRAS.472.4051C/abstract",
+            "parse_as": "float"
+        },
+        "ratio": {
+            "desc": "Initial guess for the continuum-series luminosity ratio.",
+            "dtype": "float",
+            "value": 0.3,
+            "comment": "See: https://ui.adsabs.harvard.edu/abs/2017MNRAS.472.4051C/abstract",
+            "parse_as": "float"
+        },
+
+        "flux_bounds": {
+            "desc": "Lower and upper bounds on the 'flux' parameter of the Balmer model.",
+            "dtype": "list[float | None]",
+            "value": [1e-18, 1e-15],
+            "unit": "erg/(s.cm2.angstrom)",
+            "comment": " Use 'null' for infinite bounds. 'unit' should be either 'null' or a flux density unit (e.g., 'erg/(s.cm2.angstrom)'). If 'unit' is null, the flux density unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "flux_bounds"
+        },
+        "fwhm_bounds": {
+            "desc": "Lower and upper bounds on the 'fwhm' parameter of the Balmer model.",
+            "dtype": "list[float | None]",
+            "value": [1000.0, 20000.0],
+            "unit": "km/s",
+            "comment": "Use 'null' for infinite bounds. 'unit' should be either 'null' or a velocity unit (e.g., 'km/s'). If 'unit' is null, the velocity unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "velocity_bounds"
+        },
+        "temp_bounds": {
+            "desc": "Lower and upper bounds on the 'temp' parameter of the Balmer model.",
+            "dtype": "list[float | None]",
+            "value": [1e4, 2e4],
+            "unit": "K",
+            "comment": "Use 'null' for infinite bounds. 'unit' should be either 'null' or a temperature unit (e.g., 'K'). If 'unit' is null, the temperature unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "temperature_bounds"
+        },
+        "tau_bounds": {
+            "desc": "Lower and upper bounds on the 'tau' parameter of the Balmer model.",
+            "dtype": "list[float | None]",
+            "value": [0.1, 10.0],
+            "comment": "Use 'null' for infinite bounds.",
+            "parse_as": "float_bounds"
+        },
+        "scale_bounds": {
+            "desc": "Lower and upper bounds on the 'scale' parameter of the Balmer model.",
+            "dtype": "list[float | None]",
+            "value": [1.0, 5.0],
+            "comment": "Use 'null' for infinite bounds.",
+            "parse_as": "float_bounds"
+        },
+        "ratio_bounds": {
+            "desc": "Lower and upper bounds on the 'ratio' parameter of the Balmer model.",
+            "dtype": "list[float | None]",
+            "value": [0.0, 1.0],
+            "comment": "Use 'null' for infinite bounds.",
+            "parse_as": "float_bounds"
+        },
+        "fixed": {
+            "desc": "List of parameters to keep fixed during fitting.",
+            "dtype": "list[str]",
+            "value": ["fwhm", "temp", "tau", "scale", "ratio"],
+            "comment": "Options: 'flux', 'fwhm', 'temp', 'tau', 'scale', 'ratio'.",
+            "parse_as": "balmer_fixed_params"
+        },
+        "raster_n": {
+            "desc": "Number of equally-spaced values to use for rasterisation.",
+            "dtype": "int",
+            "value": 20,
+            "comment": "",
+            "parse_as": "int"
+        },
+        "min_fittable_ratio": {
+            "desc": "Minimum ratio of fittable pixels covered by the Balmer model.",
+            "dtype": "float",
+            "value": 0.6,
+            "comment": "",
+            "parse_as": "float"
+        },
+        "min_fittable_total": {
+            "desc": "Minimum total number of fittable pixels covered by the Balmer model.",
+            "dtype": "int",
+            "value": 100,
+            "comment": "",
+            "parse_as": "int"
+        }
+    },
+    "loading": {
+        "loader": {
+            "desc": "Choice of data loading class to use.",
+            "dtype": "str",
+            "value": "fits",
+            "comment": "Options: 'ascii' (ASCIILoader), 'fits' (FITSLoader), 'paqs' (PAQSLoader), 'sdss' (SDSSLoader).",
+            "default": "fits",
+            "parse_as": "loader"
+        },
+        "naming": {
+            "desc": "Naming convention to use when loading spectra.",
+            "dtype": "str",
+            "value": "IGR",
+            "comment": "Options: 'J2000' (ra-dec), 'IGR' (ra-dec), 'SDSS' (plate-fiber-mjd).",
+            "default": "IGR",
+            "parse_as": "naming"
+        },
+        "deredden": {
+            "desc": "Whether to deredden the spectrum during loading.",
+            "dtype": "tuple[bool, str, str, float]",
+            "value": [true, "sfd", "ccm89", 3.1],
+            "comment": "If the first element is True, the spectrum is dereddened using the dust map specified by the second element and the reddening law specified by the third element.",
+            "default": "(true, sfd, ccm89, 3.1)",
+            "parse_as": "deredden"
+        },
+        "rebin": {
+            "desc": "Whether to rebin the spectrum to a logarithmic wavelength grid during loading.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the spectrum is rebinned to a logarithmic wavelength grid during loading. This corresponds to a constant velocity resolution for SDSS-like spectra.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "conserve": {
+            "desc": "Whether to conserve flux during rebinning.",
+            "dtype": "bool", 
+            "value": false, 
+            "comment": "",
+            "parse_as": "bool"
+        },
+        "covariance": {
+            "desc": "Whether to include covariance in the spectrum.",
+            "dtype": "bool", 
+            "value": false, 
+            "comment": "",
+            "parse_as": "bool"
+        },
+        "sigma_res": {
+            "desc": "Velocity resolution of the (rebinned) spectrum.",
+            "dtype": "float",
+            "value": 69.0,
+            "unit": "km/s",
+            "comment": "'unit' should be either 'null' or a velocity unit (e.g., 'km/s'). If 'unit' is null, the velocity unit is retrieved from the corresponding field in 'units'.",
+            "default": 69.0,
+            "parse_as": "velocity"
+        },
+        "x_bounds": {
+            "desc": "Lower and upper bounds for the wavelength range to load.",
+            "dtype": "list[float | None]",
+            "value": [1000.0, null],
+            "unit": "angstrom",
+            "comment": " If 'null', the bound is infinite. 'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.", 
+            "default": [1000.0, null],
+            "parse_as": "wavelength_bounds"
+        }
+    },
+    "units": {
+        "wavelength_unit": {
+            "desc": "Choice of wavelength unit.",
+            "dtype": "str",
+            "value": "1.0 angstrom",
+            "comment": "The string should consist of a numerical and unit component (e.g., '1.0 angstrom', '10.0 nm').",
+            "default": "1.0 angstrom",
+            "parse_as": "composite_unit"
+        },
+        "energy_unit": {
+            "desc": "Choice of energy unit.",
+            "dtype": "str",
+            "value": "1e-17 erg",
+            "comment": "The string should consist of a numerical and unit component (e.g., '1e-17 erg', '1e-20 J').",
+            "default": "1e-17 erg",
+            "parse_as": "composite_unit"
+        },
+        "time_unit": {
+            "desc": "Choice of time unit.",
+            "dtype": "str",
+            "value": "1.0 s",
+            "comment": "The string should consist of a numerical and unit component (e.g., '1.0 s', '1.0 yr').",
+            "default": "1.0 s",
+            "parse_as": "composite_unit"
+        },
+        "area_unit": {
+            "desc": "Choice of area unit.",
+            "dtype": "str",
+            "value": "1.0 cm2",
+            "comment": "The string should consist of a numerical and unit component (e.g., '1.0 cm2', '1.0 m2').",
+            "default": "1.0 cm2",
+            "parse_as": "composite_unit"
+        },
+        "velocity_unit": {
+            "desc": "Choice of velocity unit.",
+            "dtype": "str",
+            "value": "1.0 km/s",
+            "comment": "The string should consist of a numerical and unit component (e.g., '1.0 km/s', '1.0 m/s').",
+            "default": "1.0 km/s",
+            "parse_as": "composite_unit"
+        },
+        "temp_unit": {
+            "desc": "Choice of temperature unit.",
+            "dtype": "str",
+            "value": "1.0 K",
+            "comment": "The string should consist of a numerical and unit component (e.g., '1.0 K', '1.0 C').",
+            "default": "1.0 K",
+            "parse_as": "composite_unit"
+        },
+        "dens_unit": {
+            "desc": "Choice of density unit.",
+            "dtype": "str",
+            "value": "cm-3",
+            "comment": "The string should consist of a numerical and unit component (e.g., 'cm-3', 'm-3').",
+            "default": "cm-3",
+            "parse_as": "composite_unit"
+        },
+
+        "wavelength_format": {
+            "desc": "Formatting rule for wavelengths.",
+            "dtype": "str",
+            "value": ".3f",
+            "parse_as": "str"
+        },
+        "velocity_format": {
+            "desc": "Formatting rule for velocities.",
+            "dtype": "str",
+            "value": ".3f",
+            "parse_as": "str"
+        },
+        "flux_format": {
+            "desc": "Formatting rule for fluxes.",
+            "dtype": "str",
+            "value": ".3e",
+            "parse_as": "str"
+        },
+        "strength_format": {
+            "desc": "Formatting rule for line strengths.",
+            "dtype": "str",
+            "value": ".3e",
+            "parse_as": "str"
+        },
+        "other_format": {
+            "desc": "Formatting rule for other quantities.",
+            "dtype": "str",
+            "value": ".3e",
+            "parse_as": "str"
+        }
+    },
+    "continuum": {
+        "fit": {
+            "desc": "Whether to fit the power law continuum.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the power law continuum is fitted.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "x0": {
+            "desc": "Reference wavelength for the continuum power law model.",
+            "dtype": "float",
+            "value": 1450,
+            "unit": "angstrom",
+            "comment": "'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.",
+            "default": 1450,
+            "parse_as": "wavelength"
+        },
+        "y0": {
+            "desc": "Reference flux density for the power law linear fitting.",
+            "dtype": "float",
+            "value": 1e-17,
+            "unit": "erg/(s.cm2.angstrom)",
+            "comment": "'unit' should be either 'null' or a flux density unit (e.g., 'erg/(s.cm2.angstrom)'). If 'unit' is null, the flux density unit is retrieved from the corresponding field in 'units'.",
+            "default": 1e-17,
+            "parse_as": "flux"
+        },
+        "windows": {
+            "desc": "List of wavelength windows used for continuum fitting.",
+            "dtype": "list[list[float, float]]",
+            "value": [[1425.0, 1475.0], [1675.0, 1690.0], [1975.0, 2050.0], [2150.0, 2250.0]],
+            "unit": "angstrom",
+            "comment": "'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.",
+            "default": [[1425.0, 1475.0], [1675.0, 1690.0], [1975.0, 2050.0], [2150.0, 2250.0]],
+            "parse_as": "wavelength_windows"
+        },
+        "sigmas": {
+            "desc": "Sequence of sigma-clipping thresholds.",
+            "dtype": "list[float]",
+            "value": [3.00, 2.75, 2.50],
+            "comment": "To completely disable sigma-clipping, provide an empty list.",
+            "default": [3.00, 2.75, 2.50],
+            "parse_as": "float_list"
+        },
+        "flux_bounds": {
+            "desc": "Lower and upper bounds for the flux density at the reference wavelength, 'x0'.",
+            "dtype": "list[float | None]",
+            "value": [1e-17, 2e-15],
+            "unit": "erg/(s.cm2.angstrom)",
+            "comment": "The first value must be provided. Use 'null' for infinite bounds. 'unit' should be either 'null' or a flux density unit (e.g., 'erg/(s.cm2.angstrom)'). If 'unit' is null, the flux density unit is retrieved from the corresponding field in 'units'.",
+            "default": [1e-17, 2e-15],
+            "parse_as": "flux_bounds"
+        },
+        "alpha_bounds": {
+            "desc": "Lower and upper bounds for the power law index of the continuum model.",
+            "dtype": "list[float | None]",
+            "value": [-2.0, 0.0],
+            "comment": "Use 'null' for infinite bounds.",
+            "default": [-2.0, 0.0],
+            "parse_as": "float_bounds"
+        }
+    },
+    "iron": {
+        "fit": {
+            "desc": "Whether to fit the iron emission.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the iron emission is fitted.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "windows": {
+            "desc": "List of wavelength windows used for iron emission fitting.",
+            "dtype": "list[list[float, float]]",
+            "value": [[2050.0, 2700.0], [3000.0, 3500.0]],
+            "unit": "angstrom",
+            "comment": " 'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.",
+            "default": [[2050.0, 2700.0], [3000.0, 3500.0]],
+            "parse_as": "wavelength_windows"
+        },
+        "template_files": {
+            "desc": "List of templates to use.",
+            "dtype": "list[str]",
+            "value": ["vw_2001.fits", "v_2003.fits", "bw.fits"],
+            "comment": "Each template should either be a valid name or an absolute path to a valid FITS file. Options: 'vw_2001.fits', 'bw.fits', 'v_2003.fits'.",
+            "default": ["vw_2001.fits", "v_2003.fits", "bw.fits"],
+            "parse_as": "str_list"
+        },
+        "resample": {
+            "desc": "Whether to resample the iron templates to the wavelength grid of the spectrum.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, the iron templates are resampled to the wavelength grid of the spectrum. If false, the original wavelength grid of the templates is used.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "fwhm": {
+            "desc": "FWHM and step size of iron templates' fwhm arrays.",
+            "dtype": "list[float]",
+            "value": [1000.0, 20000.0, 250.0],
+            "unit": "km/s",
+            "comment": "'unit' should be either 'null' or a velocity unit (e.g., 'km/s'). If 'unit' is null, the velocity unit is retrieved from the corresponding field in 'units'. The first two values define the minimum and maximum FWHM of the templates, while the third value defines the step size of the FWHM arrays.",
+            "default": [1000.0, 20000.0, 250.0],
+            "parse_as": "arange"
+        },
+        "flux_bounds": {
+            "desc": "Lower and upper bounds on the 'flux' parameter of the iron model.",
+            "dtype": "list[float | None]",
+            "value": [1e-17, 1e-14],
+            "unit": "erg/(s.cm2.angstrom)",
+            "comment": "Use 'null' for infinite bounds. 'unit' should be either 'null' or a flux unit (e.g., 'erg/s'). If 'unit' is null, the flux unit is retrieved from the corresponding field in 'units'.",
+            "default": [1e-17, 1e-14],
+            "parse_as": "flux_bounds"
+        },
+        "fwhm_bounds": {
+            "desc": "Lower and upper bounds on the 'fwhm' parameter of the iron model.",
+            "dtype": "list[float | None]",
+            "value": [1000.0, 20000.0],
+            "unit": "km/s",
+            "comment": " Use 'null' for infinite bounds. 'unit' should be either 'null' or a velocity unit (e.g., 'km/s'). If 'unit' is null, the velocity unit is retrieved from the corresponding field in 'units'.",
+            "default": [1000.0, 20000.0],
+            "parse_as": "velocity_bounds"
+        },
+        "split": {
+            "desc": "'split' values used in each iron template.",
+            "dtype": "list[float | None]",
+            "value": [null, null, null],
+            "unit": "angstrom",
+            "comment": "If 'null', no split is applied. 'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.",
+            "default": [null, null, null],
+            "parse_as": "wavelength_list"
+        },
+        "bias": {
+            "desc": "Which side of the split template to favour.",
+            "dtype": "list[str]",
+            "value": ["right", "right", "right"],
+            "comment": "Options: 'left' and 'right'.",
+            "default": ["right", "right", "right"],
+            "parse_as": "bias"
+        },
+        "ratio": {
+            "desc": "Ratio used to dampen the unbiased side of the split template.",
+            "dtype": "list[float]",
+            "value": [0.25, 0.25, 0.25],
+            "comment": "",
+            "default": [0.25, 0.25, 0.25],
+            "parse_as": "float_list"
+        },
+        "scale": {
+            "desc": "Scale of the split weight function.",
+            "dtype": "int | float",
+            "value": 140.0,
+            "unit": "km/s",
+            "comment": "'unit' should be either 'null' or a velocity unit (e.g., 'km/s'). If 'unit' is null, the velocity unit is retrieved from the corresponding field in 'units'.",
+            "default": 140.0,
+            "parse_as": "split_scale"
+        },
+        "fine_tune": {
+            "desc": "Whether to perform nonlinear optimisation after rasterisation of each iron template.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, nonlinear optimisation is performed after rasterisation of each iron template. If false, the best-fitting rasterised model is returned without fine-tuning.",
+            "default": true,
+            "parse_as": "bool"
+        }
+    },
+    "lines": {
+        "fit": {
+            "desc": "Whether to fit emission lines.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "If true, emission lines are fitted.",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "x_limit": {
+            "desc": "Minimum possible wavelength of emission lines.",
+            "dtype": "float",
+            "value": 1220.0,
+            "unit": "angstrom",
+            "comment":" 'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom'). If 'unit' is null, the wavelength unit is retrieved from the corresponding field in 'units'.",
+            "parse_as": "wavelength"
+        },
+        "w": {
+            "desc": "Window size used when convolving the residual array.",
+            "dtype": "int | float",
+            "value": 25,
+            "unit": null,
+            "comment": "'unit' should be either 'null' or a velocity unit (e.g., 'km/s').",
+            "parse_as": "n_pixels"
+        },
+        "forced_splits": {
+            "comment": "List of wavelengths at which to forcefully split IWindows. 'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom').",
+            "dtype": "list[float]",
+            "value": [1450.0, 1680.0, 2000.0],
+            "unit": "angstrom",
+            "parse_as": "wavelength_list"
+        },
+        "v_sep": {
+            "comment": "Defines the area-of-interest around an emission line. 'unit' should be either 'null' or a velocity unit (e.g., 'km/s').",
+            "dtype": "float",
+            "value": 1e4,
+            "unit": "km/s",
+            "parse_as": "velocity"
+        },
+        "min_fittable_ratio": {
+            "comment": "Minimum ratio of fittable pixels covered by a Gaussian model.",
+            "dtype": "float",
+            "value": 0.6,
+            "parse_as": "float"
+        },
+        "min_fittable_total": {
+            "comment": "Minimum total number of fittable pixels covered by a Gaussian model.",
+            "dtype": "int",
+            "value": 50,
+            "parse_as": "int"
+        },
+        
+        "v_off_bounds": {
+            "comment": "Default lower and upper bounds on the velocity offset of emission lines. Use 'null' for infinite bounds. 'unit' should be either 'null' or a velocity unit (e.g., 'km/s').",
+            "dtype": "list[float | None]",
+            "value": [-5000.0, 5000.0],
+            "unit": "km/s",
+            "parse_as": "velocity_bounds"
+        },
+        "sigma_v_bounds": {
+            "comment": "Default lower and upper bounds on the velocity dispersion of emission lines. Use 'null' for infinite bounds. 'unit' should be either 'null' or a velocity unit (e.g., 'km/s').",
+            "dtype": "list[float | None]",
+            "value": [250.0, 5000.0],
+            "unit": "km/s",
+            "parse_as": "velocity_bounds"
+        },
+        "strength_bounds": {
+            "comment": "Default lower and upper bounds on the strength of emission lines. Use 'null' for infinite bounds. 'unit' should be either 'null' or a flux unit (e.g., 'erg/s').",
+            "dtype": "list[float | None]",
+            "value": [1e-16, 1e-10],
+            "unit": "erg/(s.cm2)",
+            "parse_as": "strength_bounds"
+        },
+        "evaluate_initial": {
+            "desc": "Minimum ratio of peak flux to noise required for addition of multiple Gaussian components.",
+            "dtype": "float | None",
+            "value": 3.0,
+            "comment": "If 'null', the peak flux to noise ratio is not checked.",
+            "default": 3.0,
+            "parse_as": "optional_float"
+        },
+        "aggressive": {
+            "comment": "Whether to aggressively fit emission lines, i.e. to fit lines with one more Gaussian component than automatically selected.",
+            "dtype": "bool",
+            "value": false,
+            "parse_as": "bool"
+        },
+        "crop": {
+            "comment": "Whether to perform model cropping, i.e. to remove single Gaussian components whose contribution to the total model is negligible.",
+            "dtype": "bool",
+            "value": false,
+            "parse_as": "bool"
+        },
+        "measure": {
+            "comment": "Method name used to rank the qualities of Gaussian components.",
+            "dtype": "str",
+            "value": "getFluxSNR",
+            "parse_as": "str"
+        },
+        "reverse": {
+            "comment": "Whether to reverse the ranking of Gaussian components, i.e. to favour components with lower 'measure' values.",
+            "dtype": "bool",
+            "value": false,
+            "parse_as": "bool"
+        },
+
+        "snr": {
+            "comment": "[NOT IMPLEMENTED] Default signal-to-noise threshold to use if no other value is specified.",
+            "dtype": "float",
+            "value": 10.0,
+            "parse_as": "float"
+        },
+
+        "make_copies": {
+            "comment": "Whether to create velocity-profile copies.",
+            "dtype": "bool",
+            "value": true,
+            "parse_as": "bool"
+        },
+        "adapt_scale": {
+            "comment": "Whether to adapt the strengths of velocity-profile copies to the strengths of the Gaussian components they are mimicking.",
+            "dtype": "bool",
+            "value": true,
+            "parse_as": "bool"
+        },
+        "scale_init": {
+            "comment": "Default guess for the velocity-profile copy parameter, 'scale'.",
+            "dtype": "float",
+            "value": 1.0,
+            "parse_as": "float"
+        },
+        "scale_bounds": {
+            "comment": "Default lower and upper bounds on the 'scale' parameter of velocity-profile copies. Use 'null' for infinite bounds.",
+            "dtype": "list[float | None]",
+            "value": [0.0, 10.0],
+            "parse_as": "float_bounds"
+        }
+    },
+    "error": {
+        "method": {
+            "desc": "Error estimation method to use.",
+            "dtype": "str",
+            "value": "bootstrap",
+            "unit": null,
+            "comment": "Options: 'bootstrap'.",
+            "default": "bootstrap",
+            "parse_as": "str"
+        },
+        "scale": {
+            "desc": "Scale of error estimation method.",
+            "dtype": "str",
+            "value": "global",
+            "comment": "Options: 'global', 'semilocal', 'local'.",
+            "default": "global",
+            "parse_as": "str"
+        },
+        "remodel": {
+            "desc": "",
+            "dtype": "bool",
+            "value": false,
+            "comment": "",
+            "default": false,
+            "parse_as": "bool"
+        },
+        "variant": {
+            "desc": "Variant of error estimation method to use.",
+            "dtype": "str",
+            "value": "spectrum",
+            "unit": null,
+            "comment": "",
+            "default": "Options: 'spectrum', 'standard, 'flexible', 'rigid'.",
+            "parse_as": "str"
+        },
+        "replace_missing": {
+            "desc": "Whether to replace missing values during error estimation.",
+            "dtype": "bool",
+            "value": true,
+            "comment": "",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "bootstrap_type": {
+            "desc": "",
+            "dtype": "str",
+            "value": "spectrum",
+            "comment": "Options: 'spectrum', 'model', 'frequentist'.",
+            "default": "spectrum",
+            "parse_as": "str"
+        },
+        "iterations": {
+            "desc": "",
+            "dtype": "int",
+            "value": 100,
+            "comment": "",
+            "default": 100,
+            "parse_as": "int"
+        },
+        "random_state": {
+            "desc": "Seed.",
+            "dtype": "int",
+            "value": 42,
+            "comment": "",
+            "default": 42,
+            "parse_as": "random_state"
+        },
+        "renew_rng": {
+            "desc": "",
+            "dtype": "bool",
+            "value": true,
+            "comment": "",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "n_sigmas": {
+            "desc": "",
+            "dtype": "float",
+            "value": 2.0,
+            "comment": "",
+            "default": 2.0,
+            "parse_as": "float"
+        },
+        "res": {
+            "desc": "",
+            "dtype": "int",
+            "value": 1000,
+            "comment": "",
+            "default": 1000,
+            "parse_as": "int"
+        },
+        "render_width": {
+            "desc": "",
+            "dtype": "float",
+            "value": 5.0,
+            "comment": "",
+            "default": 5.0,
+            "parse_as": "float"
+        },
+        "fwhm_strategy": {
+            "desc": "Strategy for calculating the FWHM.",
+            "dtype": "str",
+            "value": "average",
+            "comment": "Options: 'average', 'narrowest', 'widest'.",
+            "default": "average",
+            "parse_as": "str"
+        },
+        "exact": {
+            "desc": "",
+            "dtype": "bool",
+            "value": true,
+            "comment": "",
+            "default": true,
+            "parse_as": "bool"
+        },
+        "v_int": {
+            "desc": "Velocity half-width used for line measure computation.",
+            "dtype": "float",
+            "value": 18000.0,
+            "unit": "km/s",
+            "comment": "'unit' should be either 'null' or a velocity unit (e.g., 'km/s').",
+            "default": 18000.0,
+            "parse_as": "velocity"
+        },
+        "ipv_int": {
+            "desc": "Window IPV-width used for line measure computation.",
+            "dtype": "float",
+            "value": 90.0,
+            "comment": "",
+            "default": 90.0,
+            "parse_as": "float"
+        },
+        "dx_int": {
+            "desc": "Window half-width used for line measure computation.",
+            "dtype": "float",
+            "value": 50.0,
+            "unit": "angstrom",
+            "comment": "'unit' should be either 'null' or a wavelength unit (e.g., 'angstrom').",
+            "default": 50.0,
+            "parse_as": "wavelength"
+        },
+        "vary_lines": {
+            "desc": "Names of lines to vary.",
+            "dtype": "list[str]",
+            "value": ["all"],
+            "unit": null,
+            "comment": "",
+            "default": ["all"],
+            "parse_as": "str_selection"
+        },
+        "out_lines": {
+            "desc": "Line names to measure for error estimation.",
+            "dtype": "list[str]",
+            "value": ["all"],
+            "comment": "",
+            "default": ["all"],
+            "parse_as": "str_selection"
+        },
+        "out_measures": {
+            "desc": "Line measures to compute.",
+            "dtype": "list[str]",
+            "value": ["all"],
+            "comment": "",
+            "default": ["all"],
+            "parse_as": "str_selection"
+        },
+        "percentiles": {
+            "desc": "Percentiles to compute for error estimation.",
+            "dtype": "list[float]",
+            "value": [16.0, 50.0, 84.0],
+            "comment": "",
+            "default": [16.0, 50.0, 84.0],
+            "parse_as": "float_list"
+        },
+        "tqdm_disable": {
+            "desc": "Whether to disable 'tqdm' progress bars.",
+            "dtype": "bool",
+            "value": false,
+            "comment": "",
+            "default": false,
+            "parse_as": "bool"
+        },
+        "tqdm_leave": {
+            "desc": "",
+            "dtype": "bool",
+            "value": false,
+            "comment": "",
+            "default": false,
+            "parse_as": "bool"
+        }
+    },
+    "nonlinear": {
+        "algo": {
+            "desc": "Choice of algorithm used for nonlinear optimisation.",
+            "dtype": "str",
+            "value": "trf",
+            "comment": "Options: 'trf' (TRFLSQFitter), 'dogbox' (DogBoxLSQFitter), 'lm' (LevenbergMarquardtLSQFitter). See: https://docs.astropy.org/en/latest/modeling/fitting.html#",
+            "default": "trf",
+            "parse_as": "algo"
+        },
+        "loss": {
+            "desc": "Choice of loss function used for nonlinear optimisation.",
+            "dtype": "str",
+            "value": "linear",
+            "comment": "See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+            "default": "linear",
+            "parse_as": "str"
+        },
+        "f_scale": {
+            "desc": "Value of f_scale parameter for robust loss functions in nonlinear optimisation.",
+            "dtype": "float",
+            "value": 1.0,
+            "comment": "See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+            "default": 1.0,
+            "parse_as": "float"
+        },
+        "maxiter": {
+            "desc": "Maximum number of iterations for nonlinear optimisation.",
+            "dtype": "int",
+            "value": 100,
+            "comment": "",
+            "default": 100,
+            "parse_as": "int"
+        },
+        "ftol": {
+            "desc": "Relative error tolerance for convergence of nonlinear optimisation.",
+            "dtype": "float",
+            "value": 1e-8,
+            "comment": "See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+            "default": 1e-8,
+            "parse_as": "tol"
+        },
+        "xtol": {
+            "desc": "Relative error tolerance for convergence of nonlinear optimisation.",
+            "dtype": "float",
+            "value": 0,
+            "comment": "See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+            "default": 0,
+            "parse_as": "tol"
+        },
+        "gtol": {
+            "desc": "Relative error tolerance for convergence of nonlinear optimisation.",
+            "dtype": "float",
+            "value": 0,
+            "comment": "See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+            "default": 0,
+            "parse_as": "tol"
+        }
+    },
+    "plotting": {}
+}

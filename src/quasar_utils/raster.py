@@ -1,10 +1,9 @@
 """
 File containing utility functions for performing raster fits of templates.
 """
-
 __all__ = ["rasterise"]
 
-from numpy import float64, einsum, clip, inf, full_like, nan
+from numpy import float64, einsum, clip, inf, full_like, nan, isnan
 from numpy.typing import NDArray
 
 from pydantic import validate_call
@@ -31,7 +30,7 @@ def _validate_rasterise_inputs(
         raise PydanticCustomError("validation_error", msg)
 
 # Basic rasterisation
-@validate_call(validate_return=False)
+@validate_call
 def rasterise(
     y: FittableFloatVector,
     dy: FittableFloatVector,
@@ -42,15 +41,15 @@ def rasterise(
     fwhm_bounds: AstropyBounds = (None, None),
 ) -> tuple[FloatVector, FloatVector]:
     """
-    Basic rasterisation:
+    **PYDANTIC VALIDATED FUNCTION**
 
     Compares the input data and each template row, finding the optimal flux 
     which minimises the chi-square.
     """
     _validate_rasterise_inputs(y, dy, fwhm, data)
 
-    fwhm_lb: float = fwhm_bounds[0] if fwhm_bounds[0] is not None else 0
-    fwhm_ub: float = fwhm_bounds[1] if fwhm_bounds[1] is not None else inf 
+    fwhm_lb: float = fwhm_bounds[0] or fwhm[0]
+    fwhm_ub: float = fwhm_bounds[1] or fwhm[-1]
 
     mask = (fwhm_lb <= fwhm) & (fwhm <= fwhm_ub)
     assert mask.any(), "No templates within FWHM bounds!"
@@ -58,19 +57,19 @@ def rasterise(
     chi2s = full_like(fwhm, nan, dtype=float64)
     fluxs = chi2s.copy()
 
-    _data = data[mask]
+    # If template is not covered by data
+    if (data[mask] == 0).all(): return chi2s, fluxs
 
     w2 = 1 / dy**2
-    _fluxs = clip(
-        einsum("ij,...j,...j->i", _data, y, w2) \
-        / einsum("ij,ij,...j->i", _data, _data, w2),
-        a_min = flux_bounds[0],
-        a_max = flux_bounds[1],
+    
+    den = einsum("ij,ij,...j->i", data[mask], data[mask], w2)
+    num = einsum("ij,...j,...j->i", data[mask], y, w2)
+    fluxs[mask] = clip(
+        num / den,
+        a_min=flux_bounds[0] or 0,
+        a_max=flux_bounds[1] or inf, 
     )
-    diffs = y[None,:] -  fluxs[:,None] * _data
-    _chi2s = einsum("ij,ij,...j->i", diffs, diffs, w2) / y.size
-
-    fluxs[mask] = _fluxs
-    chi2s[mask] = _chi2s
+    _d = y[None,:] - (fluxs[:,None] * data)[mask]
+    chi2s[mask] = einsum("ij,ij,...j->i", _d, _d, w2) / y.size
 
     return chi2s, fluxs

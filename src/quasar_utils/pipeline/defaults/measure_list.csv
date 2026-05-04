@@ -1,0 +1,37 @@
+method,                     measure,            cname,      dimension,      power,  desc
+measureFirstMoment,         m1,                 M1,         wavelength,     ,       First moment (mean) of profile. Equivalent to centroid.
+measureSecondCentralMoment, cm2,                CM2,        wavelength,     2,      Second central moment (variance) of profile.
+measureThirdCentralMoment,  cm3,                CM3,        wavelength,     3,      Third central moment of profile.
+measureFourthCentralMoment, cm4,                CM4,        wavelength,     4,      Fourth central moment of profile.
+measureCentroid,            centroid,           CEN,        wavelength,     ,       Centroid of profile. Equivalent to first central moment. 
+measureOffset,              meanoffset,         AvgOFF,     c,              ,       Velocity offset of centroid w.r.t. the theoretical rest wavelenhgth.
+measureDispersion,          dispersion,         DISP,       c,              ,       Velocity dispersion of profile w.r.t. the centroid.
+measureStrength,            strength,           IntFLUX,    strength,       ,       Integrated flux density of profile.
+measureQuantile,            quantile,           Q,          wavelength,     ,       Rest wavelength at specified quantile.
+measureMedian,              median,             MED,        wavelength,     ,       Median wavelength of profile.
+measureMedianOffset,        medianoffset,       MedOFF,     c,              ,       Velocify offset of median of profile w.r.t. the theoretical rest wavelength.
+measureMode,                mode,               MODE,       wavelength,     ,       Rest wavelength at mode of profile.
+measureModeOffset,          modeoffset,         ModeOFF,    c,              ,       Velocity offset of mode of profile w.r.t. the theoretical rest wavelength.
+measureMax,                 max,                MAX,        flux,           ,       Peak flux density value.
+measureFWHM,                fwhm,               FWHM,       wavelength,     ,       Width of profile at specified height w.r.t. the peak flux density.
+measureFWHMVelocity,        fwhmvelocity,       FWHMVel.,   c,              ,       Velocity-space width of profile at specified height w.r.t. the mode of profile.
+measureSkewness,            skewness,           SKEW,       ,               ,       Skewness of profile.
+measureKurtosis,            kurtosis,           KURT,       ,               ,       Kurtosis of profile.
+measureIPWidth,             ipwidth,            IPW,        wavelength,     ,       Inter-percentile width of profile.
+measureIPV,                 ipv,                IPV,        c,              ,       Inter-percentile velocity-space width of profile w.r.t. the median.
+measureEW,                  ew,                 EW,         wavelength,     ,       Equivalent width of profile.
+measureMAD,                 mad,                MAD,        wavelength,     ,       Median absolute deviation of profile w.r.t. the median.
+measureMADVelocity,         madvelocity,        MADVel.,    c,              ,       Median absolute deviation of profile w.r.t. the median in units of velocity.
+measureAAD,                 aad,                AAD,        wavelength,     ,       Mean absolute deviation of profile w.r.t. the centroid.
+measureAADVelocity,         aadvelocity,        AADVel.,    c,              ,       Mean absolute deviation of profile w.r.t. the centroid in units of velocity.
+measureWhittleA,            whittlea,           Wh.A,       c,              ,       Whittle's 'a' velocity-space length w.r.t. the median.
+measureWhittleB,            whittleb,           Wh.B,       c,              ,       Whittle's 'b' velocity-space length length w.r.t the median.
+measureWhittleShift,        whittleshift,       Wh.Shift,   c,              ,       Whittle's shift parameter.
+measureWhittleAsymmetry,    whittleasymmetry,   Wh.Asymm.,  ,               ,       Whittle's asymmetry parameter.
+measureWhittleK1,           whittlek1,          Wh.K1,      ,               ,       Whittle's K1 parameter.
+measureWhittleK2,           whittlek2,          Wh.K2,      ,               ,       Whittle's K2 parameter.
+measureIntegratedFlux,      intflux,            IntFLUX,    strength,       ,       Integrated flux density of profile.
+measureAverageFlux,         avgflux,            AvgFlux,    flux,           ,       Average flux density within a specified wavelength range.
+measurePLFlux,              plflux,             PLFlux,     flux,           ,       Power law emission flux. 
+measureFEFlux,              feflux,             FEFlux,     flux,           ,       Iron emission flux.
+measureBAFlux,              baflux,             BAFlux,     flux,           ,       Balmer continuum emission flux.

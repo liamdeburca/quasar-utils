@@ -39,12 +39,12 @@ class TestGetCorrection:
 
     def test_correction_with_ccm89(self):
         from quasar_utils.dereddening import get_correction
-        correction = get_correction(WAVELENGTHS, SKY_COORD, curve_name='ccm89')
+        correction = get_correction(WAVELENGTHS, SKY_COORD, law_name='ccm89')
         assert np.all(np.isfinite(correction))
 
     def test_correction_with_o94(self):
         from quasar_utils.dereddening import get_correction
-        correction = get_correction(WAVELENGTHS, SKY_COORD, curve_name='o94')
+        correction = get_correction(WAVELENGTHS, SKY_COORD, law_name='o94')
         assert np.all(np.isfinite(correction))
 
     def test_higher_rv_changes_correction(self):
@@ -98,12 +98,12 @@ class TestDereddenSpectrum:
         """Every (map, curve) combination should run without error."""
         from quasar_utils.dereddening import deredden_spectrum
         for map_name in ('sfd', 'csfd'):
-            for curve_name in ('ccm89', 'o94'):
+            for law_name in ('ccm89', 'o94'):
                 result = deredden_spectrum(
                     (WAVELENGTHS, FLUX, ERROR),
                     SKY_COORD,
                     map_name=map_name,
-                    curve_name=curve_name,
+                    law_name=law_name,
                 )
                 assert np.all(np.isfinite(result[1]))
                 assert np.all(np.isfinite(result[2]))
@@ -140,7 +140,7 @@ class TestRoundTrip:
         from quasar_utils.dereddening import get_correction, deredden_spectrum
 
         correction = get_correction(
-            WAVELENGTHS, SKY_COORD, curve_name='o94',
+            WAVELENGTHS, SKY_COORD, law_name='o94',
         )
         flux_reddened = FLUX / correction
         error_reddened = ERROR / correction
@@ -148,7 +148,7 @@ class TestRoundTrip:
         result = deredden_spectrum(
             (WAVELENGTHS, flux_reddened, error_reddened),
             SKY_COORD,
-            curve_name='o94',
+            law_name='o94',
         )
 
         assert_allclose(result[1], FLUX, rtol=1e-10)

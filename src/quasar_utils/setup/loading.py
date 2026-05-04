@@ -1,25 +1,48 @@
 from logging import getLogger
-logger = getLogger("quasar_utils.setup.loading")
-
-from typing import ClassVar, Self, Literal
-from json import load as load_json
-from pathlib import Path
-from astropy.units import Unit, Quantity
-
+from typing import ClassVar, Self, Literal, Any
+from astropy.units import Unit
+from dataclasses import field
+from pydantic.dataclasses import dataclass
 from pydantic import validate_call
 
 from .utils._info import _Info
-from .utils.json_field import JSONField
 from ..utils.utils import val_and_type
 from ..utils import parsing
 from ..utils.parsing import get_lines_from_file
 
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import CoordBounds
-from quasar_typing.pathlib import Path_, AbsoluteFilePath
+from quasar_typing.pathlib import AbsoluteFilePath
 
+logger = getLogger(__name__)
 
+DEFAULT_VALUES: dict[str, Any] = {
+    'loader': 'fits',
+    'naming': 'IGR',
+    'deredden': (True, 'sfd', 'ccm89', 3.1),
+    'rebin': True,
+    'load': True,
+    'conserve': False,
+    'covariance': False,
+    '_sigma_res': 69 * Unit('km/s'),
+    '_x_bounds': (1000, 3000) * Unit('angstrom'),
+}
+
+@dataclass
 class LoadingInfo(_Info):
+    loader: str = field(default=DEFAULT_VALUES['loader'])
+    naming: str = field(default=DEFAULT_VALUES['naming'])
+    deredden: tuple[bool, Literal['sfd', 'csfd'], Literal['ccm89', 'o94'], float] = field(default=DEFAULT_VALUES['deredden'])
+    rebin: bool = field(default=DEFAULT_VALUES['rebin'])
+    load: bool = field(default=DEFAULT_VALUES['load'])
+    conserve: bool = field(default=DEFAULT_VALUES['conserve'])
+    covariance: bool = field(default=DEFAULT_VALUES['covariance'])
+    _sigma_res: float | Quantity_ = field(default=DEFAULT_VALUES['_sigma_res'])
+    _x_bounds: CoordBounds | Quantity_ = field(default=DEFAULT_VALUES['_x_bounds'])
+
+    sigma_res: float | None = field(default=None, init=False)
+    x_bounds: CoordBounds | None = field(default=None, init=False)
+
     _keys: ClassVar[frozenset[str]] = frozenset([
         'loader',
         'naming', 'deredden', 'rebin', 'load', 'conserve', 'covariance', 
@@ -32,12 +55,12 @@ class LoadingInfo(_Info):
         'x_bounds': "to_wavelength_bounds",
     }
 
-    @validate_call(validate_return=False)
+    @validate_call
     def __init__(
         self,
         loader: str = 'fits',
         naming: str = 'IGR',
-        deredden: tuple[bool, Literal['sfd', 'csfd'] | None, Literal['ccm89', 'o94'] | None] = (True, 'sfd', 'ccm89'),
+        deredden: tuple[bool, Literal['sfd', 'csfd'], Literal['ccm89', 'o94'], float] = (True, 'sfd', 'ccm89', 3.1),
         rebin: bool = True,
         load: bool = True,
         conserve: bool = False,
@@ -49,7 +72,7 @@ class LoadingInfo(_Info):
     ):
         self.loader: str = loader
         self.naming: str = naming
-        self.deredden: tuple[bool, Literal['sfd', 'csfd'] | None, Literal['ccm89', 'o94'] | None] = deredden
+        self.deredden: tuple[bool, Literal['sfd', 'csfd'], Literal['ccm89', 'o94'], float] = deredden
         self.rebin: bool = rebin
         self.load: bool = load
         self.conserve: bool = conserve
@@ -65,30 +88,9 @@ class LoadingInfo(_Info):
         and the dimensionless rest-wavelength bounds, x_bounds.
         """
         super().update(info, logger)
-        return 
-        logger.debug("Updating 'LoadingInfo' class:")
-
-        # Calculate velocity resolution (in units of the speed of light)
-        msg = ">>> [1/2] 'sigma_res': "
-        if not isinstance(old := self['_sigma_res'], Quantity):
-            old *= info.units['velocity_unit']
-        self['sigma_res'] = new = info.units.getC(old)
-        msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        logger.debug(msg)
-
-        msg = ">>> [2/2] 'x_bounds': "
-        if isinstance(old := self['_x_bounds'], Quantity):
-            self['x_bounds'] = new = tuple(info.units.getWavelength(old))
-            msg += f"{val_and_type(old)} -> {val_and_type(new)}."
-        else:
-            self['x_bounds'] = tuple(old)
-            msg += f"{val_and_type(old)},"
-        logger.debug(msg)
-
-        logger.debug("... finished updating 'LoadingInfo' class!")
 
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_file(
         cls,
         path: AbsoluteFilePath | None = None,
@@ -149,7 +151,7 @@ class LoadingInfo(_Info):
         return linfo
     
     @classmethod
-    @validate_call(validate_return=False)
+    @validate_call
     def from_json(
         cls,
         json: dict[str, dict] | AbsoluteFilePath | None = None,
