@@ -2,8 +2,9 @@ __all__ = ['ASCIILoader']
 
 from typing import Any
 from pydantic import validate_call
+from pydantic.dataclasses import dataclass
 from pandas import DataFrame
-from numpy import stack
+from numpy import stack, median, diff, full_like, float64
 from astropy.units import Unit
 from functools import partial
 
@@ -11,7 +12,6 @@ from quasar_typing.astropy import Quantity_
 from quasar_typing.pathlib import AbsoluteFilePath
 from quasar_typing.pandas import DataFrame_
 
-from ..setup import Info
 from .loader import _Loader
 from ..naming import SDSS
 
@@ -51,6 +51,12 @@ def get_from_data(key: str, df: DataFrame_) -> float | Quantity_:
         case 'dy':
             unit = Unit("1e-17 erg/(s.cm2.angstrom)")
             col_name = 'err'
+        case 'dx':
+            unit = Unit("angstrom")
+            col_name = 'restwl'
+
+            _x = df[col_name].to_numpy()
+            return full_like(_x, median(diff(_x)), dtype=float64) * unit
 
     return df[col_name].to_numpy() * unit
 
@@ -67,32 +73,26 @@ def get_from_fname(
         s[0]: s[1:] for s in fname.split('_') if s[1:].isnumeric()
     }.get(key, default)
 
+@dataclass
 class ASCIILoader(_Loader):
     """
     Loader designed for reading ASCII files.
     """
-    @validate_call
-    def __init__(
-        self,
-        path: AbsoluteFilePath,
-        *,
-        info: Info = None,
-        z: float | None = None,
-    ):
+    def __post_init__(self):
         """
         ** PYDANTIC VALIDATED METHOD **
         """
         msg: str = "Initialising loader (ASCII): "
-        msg += f"reading data from {path}, "
+        msg += f"reading data from {self.path}, "
 
         from_fname = partial(
             get_from_fname.__wrapped__, 
-            fname=path.name, 
+            fname=self.path.name, 
             default=0,
         )
         from_data = partial(
             get_from_data.__wrapped__, 
-            df=read_ascii(path, skip=1),
+            df=read_ascii(self.path, skip=1),
         )
         plate: int = int(from_fname('p'))
         fiber: int = int(from_fname('f'))
@@ -100,26 +100,20 @@ class ASCIILoader(_Loader):
 
         msg += f"extracted metadata from filename ({plate=}, {fiber=}, {mjd=}), "
 
-        title: str = SDSS.get_name(plate, fiber, mjd)
-        msg += f"generated title from metadata ({title}), "
+        self.title = SDSS.get_name(plate, fiber, mjd)
+        msg += f"generated title from metadata: {self.title}, "
 
-        if z is not None:
-            msg += f"got redshift from argument ({z:.3f})."  
-        elif isinstance(val := info.loading['z'], float):
-            z = val
-            msg += f"got redshift from Info instance ({z:.3f})."
+        if self.z != 0.0:
+            msg += f"got redshift from argument ({self.z:.3f})."  
         else:
-            z = 0
-            msg += f"using default redshift of z={z:.3f}."
+            self.z = 0.0
+            msg += f"using default redshift of z={self.z:.3f}."
 
         logger.debug(msg)
 
-        super().__init__(
-            from_data('x'),
-            from_data('y'),
-            from_data('dy'),
-            z=z,
-            title=title,
-            path=path,
-            info=info,
-        )
+        self.x = from_data('x')
+        self.y = from_data('y')
+        self.dy = from_data('dy')
+        self.dx = from_data('dx')
+
+        super().__post_init__()

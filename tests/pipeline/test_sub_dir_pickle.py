@@ -65,24 +65,6 @@ class TestSubDirPickle:
         assert unpickled._main_log == main_log
         assert unpickled._profile == profile
 
-    def test_pickle_with_current_log(self, temp_dirs):
-        """Test pickling SubDir with current_log messages."""
-        in_file, out_dir = temp_dirs
-        current_log = [
-            "Log entry 1\n",
-            "Log entry 2\n",
-            "Log entry 3\n",
-        ]
-        
-        subdir = SubDir(in_file, out_dir, current_log=current_log)
-        
-        # Pickle and unpickle
-        pickled = pickle.dumps(subdir)
-        unpickled = pickle.loads(pickled)
-        
-        # Verify log messages are preserved
-        assert unpickled.current_log == current_log
-
     def test_pickle_equality(self, temp_dirs):
         """Test that unpickled SubDir is equal to original."""
         in_file, out_dir = temp_dirs
@@ -135,6 +117,24 @@ class TestSubDirPickle:
         assert obj.in_file == subdir.in_file
         assert obj._out_dir == subdir._out_dir
 
+    def test_pickle_with_current_log(self, temp_dirs):
+        """Test pickling SubDir with current_log messages."""
+        in_file, out_dir = temp_dirs
+        current_log = [
+            "Log entry 1\n",
+            "Log entry 2\n",
+            "Log entry 3\n",
+        ]
+        
+        subdir = SubDir(in_file, out_dir, current_log=current_log)
+        
+        # Pickle and unpickle
+        pickled = pickle.dumps(subdir)
+        unpickled = pickle.loads(pickled)
+        
+        # Verify log messages are preserved
+        assert unpickled.current_log == current_log
+
     def test_pickle_with_empty_current_log(self, temp_dirs):
         """Test pickling SubDir with empty current_log."""
         in_file, out_dir = temp_dirs
@@ -157,7 +157,7 @@ class TestSubDirPickle:
         # Verify all expected keys are present
         expected_keys = {
             'in_file', '_out_dir', '_debug_log', '_main_log', '_profile',
-            'current_log', 'handlers'
+            'handlers', 'current_log'
         }
         assert set(state.keys()) == expected_keys
 
@@ -174,3 +174,21 @@ class TestSubDirPickle:
         assert isinstance(state['_debug_log'], str)
         assert isinstance(state['_main_log'], str)
         assert isinstance(state['_profile'], str)
+
+    def test_current_log_default_empty(self, temp_dirs):
+        """Test that current_log defaults to an empty list."""
+        in_file, out_dir = temp_dirs
+        subdir = SubDir(in_file, out_dir)
+        
+        assert subdir.current_log == []
+
+    def test_current_log_is_mutable(self, temp_dirs):
+        """Test that current_log can be modified after creation."""
+        in_file, out_dir = temp_dirs
+        subdir = SubDir(in_file, out_dir)
+        
+        subdir.current_log.append("New log entry\n")
+        assert subdir.current_log == ["New log entry\n"]
+        
+        subdir.current_log.clear()
+        assert subdir.current_log == []

@@ -57,6 +57,9 @@ class UnitsInfo(_Info):
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {}
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def update(self, info) -> None:
         super().update(info, logger)
         # logger.debug("Updating 'UnitsInfo' class (does nothing).")

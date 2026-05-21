@@ -148,7 +148,7 @@ class TestOutputDirPickle:
         assert 'dangerous' in state
         assert 'subdirs' in state
 
-    def test_pickle_with_default_output_path(self, input_dir_fixture):
+    def test_pickle_default_output_path(self, input_dir_fixture):
         """Test pickling OutputDir with default output path (None)."""
         output_dir = OutputDir(input_dir_fixture)
         
@@ -183,8 +183,13 @@ class TestOutputDirPickle:
         assert unpickled.dangerous is False
 
     def test_pickle_maintains_subdir_attributes(self, input_dir_fixture, temp_output_dir):
-        """Test that unpickled OutputDir subdirs have the same attributes."""
+        """Test that unpickled OutputDir subdirs have the same attributes and current_log."""
         output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        
+        # Add current_log to each subdir
+        for subdir in output_dir:
+            subdir.current_log.append(f"Setup log for {subdir.in_file.name}\n")
+        
         original_subdirs = list(output_dir)
         
         # Pickle and unpickle
@@ -192,7 +197,7 @@ class TestOutputDirPickle:
         unpickled = pickle.loads(pickled)
         unpickled_subdirs = list(unpickled)
         
-        # Verify subdir attributes are maintained
+        # Verify subdir attributes and current_log are maintained
         for original_subdir, unpickled_subdir in zip(original_subdirs, unpickled_subdirs):
             assert unpickled_subdir.in_file == original_subdir.in_file
             assert unpickled_subdir._out_dir == original_subdir._out_dir
@@ -293,6 +298,158 @@ class TestOutputDirWithTenAscFiles:
         
         # Verify InputDir is preserved
         assert output_dir.input_dir == input_dir_with_ten_asc_files
+
+
+class TestOutputDirBatched:
+    """Tests for OutputDir.batched() method."""
+
+    def test_batched_basic_division(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test batching OutputDir with exact division."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        # Batch into 5 batches of 2 files each
+        batches = list(output_dir.batched(batch_size=2))
+        
+        # Verify number of batches
+        assert len(batches) == 5
+        
+        # Verify each batch is an OutputDir instance
+        for batch in batches:
+            assert isinstance(batch, OutputDir)
+            assert len(batch) == 2
+
+    def test_batched_with_remainder(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test batching OutputDir with remainder."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        # Batch into 3 files per batch
+        batches = list(output_dir.batched(batch_size=3))
+        
+        # Verify number of batches: 3, 3, 3, 1
+        assert len(batches) == 4
+        assert len(batches[0]) == 3
+        assert len(batches[1]) == 3
+        assert len(batches[2]) == 3
+        assert len(batches[3]) == 1
+
+    def test_batched_size_one(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test batching OutputDir with batch_size=1."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        # Batch into single files
+        batches = list(output_dir.batched(batch_size=1))
+        
+        # Verify 10 batches of 1 subdir each
+        assert len(batches) == 10
+        for batch in batches:
+            assert len(batch) == 1
+
+    def test_batched_size_equals_total(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test batching when batch_size equals total files."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        # Batch with size 10 (all files in one batch)
+        batches = list(output_dir.batched(batch_size=10))
+        
+        # Verify single batch with all subdirs
+        assert len(batches) == 1
+        assert len(batches[0]) == 10
+
+    def test_batched_creates_subdirs(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test that batched OutputDir instances have subdirs created."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        batches = list(output_dir.batched(batch_size=3))
+        
+        # Verify each batch has subdirs
+        for batch in batches:
+            assert len(batch.subdirs) > 0
+            for subdir in batch:
+                assert isinstance(subdir, SubDir)
+
+    def test_batched_preserves_output_path(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test that batched OutputDir instances preserve output path."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        batches = list(output_dir.batched(batch_size=3))
+        
+        # Verify each batch preserves path
+        for batch in batches:
+            assert batch.path == output_dir.path
+
+    def test_batched_with_custom_path(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test batching with a custom output path."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        with tempfile.TemporaryDirectory() as custom_tmpdir:
+            custom_path = Path(custom_tmpdir) / "custom_output"
+            
+            # Batch with custom path
+            batches = list(output_dir.batched(batch_size=2, path=custom_path))
+            
+            # Verify custom path is used
+            for batch in batches:
+                assert batch.path == custom_path
+                assert batch.path.exists()
+
+    def test_batched_with_custom_input_dir(self, temp_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test batching with a custom InputDir."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        output_dir = OutputDir(input_dir, path=temp_output_dir_for_ten_files)
+        
+        with tempfile.TemporaryDirectory() as custom_tmpdir:
+            custom_tmpdir = Path(custom_tmpdir)
+            # Create 5 new files
+            custom_files = []
+            for i in range(5):
+                custom_file = custom_tmpdir / f"custom_{i:02d}.asc"
+                custom_file.touch()
+                custom_files.append(custom_file)
+            
+            custom_input_dir = InputDir(custom_tmpdir)
+            
+            # Batch with custom input_dir
+            batches = list(output_dir.batched(batch_size=2, input_dir=custom_input_dir))
+            
+            # Verify custom input_dir files are used (batched versions have subsets)
+            for batch in batches:
+                # Each batched input_dir is a subset, verify all files come from custom_input_dir
+                for file in batch.input_dir.files:
+                    assert file in custom_files
+                # Verify subdirs are created from custom input
+                for subdir in batch:
+                    assert subdir.in_file in custom_files
+
+    def test_batched_covers_all_subdirs(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test that batching covers all original subdirs without loss or duplication."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        original_subdirs = set(output_dir)
+        
+        batches = list(output_dir.batched(batch_size=3))
+        
+        # Collect all subdirs from batches
+        batched_subdirs = set()
+        for batch in batches:
+            batched_subdirs.update(batch)
+        
+        # Verify all subdirs are covered exactly once
+        assert batched_subdirs == original_subdirs
+        assert len(batched_subdirs) == len(original_subdirs)
+
+    def test_batched_each_batch_has_correct_input_dir(self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files):
+        """Test that each batched OutputDir has correct input_dir (subset)."""
+        output_dir = OutputDir(input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files)
+        
+        batches = list(output_dir.batched(batch_size=2))
+        
+        # Verify each batch's input_dir matches its subdirs
+        for batch in batches:
+            # Collect input files from subdirs
+            subdir_input_files = {subdir.in_file for subdir in batch}
+            
+            # Verify they match batch's input_dir files
+            assert subdir_input_files == set(batch.input_dir.files)
         assert len(output_dir.input_dir) == 10
         assert len(output_dir.input_dir.files) == 10
 

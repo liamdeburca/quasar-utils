@@ -12,6 +12,7 @@ from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
 from .continuum import ContinuumInfo
 from .error import ErrorInfo
+from .host import HostInfo
 from .iron import IronInfo
 from .lines import LinesInfo
 from .loading import LoadingInfo
@@ -31,6 +32,7 @@ class Info:
     balmer: BalmerInfo = field(kw_only=True, default_factory=BalmerInfo)
     continuum: ContinuumInfo = field(kw_only=True, default_factory=ContinuumInfo)
     error: ErrorInfo = field(kw_only=True, default_factory=ErrorInfo)
+    host: HostInfo = field(kw_only=True, default_factory=HostInfo)
     iron: IronInfo = field(kw_only=True, default_factory=IronInfo)
     lines: LinesInfo = field(kw_only=True, default_factory=LinesInfo)
     loading: LoadingInfo = field(kw_only=True, default_factory=LoadingInfo)
@@ -38,12 +40,15 @@ class Info:
     units: UnitsInfo = field(kw_only=True, default_factory=UnitsInfo)
 
     _keys: ClassVar[frozenset[str]] = frozenset([
-        'absorption', 'balmer', 'continuum', 'error', 'iron', 'lines', 
+        'absorption', 'balmer', 'continuum', 'error', 'host', 'iron', 'lines', 
         'loading', 'nonlinear', 'units',
     ])
 
     def __post_init__(self) -> None:
         self.update()
+
+    def __hash__(self) -> int:
+        return hash(tuple((key, getattr(self, key)) for key in self._keys))
 
     @classmethod
     @validate_call
@@ -65,6 +70,7 @@ class Info:
             balmer=inner(BalmerInfo),
             continuum=inner(ContinuumInfo),
             error=inner(ErrorInfo),
+            host=inner(HostInfo),
             iron=inner(IronInfo),
             lines=inner(LinesInfo),
             loading=inner(LoadingInfo),
@@ -97,6 +103,7 @@ class Info:
             balmer=inner(BalmerInfo),
             continuum=inner(ContinuumInfo),
             error=inner(ErrorInfo),
+            host=inner(HostInfo),
             iron=inner(IronInfo),
             lines=inner(LinesInfo),
             loading=inner(LoadingInfo),
@@ -137,7 +144,7 @@ class Info:
         self, 
         key: str, 
         subjects: Iterable[str] = [
-            'absorption', 'balmer', 'continuum', 'error', 'iron', 'lines', 
+            'absorption', 'balmer', 'continuum', 'error', 'host', 'iron', 'lines', 
             'loading', 'nonlinear', 'units',
             # 'plotting', 
         ],
@@ -262,9 +269,6 @@ class Info:
                 ]
 
             case "to_fixed", _:
-                result: dict[str, bool] = {
-                    key: value(key)
-                    for key in ('fwhm', 'temp', 'tau', 'scale', 'ratio')
-                }
+                result: dict[str, bool] = value.to_fixed()
 
         return result

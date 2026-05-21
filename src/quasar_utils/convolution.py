@@ -74,11 +74,10 @@ def convolve_signal(
     Convolves (fft) a given signal with a kernel. The signal is padded using its
     edge values. 
     """    
-    assert len(kernel) % 2 == 1, "Kernel length must be odd."
-    assert signal.size >= kernel.size, "Signal length must be >= kernel length."
+    assert kernel.size % 2 == 1, "Kernel length must be odd."
 
     return fftconvolve(
-        pad(signal, pad_width=len(kernel) // 2, mode='edge'),
+        pad(signal, pad_width=kernel.size // 2, mode='edge'),
         kernel,
         mode='valid',
     )
@@ -140,10 +139,11 @@ def convolve(
         "Desired FWHM is smaller than template's minimum FWHM."
         
     fwhm_init, signal = _identify_closest(data, fwhm, fwhm_final)
-    if fwhm_init == fwhm_final: return signal
+    if fwhm_init == fwhm_final: 
+        return signal
 
-    fwhm_kernel: float = (fwhm_final**2 - fwhm_init**2)**0.5
-    k: FloatVector = kernel(fwhm_kernel, sigma_res)
+    fwhm_kernel = (fwhm_final**2 - fwhm_init**2)**0.5
+    k = kernel(fwhm_kernel, sigma_res)
 
     return convolve_signal.__wrapped__(signal, k)
 
@@ -162,15 +162,15 @@ def convolve_deriv(
     assert fwhm_final >= fwhm[0], \
         "Desired FWHM is smaller than template's minimum FWHM."
     
+    # If: fwhm_final == fwhm[0] -> no convolutions is possible!
+    if fwhm_final == fwhm[0]: 
+        return -SIGMA_TO_FWHM * data[0]
+    
     fwhm_init, signal = _identify_closest(
         data, fwhm, fwhm_final, 
         for_deriv=True,
     )
-    # If: fwhm_final == fwhm[0] -> no convolutions is possible!
-    if fwhm_init == fwhm_final: return zeros_like(signal, dtype=float64)
-
-    fwhm_kernel: float = (fwhm_final**2 - fwhm_init**2)**0.5
-    assert fwhm_kernel > 0, "Kernel FWHM must be positive."
-    dk: FloatVector = kernel_deriv(fwhm_kernel, sigma_res)
-
+    
+    fwhm_kernel = (fwhm_final**2 - fwhm_init**2)**0.5
+    dk = kernel_deriv(fwhm_kernel, sigma_res)
     return convolve_signal.__wrapped__(signal, dk)

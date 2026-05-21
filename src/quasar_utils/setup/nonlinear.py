@@ -13,7 +13,7 @@ from ..utils.parsing import get_lines_from_file
 from ..fitting import TRFLSQFitter, DogBoxLSQFitter, LMLSQFitter
 
 from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Fitter_, FitterInstance, Model_, FitInfo
+from quasar_typing.astropy import Fitter_, Model_, FitInfo, FitterInstance
 from quasar_typing.pathlib import AbsoluteFilePath
 
 logger = getLogger(__name__)
@@ -46,6 +46,9 @@ class NonLinearInfo(_Info):
     ])
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {}
+
+    def __hash__(self) -> int:
+        return super().__hash__()
     
     def __getstate__(self) -> dict:
         state = super().__getstate__()
@@ -87,7 +90,7 @@ class NonLinearInfo(_Info):
         }[self['algo']]
     
     @cached_property
-    def fitter(self) -> FitterInstance:        
+    def fitter(self) -> FitterInstance:
         algo = self.algorithm(calc_uncertainties=True)
         kwargs = self.kwargs
 

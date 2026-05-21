@@ -253,3 +253,126 @@ class TestInputDirPickle:
         # Verify all 10 files are still preserved
         assert len(obj) == 10
         assert set(obj.files) == set(asc_files)
+
+
+class TestInputDirBatched:
+    """Tests for InputDir.batched() method."""
+
+    def test_batched_basic_division(self, temp_dir_with_ten_asc_files):
+        """Test batching with exact division into equal batches."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        
+        # Batch into 5 batches of 2 files each
+        batches = list(input_dir.batched(batch_size=2))
+        
+        # Verify number of batches
+        assert len(batches) == 5
+        
+        # Verify each batch is an InputDir instance
+        for batch in batches:
+            assert isinstance(batch, InputDir)
+            assert len(batch) == 2
+
+    def test_batched_with_remainder(self, temp_dir_with_ten_asc_files):
+        """Test batching with remainder files."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        
+        # Batch into 3 files per batch (will have 3 full batches + 1 with 1 file)
+        batches = list(input_dir.batched(batch_size=3))
+        
+        # Verify number of batches
+        assert len(batches) == 4
+        
+        # Verify sizes: 3, 3, 3, 1
+        assert len(batches[0]) == 3
+        assert len(batches[1]) == 3
+        assert len(batches[2]) == 3
+        assert len(batches[3]) == 1
+
+    def test_batched_size_one(self, temp_dir_with_ten_asc_files):
+        """Test batching with batch_size=1."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        
+        # Batch into single files
+        batches = list(input_dir.batched(batch_size=1))
+        
+        # Verify 10 batches of 1 file each
+        assert len(batches) == 10
+        for batch in batches:
+            assert len(batch) == 1
+
+    def test_batched_size_equals_total(self, temp_dir_with_ten_asc_files):
+        """Test batching when batch_size equals total files."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        
+        # Batch with size 10 (all files in one batch)
+        batches = list(input_dir.batched(batch_size=10))
+        
+        # Verify single batch with all files
+        assert len(batches) == 1
+        assert len(batches[0]) == 10
+
+    def test_batched_preserves_attributes(self, temp_dir_with_ten_asc_files):
+        """Test that batched InputDir instances preserve path and directory."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        
+        batches = list(input_dir.batched(batch_size=3))
+        
+        # Verify each batch preserves path and directory
+        for batch in batches:
+            assert batch.path == input_dir.path
+            assert batch.directory == input_dir.directory
+
+    def test_batched_covers_all_files(self, temp_dir_with_ten_asc_files):
+        """Test that batching covers all original files without loss or duplication."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        original_files = set(input_dir)
+        
+        batches = list(input_dir.batched(batch_size=3))
+        
+        # Collect all files from batches
+        batched_files = set()
+        for batch in batches:
+            batched_files.update(batch.files)
+        
+        # Verify all files are covered exactly once
+        assert batched_files == original_files
+        assert len(batched_files) == len(original_files)
+
+    def test_batched_maintains_iteration_order(self, temp_dir_with_ten_asc_files):
+        """Test that batched InputDir maintains sorted iteration order."""
+        tmpdir, asc_files = temp_dir_with_ten_asc_files
+        input_dir = InputDir(tmpdir)
+        original_order = list(input_dir)
+        
+        batches = list(input_dir.batched(batch_size=2))
+        
+        # Reconstruct order from batches
+        batched_order = []
+        for batch in batches:
+            batched_order.extend(list(batch))
+        
+        # Verify order is preserved
+        assert batched_order == original_order
+
+    def test_batched_with_multiple_file_types(self, temp_dir_with_multiple_files):
+        """Test batching with mixed FITS and ASCII files."""
+        tmpdir, files = temp_dir_with_multiple_files
+        input_dir = InputDir(tmpdir)
+        
+        # Batch into single files
+        batches = list(input_dir.batched(batch_size=1))
+        
+        # Verify 2 batches
+        assert len(batches) == 2
+        
+        # Verify each batch has correct file
+        for batch in batches:
+            assert len(batch) == 1
+            assert batch.directory == tmpdir

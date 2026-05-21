@@ -9,8 +9,7 @@ __all__ = [
 
 from logging import getLogger
 from typing import Literal
-
-logger = getLogger(__name__)
+from itertools import batched
 
 from numpy import (
     nan, ones, concatenate, where, interp, argwhere, append, zeros, convolve, 
@@ -20,46 +19,85 @@ from numpy.polynomial.polynomial import polyvander
 from numpy.linalg import inv
 from numpy.lib.stride_tricks import sliding_window_view
 
-from itertools import batched
-
-from pydantic import validate_call
 from quasar_typing.numpy import FloatVector, BoolVector, FloatMatrix
+
+from ..decorators import validate_call
+
+logger = getLogger(__name__)
 
 @validate_call
 def get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
     """
+
     ** PYDANTIC VALIDATED FUNCTION **
+
+    Calculates the sizes of gaps in the boolean array, i.e. a list of left 
+    index, right index, and size triplets.  
+    
+    A gap is defined as a contiguous sequence of False values. 
+
+    Notes
+    -----
+    Edge cases are handled as follows:
+
+    * If the array is empty, an empty list is returned.
+    * If the array has one element, a gap is returned if that element is False.
+    * If the array has more than one element:,
+        * And all values are False, a single gap covering the entire array is 
+        returned.
+        * And the first and last values are both True, the gaps are calculated
+        between the first and last True values.
+        * Otherwise, the gaps are calculated between the first and last True 
+        values, and additional gaps are added for the left and right edges as 
+        necessary.
     """
-    if not (mask[0] and mask[-1]):
-        true_indices = argwhere(mask).flatten()
-        _mask = mask[true_indices[0]:true_indices[-1]+1]
+    n_pix = mask.size
+    match n_pix:
+        case 0:
+            return []
+        case 1: 
+            return [(0, 0, 1)] if not mask[0] else []
+        case _:
+            if not any(mask):
+                return [(0, n_pix - 1, n_pix)]
+            if not (mask[0] and mask[-1]):
+                true_indices = argwhere(mask).flatten()
+                _mask = mask[true_indices[0]:true_indices[-1]+1]
 
-        out = get_gap_sizes.__wrapped__(_mask)
-        if not mask[0]:
-            left = 0
-            right = true_indices[0]-1
-            out.insert(
-                0,
-                (left, right, right - left + 1)
-            )
-        if not mask[-1]:
-            left = true_indices[-1] + 1
-            right = len(mask) - 1
-            out.append((
-                left,
-                right,
-                right - left + 1,
-            ))
+                out = get_gap_sizes.__wrapped__(_mask)
+                if not mask[0]:
+                    out = [
+                        (
+                            left_idx + true_indices[0],
+                            right_idx + true_indices[0], 
+                            size,
+                        ) for (left_idx, right_idx, size) in out
+                    ]
 
-        return out
-    
-    edges = argwhere(mask[:-1] ^ mask[1:]).flatten()
-    
-    return [
-        (left + 1, right, right - left) \
-        for (left, right) \
-        in batched(edges, 2)
-    ]
+                    left = 0
+                    right = true_indices[0]-1
+                    out.insert(
+                        0,
+                        (left, right, right - left + 1)
+                    )
+                if not mask[-1]:
+                    left = true_indices[-1] + 1
+                    right = len(mask) - 1
+                    out.append((
+                        left,
+                        right,
+                        right - left + 1,
+                    ))
+
+                return out
+            
+            edges = argwhere(mask[:-1] ^ mask[1:]).flatten()
+            
+            return [
+                (left + 1, right, right - left) \
+                for (left, right) \
+                in batched(edges, 2)
+            ]
 
 @validate_call
 def interpolate_missing(
@@ -88,13 +126,7 @@ def interpolate_missing(
     y_int : numpy.array
         Array along the second axis with designated pixels' values interpolated.
     """
-    _x = x[mask]
-    _y = y[mask]
-    return where(
-        mask,
-        y,
-        interp(x, _x, _y, left=_y[0], right=_y[-1])
-    )
+    return interp(x, x[mask], _y := y[mask], left=_y[0], right=_y[-1])
 
 @validate_call
 def get_valid_indices(
@@ -320,12 +352,14 @@ def weighted_savgol_filter(
     y_smooth = y.copy()
 
     x_valid = isfinite(x)
-    mask = mask \
-        if mask is not None \
-        else x_valid & isfinite(y) & (dy > 0)
+    mask = (
+        x_valid & isfinite(y) & isfinite(dy) & (dy > 0) \
+        if mask is None \
+        else mask
+    )
     
     gap_sizes = get_gap_sizes.__wrapped__(mask)
-    if len(gap_sizes) > 1:
+    if gap_sizes:
         msg = f"Identified the following gaps ('left', 'right', 'size'): {gap_sizes}."
         logger.debug(msg)
     

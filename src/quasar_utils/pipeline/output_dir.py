@@ -1,5 +1,5 @@
 from shutil import rmtree
-from typing import Iterator
+from typing import Iterator, Self
 from logging import FileHandler
 from dataclasses import field
 from pydantic.dataclasses import dataclass
@@ -28,6 +28,30 @@ class OutputDir:
             self.create_subdirs()
 
         self.dangerous = False
+
+    def batched(
+        self, 
+        batch_size: int,
+        *,
+        input_dir: InputDir | None = None, 
+        path: AnyAbsoluteDirPath | None = None,
+    ) -> Iterator[Self]:
+        if path is None:
+            path = self.path
+        else:
+            path.mkdir(parents=True, exist_ok=True)
+
+        if input_dir is None:
+            input_dir = self.input_dir
+
+        for input_dir_batch in input_dir.batched(batch_size):
+            yield OutputDir(
+                input_dir=input_dir_batch,
+                path=path,
+                dangerous=False,
+            )
+
+    ###
             
     def __len__(self) -> int:
         return len(self.subdirs)
@@ -53,6 +77,7 @@ class OutputDir:
             dangerous=False,
             subdirs=state['subdirs'],
         )
+
     @property
     def debug_logs(self) -> set[AbsoluteLogPath]:
         return {subdir.debug_log for subdir in self}
@@ -78,9 +103,6 @@ class OutputDir:
         path: AbsoluteFilePath, 
         add: bool = True,
     ) -> SubDir:
-        current_log: list[str] = [
-            "Log for output file/dir initialisation:\n",
-        ]
         out_dir = self.path / f"{path.name.split('.')[0]}_out"
 
         msg = f"Output directory @ {out_dir} "
@@ -102,9 +124,9 @@ class OutputDir:
                 raise ValueError(msg)
         else:
             msg += "does not exist."
-        
-        current_log.append(msg)
-        subdir = SubDir(path, out_dir, current_log=current_log)
+
+        subdir = SubDir(path, out_dir)
+        subdir.current_log.append(msg)  
         if add:
             self.subdirs.add(subdir)
 

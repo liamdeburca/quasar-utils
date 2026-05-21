@@ -3,7 +3,6 @@ __all__ = ["SubDir"]
 from typing import Literal
 from dataclasses import field
 from pathlib import Path
-from logging import FileHandler
 from functools import cached_property
 from pydantic.dataclasses import dataclass
 
@@ -26,8 +25,8 @@ class SubDir:
     _main_log: AnyAbsoluteLogPath | None = None
     _profile: AnyAbsoluteCSVPath | None = None
     
-    current_log: list[str] = field(default_factory=list)
     handlers: dict[Literal['debug', 'main'], FileHandler_] = field(default_factory=dict)
+    current_log: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self._debug_log is None:
@@ -46,55 +45,19 @@ class SubDir:
         return (self.in_file, self.out_dir) == (other.in_file, other.out_dir)
     
     def __getstate__(self) -> dict:
-        state = {
+        return {
             'in_file': str(self.in_file),
-            '_out_dir': str(self._out_dir),
-            '_debug_log': str(self._debug_log),
-            '_main_log': str(self._main_log),
-            '_profile': str(self._profile),
+            '_out_dir': str(self.out_dir),
+            '_debug_log': str(self.debug_log),
+            '_main_log': str(self.main_log),
+            '_profile': str(self.profile),
+            'handlers': self.handlers,
             'current_log': self.current_log,
         }
-        handlers = {}
-        if 'debug' in self.handlers:
-            fh = self.handlers['debug']
-            handlers['debug'] = {
-                'filename': fh.baseFilename,
-                'mode': fh.mode,
-                'encoding': fh.encoding,
-                'level': fh.level,
-            }
-        if 'main' in self.handlers:
-            fh = self.handlers['main']
-            handlers['main'] = {
-                'filename': fh.baseFilename,
-                'mode': fh.mode,
-                'encoding': fh.encoding,
-                'level': fh.level,
-            }
-        state['handlers'] = handlers
-        return state
     
     def __setstate__(self, state: dict) -> None:
-        _handlers = state.get('handlers', {})
-        handlers = {}
-        if 'debug' in _handlers:
-            debug_info = _handlers['debug']
-            handlers['debug'] = fh = FileHandler(
-                filename=debug_info['filename'],
-                mode=debug_info['mode'],
-                encoding=debug_info['encoding'],
-            )
-            fh.setLevel(debug_info['level'])
-            fh.addFilter(quasar_filter)
-        if 'main' in _handlers:
-            main_info = _handlers['main']
-            handlers['main'] = fh = FileHandler(
-                filename=main_info['filename'],
-                mode=main_info['mode'],
-                encoding=main_info['encoding'],
-            )
-            fh.setLevel(main_info['level'])
-            fh.addFilter(quasar_filter)
+        for handler in state['handlers'].values():
+            handler.addFilter(quasar_filter)
 
         self.__init__(
             Path(state['in_file']),
@@ -102,8 +65,8 @@ class SubDir:
             _debug_log=Path(state['_debug_log']),
             _main_log=Path(state['_main_log']),
             _profile=Path(state['_profile']),
+            handlers=state['handlers'],
             current_log=state['current_log'],
-            handlers=handlers,
         )
 
     @cached_property
@@ -115,16 +78,12 @@ class SubDir:
     def debug_log(self) -> AbsoluteLogPath:
         _ = self.out_dir
         self._debug_log.touch(exist_ok=True)
-        with self._debug_log.open('w') as f:
-            f.writelines(self.current_log)
         return self._debug_log
     
     @cached_property
     def main_log(self) -> AbsoluteLogPath:
         _ = self.out_dir
         self._main_log.touch(exist_ok=True)
-        with self._main_log.open('w') as f:
-            f.writelines(self.current_log)
         return self._main_log
     
     @cached_property
@@ -136,13 +95,11 @@ class SubDir:
     @cached_property
     def plots(self) -> AbsoluteDirPath:
         path = self.out_dir / "plots"
-        if not path.exists():
-            path.mkdir()
+        path.mkdir(exist_ok=True)
         return path
     
     @cached_property
     def line_results(self) -> AbsoluteDirPath:
         path = self.out_dir / "line_results"
-        if not path.exists():
-            path.mkdir()
+        path.mkdir(exist_ok=True)
         return path

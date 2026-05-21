@@ -3,32 +3,32 @@ __all__ = ['SDSSLoader']
 from logging import getLogger
 from typing import Any
 from astropy.units import Unit
+from astropy.constants import c
 from astropy.io import fits
 from numpy import float64, full_like, nan
+from pydantic.dataclasses import dataclass
 
 from quasar_typing.astropy import HDUList_, Quantity_
-from quasar_typing.pathlib import AbsoluteFITSPath
 
-from .loader import _Loader
-from ..setup import Info
-from ..naming import IGR, J2000
-from ..decorators import validate_call
+from quasar_utils.decorators import validate_call
+from quasar_utils.loading.loader import _Loader
+from quasar_utils.setup import Info
+from quasar_utils.naming import IGR, J2000
 
 logger = getLogger(__name__)
+SIGMA_RES: float = 69.0 / c.to('km/s').value
 
 @validate_call
 def get_data(
     hdul: HDUList_,
-) -> tuple[Quantity_, Quantity_, Quantity_]:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
+) -> tuple[Quantity_, Quantity_, Quantity_, Quantity_]:
     x_unit = Unit('angstrom')
     flux_unit = Unit('1e-17 erg/(s.cm2.angstrom)')
 
     data = hdul[1].data
     
     x = 10**data['loglam'].astype(float64)
+    dx = x * SIGMA_RES
     flux = data['flux'].astype(float64)
 
     dy = full_like(x, nan, dtype=float64)
@@ -39,7 +39,12 @@ def get_data(
     flux[invalid_mask] = nan
     dy[invalid_mask] = nan
 
-    return (x * x_unit, flux * flux_unit, dy * flux_unit)
+    return (
+        x * x_unit, 
+        flux * flux_unit, 
+        dy * flux_unit, 
+        dx * x_unit,
+    )
 
 @validate_call
 def get_from_header(
@@ -54,30 +59,25 @@ def get_from_header(
     ext, label = info.loading[key]
     return hdul[ext].header.get(label, default)
 
+@dataclass
 class SDSSLoader(_Loader):
     """
     Loader designed for reading SDSS files, i.e. outputs from the 
     'astroquery.sdss' module.
     """
-    @validate_call
-    def __init__(
-        self,
-        path: AbsoluteFITSPath,
-        *,
-        info: Info = None,
-        z: float | None = None,
-    ):
+    def __post_init__(self):
         """
         ** PYDANTIC VALIDATED METHOD **
         """
         msg: str = "Initialising loader (SDSS): "
 
-        msg += f"(1) reading data from {path}, "
-        with fits.open(path) as hdul:
-            ra = float(hdul[0].header['RADEG']) * Unit('degree')
-            dec = float(hdul[0].header['DECDEG']) * Unit('degree')
+        msg += f"(1) reading data from {self.path}, "
+        with fits.open(self.path) as hdul:
+            self.ra = float(hdul[0].header['RADEG'])
+            self.dec = float(hdul[0].header['DECDEG'])
 
-            msg += f"(2) extracted coordinates from header ({ra=}, {dec=}), "
+            msg += "(2) extracted coordinates from header (ra={}, dec={}), "\
+                .format(self.ra, self.dec)
 
             if "OBJ_NAME" in hdul[0].header:
                 name = hdul[0].header["OBJ_NAME"]
@@ -86,35 +86,34 @@ class SDSSLoader(_Loader):
                 name = "missing_name"
                 msg += "(3) no name in header, "
 
-            match convention := info.loading.naming.upper():
+            match self.info.loading.naming.upper():
                 case "IGR":
-                    title = IGR.get_name(ra, dec)
+                    self.title = IGR.get_name(
+                        self.ra * Unit('degree'), 
+                        self.dec * Unit('degree'),
+                    )
+                    msg += "(4) generated IGR title from coordinates: {}"\
+                        .format(self.title)
                 case "J2000":
-                    title = J2000.get_name(ra, dec)
+                    self.title = J2000.get_name(
+                        self.ra * Unit('degree'), 
+                        self.dec * Unit('degree'),
+                    )
+                    msg += "(4) generated J2000 title from coordinates: {}"\
+                        .format(self.title)
                 case _:
-                    title = name
-
-            if title == name:
-                msg += "(4) no valid naming convention specified, "
-            else:
-                msg += "(4) generated title from coordinates using " \
-                    f"{convention} convention ({title}), "
+                    self.title = name
+                    msg += "(4) no valid naming convention specified, "
                 
-            if z is not None:
-                msg += f"(5) got redshift from argument ({z:.3f})."
+            if self.z != 0.0:
+                msg += f"(5) got redshift from argument: {self.z:.3f}."
             elif 'OBJ_Z' in hdul[0].header:
-                z = float(hdul[0].header['OBJ_Z'])
-                msg += f"(5) got redshift from header ({z:.3f})."
+                self.z = float(hdul[0].header['OBJ_Z'])
+                msg += f"(5) got redshift from header: {self.z:.3f}."
             else:
-                z = 0
-                msg = f"(5) no redshift found in header, defaulting to {z=}."
+                msg += f"(5) no redshift found in header, defaulting to: {self.z:.3f}."
 
-            super().__init__(
-                *get_data(hdul),
-                z=z,
-                title=title,
-                path=path,
-                info=info,
-            )
+            self.x, self.y, self.dy, self.dx = get_data(hdul)
         
         logger.debug(msg)
+        super().__post_init__()

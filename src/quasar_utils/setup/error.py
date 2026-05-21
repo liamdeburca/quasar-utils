@@ -67,6 +67,9 @@ class ErrorInfo(_Info):
         'dx_int': "to_wavelength",
     }
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def update(self, info) -> None:
         super().update(info, logger)
         return 

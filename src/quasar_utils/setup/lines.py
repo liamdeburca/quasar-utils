@@ -105,6 +105,9 @@ class LinesInfo(_Info):
         'forced_splits': "to_wavelength_array",
     }
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def update(self, info) -> None:
         """
         Converts parameters with units into their dimensionless equivalents.

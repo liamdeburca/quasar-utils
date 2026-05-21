@@ -55,6 +55,9 @@ class LoadingInfo(_Info):
         'x_bounds': "to_wavelength_bounds",
     }
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     @validate_call
     def __init__(
         self,

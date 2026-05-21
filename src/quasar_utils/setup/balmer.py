@@ -15,59 +15,69 @@ from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
 from quasar_typing.pathlib import AbsoluteFilePath
 from quasar_typing.bounds import CoordBounds
-from quasar_typing.misc.string_selection import StringSelection
+from quasar_typing.misc import BalmerModelParams
 
-logger = getLogger("quasar_utils.setup.balmer")
+logger = getLogger(__name__)
 
 @dataclass
 class BalmerInfo(_Info):
     fit: bool = True
 
     _windows: list[CoordBounds] | Quantity_ = [[3000, 4500]] * Unit('angstrom')
+    
+    _edge: float | Quantity_ = 3646 * Unit('angstrom')
+    _fwhm_norm: float | Quantity_ = 5_000 * Unit('km/s')
+    
     source: Literal['SH1995'] = 'SH1995'
-    allow_interp_fitting: bool = True
+    _temp: float | Quantity_ = 15_000 * Unit('K')
+    _dens: float | Quantity_ = 1e9 * Unit('cm^-3')
     n_u_min: int = 7
     n_u_max: int = 50
-    _edge: float | Quantity_ = 3646 * Unit('angstrom')
-    _dens: float | Quantity_ = 1e9 * Unit('cm^-3')
-    _flux: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)')
-    _fwhm: float | Quantity_ = 5_000 * Unit('km/s')
-    _temp: float | Quantity_ = 15_000 * Unit('K')
     tau: float = 1.0
     scale: float = 3.0
-    ratio: float = 0.3
+    
+    allow_interp_fitting: bool = True
+
+    _flux: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)')
+    _fwhm: float | Quantity_ = 5_000 * Unit('km/s')
     _flux_bounds: AstropyBounds | Quantity_ = [1e-18, 1e-15] * Unit('erg/(s.cm2.angstrom)')
     _fwhm_bounds: AstropyBounds | Quantity_ = [1000, 20_000] * Unit('km/s')
-    _temp_bounds: AstropyBounds | Quantity_ = [5_000, 30_000] * Unit('K')
-    tau_bounds: AstropyBounds = (0.1, 10.0)
-    scale_bounds: AstropyBounds = (1.0, 10.0)
+    ratio: float = 0.3
     ratio_bounds: AstropyBounds = (0.5, 2.0)
-    _fixed: StringSelection = field(default_factory=lambda: StringSelection({'temp', 'tau', 'scale', 'ratio'}))
+
+    _fixed: BalmerModelParams = field(default_factory=lambda: BalmerModelParams({'ratio'}))
     raster_n: int = 20
     min_fittable_ratio: float = 0.6
     min_fittable_total: int = 100
 
     windows: list[CoordBounds] | None = field(default=None, init=False)
     edge: float | None = field(default=None, init=False)
+    fwhm_norm: float | None = field(default=None, init=False)
+    temp: float | None = field(default=None, init=False)
     dens: float | None = field(default=None, init=False)
     flux: float | None = field(default=None, init=False)
     fwhm: float | None = field(default=None, init=False)
-    temp: float | None = field(default=None, init=False)
     flux_bounds: AstropyBounds | None = field(default=None, init=False)
     fwhm_bounds: AstropyBounds | None = field(default=None, init=False)
-    temp_bounds: AstropyBounds | None = field(default=None, init=False)
     fixed: dict[str, bool] | None = field(default=None, init=False)
 
     _keys: ClassVar[frozenset[str]] = frozenset([
         'fit',
         '_windows', 'windows',
-        'source', 'allow_interp_fitting', 
-        'n_u_min', 'n_u_max', '_edge', '_dens', 'edge', 'dens',
-        '_flux', '_fwhm', '_temp', 'tau', 'scale', 'ratio',
-        'flux', 'fwhm', 'temp',
-        '_flux_bounds', '_fwhm_bounds', '_temp_bounds',
-        'tau_bounds', 'scale_bounds', 'ratio_bounds',
-        'flux_bounds', 'fwhm_bounds', 'temp_bounds',
+        '_edge', 'edge',
+        '_fwhm_norm', 'fwhm_norm',
+        'source',
+        '_temp', 'temp',
+        '_dens', 'dens',
+        'n_u_min', 'n_u_max',
+        'tau', 'scale', 
+        'allow_interp_fitting',
+        '_flux', 'flux',
+        '_fwhm', 'fwhm',
+        'ratio',
+        '_flux_bounds', 'flux_bounds',
+        '_fwhm_bounds', 'fwhm_bounds',
+        'ratio_bounds',
         '_fixed', 'fixed',
         'raster_n',
         'min_fittable_ratio', 'min_fittable_total',
@@ -76,15 +86,18 @@ class BalmerInfo(_Info):
     _values_to_update: ClassVar[dict[str, str]] = {
         'windows': "to_wavelength_windows",
         'edge': "to_wavelength", 
+        'fwhm_norm': "to_velocity",
+        'temp': "to_temperature",
         'dens': "to_density", 
         'flux': "to_flux", 
         'fwhm': "to_velocity", 
-        'temp': "to_temperature",
         'flux_bounds': "to_flux_bounds", 
         'fwhm_bounds': "to_velocity_bounds", 
-        'temp_bounds': "to_temperature_bounds",
         'fixed': "to_fixed",
     }
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
     def update(self, info) -> None:
         """

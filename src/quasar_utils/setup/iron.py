@@ -48,12 +48,15 @@ class IronInfo(_Info):
     fine_tune: bool = False
     allow_interp_fitting: bool = True
 
+    _fwhm_norm: float | Quantity_ = 5_000 * Unit('km/s')
+
     windows: list[CoordBounds] | None = field(default=None, init=False)
     fwhm: SortedFloatVector | None = field(default=None, init=False)
     flux_bounds: AstropyBounds | None = field(default=None, init=False)
     fwhm_bounds: AstropyBounds | None = field(default=None, init=False)
     split: FittableFloatVector | None = field(default=None, init=False)
     scale: float | None = field(default=None, init=False)
+    fwhm_norm: float | None = field(default=None, init=False)
 
     _keys: ClassVar[frozenset[str]] = frozenset([
         'fit',
@@ -67,6 +70,7 @@ class IronInfo(_Info):
         '_scale', 'scale', 
         'raster', 'fine_tune',
         'allow_interp_fitting',
+        '_fwhm_norm', 'fwhm_norm',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {
@@ -76,7 +80,11 @@ class IronInfo(_Info):
         'fwhm_bounds': "to_velocity_bounds",
         'split': "to_wavelength_list",
         'scale': "to_scale",
+        'fwhm_norm': "to_velocity",
     }
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
     def update(self, info) -> None:
         super().update(info, logger)

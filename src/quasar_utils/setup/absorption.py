@@ -40,6 +40,9 @@ class AbsorptionInfo(_Info):
         'join': "to_n_pixels",
     }
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def update(self, info) -> None:
         """
         Converts parameters with units into their dimensionless equivalents. 

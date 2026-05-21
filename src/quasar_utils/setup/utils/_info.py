@@ -3,13 +3,34 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Self, ClassVar
 from pathlib import Path
 from json import load as load_json
+from numpy import ndarray
 
 from .json_field import JSONField
 from ...utils.utils import val_and_type
 
 from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.astropy import Unit_, CompositeUnit_
+from quasar_typing.numpy import RandomState_
 
 logger = getLogger(__name__)
+
+def _make_hashable(value: Any) -> Any:
+    if isinstance(value, list):
+        return tuple(_make_hashable(v) for v in value)
+    elif isinstance(value, dict):
+        return frozenset((k, _make_hashable(v)) for k, v in value.items())
+    elif isinstance(value, set):
+        return frozenset(_make_hashable(v) for v in value)
+    elif isinstance(value, ndarray):
+        return value.tobytes()
+    elif isinstance(value, (Unit_, CompositeUnit_)):
+        return str(value)
+    elif isinstance(value, Path):
+        return str(value)
+    elif isinstance(value, RandomState_):
+        return value.get_state()    
+    else:
+        return value
 
 class _Info(ABC):
     """
@@ -41,6 +62,13 @@ class _Info(ABC):
     def __bool__(self) -> bool:
         return self.is_updated
     
+    def __hash__(self) -> int:
+        return hash(tuple(
+            (key, _make_hashable(self[key])) 
+            for key in self._keys
+            if not key.startswith('_')  
+        ))
+        
     def __getstate__(self) -> dict:
         state: dict = {'_keys': self._keys}
         state.update({key: getattr(self, key) for key in self._keys})
@@ -163,8 +191,11 @@ class _Info(ABC):
         fields = JSONField.load_all_from_json(json, parent_field)
         for count, field in enumerate(fields, start=1):
             key = field.field
-            assert key in cls._keys, \
-                f"Invalid key '{key}' in '{cls.__name__}' JSON configuration."
+            if key not in cls._keys:
+                logger.warning(
+                    f"Invalid key '{key}' in '{cls.__name__}' JSON configuration."
+                )
+                continue
             
             if key in cls._values_to_update:
                 key = '_' + key

@@ -58,6 +58,9 @@ class ContinuumInfo(_Info):
         'flux_bounds': "to_flux_bounds",
     }
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def update(self, info) -> None:
         """
         Convert to unitless.

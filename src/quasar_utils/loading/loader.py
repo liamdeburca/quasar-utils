@@ -1,14 +1,13 @@
 __all__ = ['_Loader']
 
 from logging import getLogger
-
-from typing import Self, Literal
+from dataclasses import field
+from typing import Literal
 from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
-from numpy import diff, log, ascontiguousarray
+from numpy import diff, log, ascontiguousarray, full, float64
 
-from pydantic_core import PydanticCustomError
-from pydantic_core.core_schema import no_info_plain_validator_function
+from pydantic.dataclasses import dataclass
 
 from quasar_typing.numpy import FloatVector, CoordsTuple
 from quasar_typing.astropy import Unit_, CompositeUnit_, Quantity_
@@ -21,33 +20,24 @@ from ..dereddening import deredden_spectrum
 
 logger = getLogger(__name__)
 
+@dataclass
 class _Loader:
-    @validate_call
-    def __init__(
-        self,
-        x: FloatVector | Quantity_,
-        y: FloatVector | Quantity_,
-        dy: FloatVector | Quantity_,
-        z: float = 0,
-        ra: float | None = None,
-        dec: float | None = None,
-        title: str = "missing_title",
-        path: str | AbsoluteFilePath = "missing_path",
-        info: Info = None,
-    ):
-        """
-        ** PYDANTIC VALIDATED METHOD **
-        """
-        self.x: FloatVector | Quantity_ = x
-        self.y: FloatVector | Quantity_ = y
-        self.dy: FloatVector | Quantity_ = dy
+    path: str | AbsoluteFilePath
+    info: Info = field(default_factory=Info)
+    z: float = 0.0
 
-        self.z: float = z
-        self.ra: float | None = ra
-        self.dec: float | None = dec
-        self.title: str = title
-        self.path: AbsoluteFilePath | str = path
-        self.info: Info = info
+    title: str = "missing_title"
+    ra: float = 0.0
+    dec: float = 0.0
+
+    x: FloatVector | Quantity_ = field(init=False)
+    y: FloatVector | Quantity_ = field(init=False)
+    dy: FloatVector | Quantity_ = field(init=False)
+    dx: float | FloatVector | Quantity_ = field(init=False)
+
+    def __post_init__(self):
+        if isinstance(self.dx, float):
+            self.dx = full(len(self.x), self.dx, dtype=float64)
 
     @validated_apply_info_to_method(subjects=('loading',))
     def __call__(
@@ -65,9 +55,10 @@ class _Loader:
         msg = f"Running {self.__class__.__name__} loading pipeline: "
 
         msg += "(1) creating unitless coordinates, "
-        coords = self.transform_coords.__wrapped__(
+        coords, dx = self.transform_coords.__wrapped__(
             self.__class__,
             (self.x, self.y, self.dy),
+            dx=self.dx,
             info=self.info,
         )
 
@@ -94,12 +85,13 @@ class _Loader:
 
         if rebin:
             msg += "(3) logarithmic re-binning, "
-            coords = self.logbin_coords.__wrapped__(
+            coords, dx = self.logbin_coords.__wrapped__(
                 self.__class__, 
                 coords, 
-                sigma_res, 
-                conserve,
-                covariance,
+                dx=dx,
+                sigma_res=sigma_res, 
+                conserve=conserve,
+                covariance=covariance,
             )
         else:
             _sigma_res = diff(log(coords[0]))
@@ -110,16 +102,17 @@ class _Loader:
                 )
             
         msg += "(4) applying redshift correction, "
-        coords = self.redshift_correct_coords.__wrapped__(
+        coords, dx = self.redshift_correct_coords.__wrapped__(
             self.__class__, 
             coords, 
-            self.z,
+            dx=dx,
+            z=self.z,
         )
 
         msg += "(5) ensuring coordinates are C-contiguous."
-        coords = self.make_coords_contiguous.__wrapped__(
+        x, y, dy, dx = self.make_coords_contiguous.__wrapped__(
             self.__class__, 
-            coords,
+            *coords, dx,
         )
 
         logger.debug(msg)
@@ -127,27 +120,17 @@ class _Loader:
         return {
             'path': self.path,
             'title': self.title,
-            'coords': coords,
+            'coords': (x, y, dy),
+            'dx': dx,
             'info': self.info,
         }
     
-    @classmethod
-    def _validate(cls, value) -> Self:
-        if not isinstance(value, cls):
-            msg = f"Expected a {cls.__name__} instance, \
-                got {type(value).__name__}"
-            raise PydanticCustomError("validation_error", msg)
-        return value
-    
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type, handler):
-        return no_info_plain_validator_function(cls._validate)
-    
     @property
-    def transformed_coords(self) -> CoordsTuple:
+    def transformed_coords(self) -> tuple[FloatVector,...]:
         return self.transform_coords.__wrapped__(
             self.__class__,
-            (self.x, self.y, self.dy), 
+            (self.x, self.y, self.dy),
+            dx=self.dx,
             info=self.info,
         )
     
@@ -155,21 +138,25 @@ class _Loader:
     @validate_call
     def transform_coords(
         cls,
-        coords: CoordsTuple | tuple[Quantity_],
-        info: Info = None,
-    ) -> CoordsTuple:
+        coords: CoordsTuple,
+        *,
+        dx: FloatVector | Quantity_,
+        info: Info,
+    ) -> tuple[CoordsTuple, FloatVector]:
         """
         ** PYDANTIC VALIDATED METHOD **
         """
-        _x, _y, _dy = coords
-        if isinstance(_x, Quantity):  
-            _x  = info.units.getWavelength(_x)
-        if isinstance(_y, Quantity): 
-            _y  = info.units.getFlux(_y)
-        if isinstance(_dy, Quantity):
-            _dy = info.units.getFlux(_dy)
+        x, y, dy = coords
+        if isinstance(x, Quantity):  
+            x = info.units.getWavelength(x)
+        if isinstance(y, Quantity): 
+            y = info.units.getFlux(y)
+        if isinstance(dy, Quantity):
+            dy = info.units.getFlux(dy)
+        if isinstance(dx, Quantity):
+            dx = info.units.getWavelength(dx)
 
-        return (_x, _y, _dy)
+        return (x, y, dy), dx
     
     @property
     def dereddenned_coords(self) -> CoordsTuple:
@@ -210,11 +197,12 @@ class _Loader:
         )
 
     @property 
-    def redshift_corrected_coords(self) -> CoordsTuple:
+    def redshift_corrected_coords(self) -> tuple[CoordsTuple, FloatVector]:
         return self.redshift_correct_coords.__wrapped__(
             self.__class__,
             (self.x, self.y, self.dy),
-            self.z,
+            dx=self.dx,
+            z=self.z,
         )
     
     @classmethod
@@ -222,58 +210,67 @@ class _Loader:
     def redshift_correct_coords(
         cls,
         coords: CoordsTuple,
+        *,
+        dx: FloatVector,
         z: float,
-    ) -> CoordsTuple:
+    ) -> tuple[CoordsTuple, FloatVector]:
         """
         ** PYDANTIC VALIDATED METHOD **
         """
         if z == 0: 
-            return coords
+            return coords, dx
 
-        _x, _y, _dy = coords
+        x, y, dy = coords
         corr = 1 + z
 
-        x_corr = _x / corr
-        y_corr = _y * corr
-        dy_corr = _dy * corr
+        x_corr = x / corr
+        y_corr = y * corr
+        dy_corr = dy * corr
+        dx_corr = dx / corr
 
-        return (x_corr, y_corr, dy_corr)
+        return (x_corr, y_corr, dy_corr), dx_corr
     
     @property
-    def logbinned_coords(self) -> CoordsTuple:
+    def logbinned_coords(self) -> tuple[CoordsTuple, FloatVector]:
         return self.logbin_coords.__wrapped__(
             self.__class__,
             (self.x, self.y, self.dy),
-            self.info.loading['sigma_res'],
-            self.info.loading['conserve'],
-            self.info.loading['covariance'],
+            dx=self.dx,
+            sigma_res=self.info.loading['sigma_res'],
+            conserve=self.info.loading['conserve'],
+            covariance=self.info.loading['covariance'],
         )
     
     @classmethod
     @validate_call
     def logbin_coords(
         cls,
-        coords: CoordsTuple | tuple[Quantity_],
+        coords: CoordsTuple,
+        *,
+        dx: FloatVector,
         sigma_res: float,
         conserve: bool,
         covariance: bool,
-    ) -> CoordsTuple:
+    ) -> tuple[CoordsTuple, FloatVector]:
         """
         ** PYDANTIC VALIDATED METHOD **
         """
-        return log_resample.__wrapped__(
+        xr, yr, dyr = log_resample.__wrapped__(
             *coords,
             sigma_res,
+            dx=dx,
             conserve=conserve,
             covariance=covariance,
-        )
+        ) 
+        dxr = xr * sigma_res
+        return (xr, yr, dyr), dxr
 
     @classmethod
     @validate_call
     def make_coords_contiguous(
         cls,
-        coords: CoordsTuple,
-    ) -> CoordsTuple:
+        *coords: FloatVector,
+    ) -> tuple[FloatVector,...]:
         """
         ** PYDANTIC VALIDATED METHOD **
         """

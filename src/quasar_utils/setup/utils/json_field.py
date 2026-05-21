@@ -264,5 +264,5 @@ class JSONField:
     ) -> list[Self]:
         return [
             JSONField.load_from_json(d, field, parent_field) 
-            for field in d[parent_field].keys()
+            for field in d.get(parent_field, {}).keys()
         ]
