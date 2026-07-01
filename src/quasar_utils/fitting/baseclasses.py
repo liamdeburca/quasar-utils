@@ -2,8 +2,7 @@ from typing import Callable
 
 from astropy.modeling.fitting import (
     _NonLinearLSQFitter, fitter_unit_support, _validate_model, 
-    model_to_fit_params, _convert_input, model_to_fit_params, 
-    fitter_to_model_params, 
+    model_to_fit_params, _convert_input, fitter_to_model_params, 
 )
 from astropy.utils.exceptions import AstropyUserWarning
 
@@ -11,6 +10,9 @@ import warnings
 from numpy import inf, transpose, finfo, dot, float64
 from scipy import optimize
 from scipy.linalg import svd
+
+from quasar_typing.numpy import FittableFloatVector
+from quasar_typing.astropy import Model_
 
 LOSSES: dict = {
     'linear': 'linear',
@@ -26,9 +28,6 @@ DEFAULT_FTOL: float = 1e-8
 DEFAULT_XTOL: float = PRECISION
 DEFAULT_GTOL: float = PRECISION
 DEFAULT_EPS: float = float64(1.4901161193847656e-08)
-
-from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Model_
 
 class _NonLinearLSQFitter(_NonLinearLSQFitter):
     """
@@ -49,6 +48,106 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
     """
     The constraint types supported by this fitter type.
     """
+    @staticmethod
+    def _wrap_deriv(params, model, weights, x, y, z=None, fit_param_indices=None):
+        """
+        Wraps the method calculating the Jacobian of the function to account
+        for model constraints.
+        `scipy.optimize.leastsq` expects the function derivative to have the
+        above signature (parlist, (argtuple)). In order to accommodate model
+        constraints, instead of using p directly, we set the parameter list in
+        this function.
+        """
+        import numpy as np
+
+        if weights is None:
+            weights = 1.0
+
+        # print('----- _wrap_deriv -----')
+        # print('has_fixed: ', model.has_fixed)
+        # if model.has_fixed:
+            # print('>>>', [item[0] for item in model.fixed.items() if item[1]])
+
+        # print('has_tied: ', model.has_tied)
+        # if model.has_tied:
+            # print('>>>', [item[0] for item in model.tied.items() if item[1]])
+
+        if model.has_fixed or model.has_tied:
+            # update the parameters with the current values from the fitter
+            fitter_to_model_params(model, params)
+            # print('z is None:', z is None)
+            if z is None:
+                # print('model.parameters:', model.parameters.shape, model.parameters)
+                full = np.array(model.fit_deriv(x, *model.parameters))
+                # print('full shape:', full.shape)
+                if not model.col_fit_deriv:
+                    full_deriv = np.ravel(weights) * full.T
+                else:
+                    full_deriv = np.ravel(weights) * full
+            else:
+                full = np.array(
+                    [np.ravel(_) for _ in model.fit_deriv(x, y, *model.parameters)]
+                )
+                if not model.col_fit_deriv:
+                    full_deriv = np.ravel(weights) * full.T
+                else:
+                    full_deriv = np.ravel(weights) * full
+
+            # print('full_deriv shape:', full_deriv.shape)
+
+            pars = [getattr(model, name) for name in model.param_names]
+            fixed = [par.fixed for par in pars]
+            # print('fixed:', fixed)
+            tied = [par.tied for par in pars]
+            tied = list(np.where([par.tied is not False for par in pars], True, tied))
+            # print('tied:', tied)
+            fix_and_tie = np.logical_or(fixed, tied)
+            # print('fix_and_tie:', fix_and_tie)
+            ind = np.logical_not(fix_and_tie)
+            # print('ind:', ind)
+            # print('nonzero ind:', np.nonzero(ind))
+
+            if not model.col_fit_deriv:
+                residues = np.asarray(full_deriv[np.nonzero(ind)]).T
+            else:
+                residues = full_deriv[np.nonzero(ind)]
+
+            # print('residues shape:', residues.shape)
+            return [np.ravel(_) for _ in residues]
+        else:
+            if z is None:
+                fit_deriv = np.array(model.fit_deriv(x, *params))
+                # print('fit_deriv shape:', fit_deriv.shape)
+                try:
+                    output = np.array(
+                        [np.ravel(_) for _ in np.array(weights) * fit_deriv]
+                    )
+                    if output.shape != fit_deriv.shape:
+                        output = np.array(
+                            [np.ravel(_) for _ in np.atleast_2d(weights).T * fit_deriv]
+                        )
+                    return output
+                except ValueError:
+                    return np.array(
+                        [
+                            np.ravel(_)
+                            for _ in np.array(weights) * np.moveaxis(fit_deriv, -1, 0)
+                        ]
+                    ).transpose()
+            else:
+                if not model.col_fit_deriv:
+                    return [
+                        np.ravel(_)
+                        for _ in (
+                            np.ravel(weights)
+                            * np.array(model.fit_deriv(x, y, *params)).T
+                        ).T
+                    ]
+                return [
+                    np.ravel(_)
+                    for _ in weights * np.array(model.fit_deriv(x, y, *params))
+                ]
+
     @fitter_unit_support
     def __call__(
         self,
@@ -131,7 +230,7 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
             updated to be those set by the fitter.
 
         """
-        model_copy = _validate_model(
+        model_copy: Model_ = _validate_model(
             model,
             self.supported_constraints,
             copy=not inplace,
@@ -143,8 +242,21 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
             x, y, z, weights = self._filter_non_finite(x, y, z, weights)
 
         farg = (model_copy, weights,) + _convert_input(x, y, z)
-
         fkwarg = {"fit_param_indices": set(fit_param_indices)}
+
+        # import numpy as np
+
+        # print(model)
+        # print(getattr(model, 'op', None))
+
+        # x0 = model.parameters
+        # print("x0 shape:", x0.shape)
+        # print("weights:", None if weights is None else weights.shape, None if weights is None else weights.dtype)
+        # test_jac = self._wrap_deriv(x0, model_copy, weights, *farg[2:], fit_param_indices=None)
+        # print("test_jac shape:", np.shape(test_jac))
+        # fit_deriv = model.fit_deriv(x, *x0)  # or however params are unpacked
+        # print("fit_deriv raw output shape:", np.shape(fit_deriv))
+        # print("fit_deriv raw output type:", type(fit_deriv))
 
         init_values, fitparams, cov_x = self._run_fitter(
             model_copy, farg, fkwarg, maxiter, 
@@ -206,7 +318,7 @@ class _BaseClass(_NonLinearLSQFitter):
 
     def _run_fitter(
         self, 
-        model, 
+        model: Model_, 
         farg, 
         fkwarg, 
         maxiter: int, 
@@ -225,12 +337,11 @@ class _BaseClass(_NonLinearLSQFitter):
             dfunc = "2-point"
         else:
 
-            def _dfunc(params, model, weights, *args, **context):
+            def _dfunc(params, model: Model_, weights, *args, **context):
                 out = self._wrap_deriv(
                     params, model, weights, *args, fit_param_indices=None,
                 )
-                if model.col_fit_deriv: return transpose(out)
-                else:                   return out
+                return transpose(out) if model.col_fit_deriv else out
 
             dfunc = _dfunc
 
@@ -247,19 +358,19 @@ class _BaseClass(_NonLinearLSQFitter):
         self.fit_info = optimize.least_squares(
             self.objective_function, # fun
             init_values, # x0
-            jac = dfunc,
-            bounds = bounds,
-            method = self._method,
-            ftol = ftol,
-            xtol = xtol,
-            gtol = gtol,
-            loss = LOSSES.get(loss, 'linear'),
-            f_scale = f_scale,
-            max_nfev = maxiter,
-            diff_step = epsilon**0.5,
-            verbose = verbose,
-            args = farg,
-            kwargs = fkwarg,
+            jac=dfunc,
+            bounds=bounds,
+            method=self._method,
+            ftol=ftol,
+            xtol=xtol,
+            gtol=gtol,
+            loss=LOSSES.get(loss, 'linear'),
+            f_scale=f_scale,
+            max_nfev=maxiter,
+            diff_step=epsilon**0.5,
+            verbose=verbose,
+            args=farg,
+            kwargs=fkwarg,
         )
 
         # Adapted from ~scipy.optimize.minpack, see:
