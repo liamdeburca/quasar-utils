@@ -46,7 +46,6 @@ class IronInfo(_Info):
     _scale: float | Quantity_ = 140.0
     raster: bool = True
     fine_tune: bool = False
-    allow_interp_fitting: bool = True
 
     _fwhm_norm: float | Quantity_ = 5_000 * Unit('km/s')
 
@@ -69,7 +68,6 @@ class IronInfo(_Info):
         'bias', 'ratio', 'fixed', 
         '_scale', 'scale', 
         'raster', 'fine_tune',
-        'allow_interp_fitting',
         '_fwhm_norm', 'fwhm_norm',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
@@ -124,7 +122,7 @@ class IronInfo(_Info):
                     val = parsing.as_list(line[1])
                 case 'template_files':
                     val = list(map(Path, parsing.as_list(line[1])))
-                case 'resample' | 'fine_tune' | 'allow_interp_fitting':
+                case 'resample' | 'fine_tune':
                     val = parsing.as_bool(line[1])
                 case 'fwhm' | 'split':
                     prefix = '_'

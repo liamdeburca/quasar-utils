@@ -11,6 +11,7 @@ from dataclasses import field
 from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
 from .continuum import ContinuumInfo
+from .convolution import ConvolutionInfo
 from .error import ErrorInfo
 from .host import HostInfo
 from .iron import IronInfo
@@ -31,6 +32,7 @@ class Info:
     absorption: AbsorptionInfo = field(kw_only=True, default_factory=AbsorptionInfo)
     balmer: BalmerInfo = field(kw_only=True, default_factory=BalmerInfo)
     continuum: ContinuumInfo = field(kw_only=True, default_factory=ContinuumInfo)
+    convolution: ConvolutionInfo = field(kw_only=True, default_factory=ConvolutionInfo)
     error: ErrorInfo = field(kw_only=True, default_factory=ErrorInfo)
     host: HostInfo = field(kw_only=True, default_factory=HostInfo)
     iron: IronInfo = field(kw_only=True, default_factory=IronInfo)
@@ -40,7 +42,7 @@ class Info:
     units: UnitsInfo = field(kw_only=True, default_factory=UnitsInfo)
 
     _keys: ClassVar[frozenset[str]] = frozenset([
-        'absorption', 'balmer', 'continuum', 'error', 'host', 'iron', 'lines', 
+        'absorption', 'balmer', 'continuum', 'convolution', 'error', 'host', 'iron', 'lines', 
         'loading', 'nonlinear', 'units',
     ])
 
@@ -69,6 +71,7 @@ class Info:
             absorption=inner(AbsorptionInfo),
             balmer=inner(BalmerInfo),
             continuum=inner(ContinuumInfo),
+            convolution=inner(ConvolutionInfo),
             error=inner(ErrorInfo),
             host=inner(HostInfo),
             iron=inner(IronInfo),
@@ -102,6 +105,7 @@ class Info:
             absorption=inner(AbsorptionInfo),
             balmer=inner(BalmerInfo),
             continuum=inner(ContinuumInfo),
+            convolution=inner(ConvolutionInfo),
             error=inner(ErrorInfo),
             host=inner(HostInfo),
             iron=inner(IronInfo),
@@ -144,8 +148,8 @@ class Info:
         self, 
         key: str, 
         subjects: Iterable[str] = [
-            'absorption', 'balmer', 'continuum', 'error', 'host', 'iron', 'lines', 
-            'loading', 'nonlinear', 'units',
+            'absorption', 'balmer', 'continuum', 'convolution', 'error', 'host', 
+            'iron', 'lines', 'loading', 'nonlinear', 'units',
             # 'plotting', 
         ],
     ) -> Any:

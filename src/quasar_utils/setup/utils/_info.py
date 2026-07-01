@@ -70,16 +70,11 @@ class _Info(ABC):
         ))
         
     def __getstate__(self) -> dict:
-        state: dict = {'_keys': self._keys}
-        state.update({key: getattr(self, key) for key in self._keys})
-        return state
+        return {key: getattr(self, key) for key in self._keys}
     
-    @classmethod
-    def __setstate__(cls, state: dict) -> None:
-        cls._keys = frozenset(state.pop('_keys'))
-
-        for key in cls._keys:
-            setattr(cls, key, state[key])
+    def __setstate__(self, state: dict) -> None:
+        for key, value in state.items():
+            setattr(self, key, value)
 
     def copy(self) -> Self:
         """

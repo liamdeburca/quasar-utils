@@ -6,14 +6,10 @@ from dataclasses import field
 from pydantic.dataclasses import dataclass
 from pydantic import validate_call
 
-from .utils._info import _Info
-from ..utils.utils import val_and_type
-from ..utils import parsing
-from ..utils.parsing import get_lines_from_file
-from ..fitting import TRFLSQFitter, DogBoxLSQFitter, LMLSQFitter
-
-from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Fitter_, Model_, FitInfo, FitterInstance
+from quasar_utils.fitting import FitterInstance
+from quasar_utils.setup.utils._info import _Info
+from quasar_utils.utils import parsing
+from quasar_utils.utils.utils import val_and_type
 from quasar_typing.pathlib import AbsoluteFilePath
 
 logger = getLogger(__name__)
@@ -27,7 +23,7 @@ DEFAULT_VALUES: dict[str, Any] = {
     'ftol': 1e-8,
     'xtol': MACHINE_PRECISION,
     'gtol': MACHINE_PRECISION,
-    'f_scale': 1,
+    'f_scale': 1.0,
 }
 
 @dataclass
@@ -38,29 +34,24 @@ class NonLinearInfo(_Info):
     ftol: float = field(default=DEFAULT_VALUES['ftol'])
     xtol: float = field(default=DEFAULT_VALUES['xtol'])
     gtol: float = field(default=DEFAULT_VALUES['gtol'])
-    f_scale: float = field(default=1)
+    f_scale: float = field(default=DEFAULT_VALUES['f_scale'])
 
     _keys: ClassVar[frozenset[str]] = frozenset([
-        'algo', 'algo', 'loss', 'maxiter', 'ftol', 'xtol', 'gtol', 'f_scale',
-        'algorithm', 'fitter',
+        'algo', 'loss', 'maxiter', 'ftol', 'xtol', 'gtol', 'f_scale', 'fitter',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {}
 
     def __hash__(self) -> int:
         return super().__hash__()
+
+    # def __getstate__(self) -> dict:
+    #     state = super().__getstate__()
+    #     state.pop('fitter')
+    #     return state
     
-    def __getstate__(self) -> dict:
-        state = super().__getstate__()
-        state.pop('algorithm')
-        state.pop('fitter')
-        return state
-    
-    @classmethod
-    def __setstate__(cls, state: dict):
-        cls._keys: frozenset[str] = frozenset(state.pop('_keys'))
-        for key in filter(lambda key: key not in ('fitter', 'algorithm'), cls._keys):
-            setattr(cls, key, state[key])
+    # def __setstate__(self, state: dict) -> None:
+    #     super().__setstate__(state)
 
     def __getitem__(self, key: str) -> Any:
         if key == 'fitter': 
@@ -69,50 +60,18 @@ class NonLinearInfo(_Info):
 
     def update(self, info) -> None:
         super().update(info, logger)
-
-    @cached_property
-    def kwargs(self) -> dict[str, float | int | str]:
-        return dict(
-            loss = self['loss'],
-            maxiter = self['maxiter'],
-            ftol = self['ftol'],
-            xtol = self['xtol'],
-            gtol = self['gtol'],
-            f_scale = self['f_scale'],
-        )
-    
-    @cached_property
-    def algorithm(self) -> Fitter_:
-        return {
-            'trf': TRFLSQFitter,
-            'dogbox': DogBoxLSQFitter,
-            'lm': LMLSQFitter,
-        }[self['algo']]
     
     @cached_property
     def fitter(self) -> FitterInstance:
-        algo = self.algorithm(calc_uncertainties=True)
-        kwargs = self.kwargs
-
-        def fitter_instance(
-            model: Model_,
-            x: FittableFloatVector,
-            y: FittableFloatVector,
-            dy: FittableFloatVector,
-            inplace: bool = False,
-        ) -> tuple[Model_, FitInfo]:
-            nonlocal algo, kwargs
-            fit = algo(
-                model,
-                x,
-                y,
-                weights = 1 / dy,
-                inplace = inplace,
-                **kwargs,
-            )
-            return fit, algo.fit_info
-        
-        return fitter_instance
+        return FitterInstance(
+            self.algo,
+            loss=self.loss,
+            maxiter=self.maxiter,
+            ftol=self.ftol,
+            xtol=self.xtol,
+            gtol=self.gtol,
+            f_scale=self.f_scale,
+        )
 
     @classmethod
     @validate_call
@@ -134,7 +93,7 @@ class NonLinearInfo(_Info):
             return ninfo
 
         logger.debug(f"Configuring 'NonLinearInfo' using '{path}':")        
-        lines = get_lines_from_file.__wrapped__('NONLINEAR', path, logger)
+        lines = parsing.get_lines_from_file.__wrapped__('NONLINEAR', path, logger)
 
         for count, line in enumerate(lines, start=1):
             key = line[0].lower()

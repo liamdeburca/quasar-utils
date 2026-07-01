@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import ClassVar, Self
+from typing import ClassVar, Self, Literal
 from astropy.units import Unit
 from dataclasses import field
 from pydantic.dataclasses import dataclass
@@ -23,12 +23,30 @@ class HostInfo(_Info):
     _windows: list[CoordBounds] | Quantity_ = [[3000, 4500]] * Unit('angstrom')
     _x_norm: float | Quantity_ = 6000 * Unit('angstrom')
     _fwhm_norm: float | Quantity_ = 0 * Unit('km/s')
-    allow_interp_fitting: bool = True
     _flux: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)')
     _fwhm: float | Quantity_ = 0 * Unit('km/s')
     _flux_bounds: AstropyBounds | Quantity_ = [1e-18, 1e-15] * Unit('erg/(s.cm2.angstrom)')
     _fwhm_bounds: AstropyBounds | Quantity_ = [0, 1000] * Unit('km/s')
     _fixed: HostGalaxyModelParams = field(default_factory=lambda: HostGalaxyModelParams({'fwhm'}))
+
+    template_files: list[str | AbsoluteFilePath] = field(default_factory=list)
+    sources: list[Literal['bc2003']] = field(default_factory=lambda: ['bc2003'])
+    ages: list[int] = field(default_factory=lambda: [
+         1_015_190_000,
+         2_500_000_000,
+         4_500_000_000,
+         5_000_000_000,
+         6_000_000_000,
+         8_000_000_000, 
+        12_000_000_000,
+    ])
+
+    raster: bool = True
+    fine_tune: bool = True
+    only_model: bool = False
+
+    min_fittable_ratio: float = 0.6
+    min_fittable_total: int = 100
     
     windows: list[CoordBounds] | None = field(default=None, init=False)
     x_norm: float | None = field(default=None, init=False)
@@ -47,12 +65,14 @@ class HostInfo(_Info):
         '_windows', 'windows',
         '_x_norm', 'x_norm',
         '_fwhm_norm', 'fwhm_norm',
-        'allow_interp_fitting',
         '_flux', 'flux',
         '_fwhm', 'fwhm',
         '_flux_bounds', 'flux_bounds',
         '_fwhm_bounds', 'fwhm_bounds',
         '_fixed', 'fixed',
+        'template_files',
+        'sources', 'ages',
+        'raster', 'fine_tune', 'only_model',
         'min_fittable_ratio', 'min_fittable_total',
     ])
     _cache: ClassVar[dict[str, Self]] = {}

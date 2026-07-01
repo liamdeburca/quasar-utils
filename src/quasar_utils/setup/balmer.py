@@ -36,8 +36,6 @@ class BalmerInfo(_Info):
     tau: float = 1.0
     scale: float = 3.0
     
-    allow_interp_fitting: bool = True
-
     _flux: float | Quantity_ = 1e-17 * Unit('erg/(s.cm2.angstrom)')
     _fwhm: float | Quantity_ = 5_000 * Unit('km/s')
     _flux_bounds: AstropyBounds | Quantity_ = [1e-18, 1e-15] * Unit('erg/(s.cm2.angstrom)')
@@ -50,6 +48,9 @@ class BalmerInfo(_Info):
     min_fittable_ratio: float = 0.6
     min_fittable_total: int = 100
 
+    raster: bool = True
+    fine_tune: bool = True
+
     windows: list[CoordBounds] | None = field(default=None, init=False)
     edge: float | None = field(default=None, init=False)
     fwhm_norm: float | None = field(default=None, init=False)
@@ -61,6 +62,7 @@ class BalmerInfo(_Info):
     fwhm_bounds: AstropyBounds | None = field(default=None, init=False)
     fixed: dict[str, bool] | None = field(default=None, init=False)
 
+
     _keys: ClassVar[frozenset[str]] = frozenset([
         'fit',
         '_windows', 'windows',
@@ -71,7 +73,6 @@ class BalmerInfo(_Info):
         '_dens', 'dens',
         'n_u_min', 'n_u_max',
         'tau', 'scale', 
-        'allow_interp_fitting',
         '_flux', 'flux',
         '_fwhm', 'fwhm',
         'ratio',
@@ -81,6 +82,7 @@ class BalmerInfo(_Info):
         '_fixed', 'fixed',
         'raster_n',
         'min_fittable_ratio', 'min_fittable_total',
+        'raster', 'fine_tune',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {
@@ -136,9 +138,6 @@ class BalmerInfo(_Info):
             match key:
                 case 'source':
                     val = parsing.as_str(line[1])
-
-                case 'allow_interp_fitting':
-                    val = parsing.as_bool(line[1])
 
                 case 'n_u_min' | 'n_u_max' | 'min_fittable_total' | 'raster_n':
                     val = parsing.as_int(line[1])

@@ -20,7 +20,7 @@ DEFAULT_VALUES: dict[str, Any] = {
     '_x_limit': 1220 * Unit('angstrom'),
     '_v_sep': 10_000 * Unit('km/s'),
     '_v_off_bounds': (-5_000, 5_000) * Unit('km/s'),
-    '_sigma_v_bounds': (250, 5_000) * Unit('km/s'),
+    '_fwhm_v_bounds': (500, 10_000) * Unit('km/s'),
     '_strength_bounds': (1e-16, 1) * Unit('erg/(s.cm2)'),
     '_w': 25,
     '_forced_splits': [1450, 1680, 2000] * Unit('angstrom'),
@@ -45,7 +45,7 @@ class LinesInfo(_Info):
     _x_limit: float | Quantity_ = field(default=DEFAULT_VALUES['_x_limit'])
     _v_sep: float | Quantity_ = field(default=DEFAULT_VALUES['_v_sep'])
     _v_off_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_v_off_bounds'])
-    _sigma_v_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_sigma_v_bounds'])
+    _fwhm_v_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_fwhm_v_bounds'])
     _strength_bounds: AstropyBounds | Quantity_ = field(default=DEFAULT_VALUES['_strength_bounds'])
     _w: int | Quantity_ = field(default=DEFAULT_VALUES['_w'])
     _forced_splits: list[float] | Quantity_ = field(default=DEFAULT_VALUES['_forced_splits'])
@@ -61,11 +61,12 @@ class LinesInfo(_Info):
     adapt_scale: bool = field(default=DEFAULT_VALUES['adapt_scale'])
     scale_init: float = field(default=DEFAULT_VALUES['scale_init'])
     scale_bounds: AstropyBounds = field(default=DEFAULT_VALUES['scale_bounds'])
+    scale_fixed: bool = field(default=False)
 
     x_limit: float | None = field(default=None, init=False)
     v_sep: float | None = field(default=None, init=False)
     v_off_bounds: AstropyBounds | None = field(default=None, init=False)
-    sigma_v_bounds: AstropyBounds | None = field(default=None, init=False)
+    fwhm_v_bounds: AstropyBounds | None = field(default=None, init=False)
     strength_bounds: AstropyBounds | None = field(default=None, init=False)
     w: int | None = field(default=None, init=False)
     forced_splits: list[float] | None = field(default=None, init=False)
@@ -75,7 +76,7 @@ class LinesInfo(_Info):
         '_x_limit', 'x_limit',
         '_v_sep', 'v_sep',
         '_v_off_bounds', 'v_off_bounds',
-        '_sigma_v_bounds', 'sigma_v_bounds',
+        '_fwhm_v_bounds', 'fwhm_v_bounds',
         '_strength_bounds', 'strength_bounds',
         '_w', 'w',
         '_forced_splits', 'forced_splits',
@@ -93,13 +94,14 @@ class LinesInfo(_Info):
         'adapt_scale',
         'scale_init',
         'scale_bounds',
+        'scale_fixed',
     ])
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {
         'x_limit': "to_wavelength",
         'v_sep': "to_velocity",
         'v_off_bounds': "to_velocity_bounds",
-        'sigma_v_bounds': "to_velocity_bounds",
+        'fwhm_v_bounds': "to_velocity_bounds",
         'strength_bounds': "to_strength_bounds",
         'w': "to_n_pixels",
         'forced_splits': "to_wavelength_array",
@@ -126,8 +128,7 @@ class LinesInfo(_Info):
             logger.debug(f"Using cached 'LinesInfo' for '{path}'.")
             
             linfo = cls._cache[str(path)]
-            if create_copy: return linfo.copy()
-            else:           return linfo
+            return linfo.copy() if create_copy else linfo
 
         linfo: LinesInfo = LinesInfo()
         if path is None:
@@ -151,7 +152,7 @@ class LinesInfo(_Info):
                     key = '_' + key
                     val = parsing.as_scalar_or_quantity(line[1:])
 
-                case 'v_off_bounds' | 'sigma_v_bounds' | 'strength_bounds':
+                case 'v_off_bounds' | 'fwhm_v_bounds' | 'strength_bounds':
                     key = '_' + key
                     val = parsing.as_bounds_of_scalars_or_quantity(line[1:])
 

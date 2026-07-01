@@ -1,12 +1,15 @@
-__all__ = ['read_linelist', 'DEFAULT_LINE_LIST_PATH']
+__all__ = ['LineList', 'DEFAULT_LINE_LIST_PATH']
 
+from typing import Self
 from astropy.units import Quantity
-from pandas import read_csv
+from pandas import DataFrame, read_csv
 from functools import partial
 from pathlib import Path
 
+from pydantic_core import PydanticCustomError
+from pydantic_core.core_schema import no_info_plain_validator_function
+
 from quasar_typing.pathlib import AbsoluteCSVPath
-from quasar_typing.pandas import LineList
 
 from ..decorators import validate_call
 from ..setup import Info
@@ -49,9 +52,9 @@ def strength_upper_converter(info: Info, s: str) -> float:
         info.units.getStrength(Quantity(s))
     )
 
-def sigma_v_lower_converter(info: Info, s: str) -> float:
+def fwhm_v_lower_converter(info: Info, s: str) -> float:
     if not s: 
-        return info.lines['sigma_v_bounds'][0]
+        return info.lines['fwhm_v_bounds'][0]
 
     return (
         float(s) 
@@ -59,9 +62,9 @@ def sigma_v_lower_converter(info: Info, s: str) -> float:
         info.units.getC(Quantity(s))
     )
 
-def sigma_v_upper_converter(info: Info, s: str) -> float:
+def fwhm_v_upper_converter(info: Info, s: str) -> float:
     if not s: 
-        return info.lines['sigma_v_bounds'][1]
+        return info.lines['fwhm_v_bounds'][1]
 
     return (
         float(s) 
@@ -101,34 +104,82 @@ def scale_lower_converter(info: Info, s: str) -> float:
 def scale_upper_converter(info: Info, s: str) -> float:
     return float(s) if s else info.lines['scale_bounds'][1]
 
-@validate_call
-def read_linelist(
-    *,
-    path: AbsoluteCSVPath = DEFAULT_LINE_LIST_PATH,
-    info: Info = None,
-) -> LineList:
+def scale_fixed_converter(info: Info, s: str) -> bool:
+    return bool(s) if s else info.lines['scale_fixed']
+
+class LineList(DataFrame):
     """
-    ** PYDANTIC VALIDATED FUNCTION **
+    pandas.DataFrame
     """
-    df = read_csv(
-        path,
-        skipinitialspace = True,
-        usecols = LineList.REQUIRED_COLUMNS,
-        converters = dict(
-            n_max          = n_max_converter,
-            needs_line     = needs_line_converter,
-            is_copy_of     = is_copy_of_converter,
-            line           = partial(line_converter,           info),
-            strength_lower = partial(strength_lower_converter, info),
-            strength_upper = partial(strength_upper_converter, info),
-            sigma_v_lower  = partial(sigma_v_lower_converter,  info),
-            sigma_v_upper  = partial(sigma_v_upper_converter,  info),
-            v_off_lower    = partial(v_off_lower_converter,    info),
-            v_off_upper    = partial(v_off_upper_converter,    info),
-            scale_init     = partial(scale_init_converter,     info),
-            scale_lower    = partial(scale_lower_converter,    info),
-            scale_upper    = partial(scale_upper_converter,    info),
+    REQUIRED_COLUMNS = [
+        'name', 
+        'complex',
+        'n_max', 
+        'needs_line',
+        'line',
+        'strength_lower', 
+        'strength_upper',
+        'v_off_lower', 
+        'v_off_upper',
+        'fwhm_v_lower', 
+        'fwhm_v_upper',
+        'is_copy_of',
+        'scale_init', 
+        'scale_lower', 
+        'scale_upper',
+        'scale_fixed',
+    ]
+
+    @classmethod
+    @validate_call
+    def read_csv(
+        cls,
+        *,
+        path: AbsoluteCSVPath = DEFAULT_LINE_LIST_PATH,
+        info: Info = None,
+    ) -> Self:
+        df = read_csv(
+            path,
+            skipinitialspace = True,
+            usecols = cls.REQUIRED_COLUMNS,
+            converters = dict(
+                n_max          = n_max_converter,
+                needs_line     = needs_line_converter,
+                is_copy_of     = is_copy_of_converter,
+                line           = partial(line_converter,           info),
+                strength_lower = partial(strength_lower_converter, info),
+                strength_upper = partial(strength_upper_converter, info),
+                fwhm_v_lower  = partial(fwhm_v_lower_converter,    info),
+                fwhm_v_upper  = partial(fwhm_v_upper_converter,    info),
+                v_off_lower    = partial(v_off_lower_converter,    info),
+                v_off_upper    = partial(v_off_upper_converter,    info),
+                scale_init     = partial(scale_init_converter,     info),
+                scale_lower    = partial(scale_lower_converter,    info),
+                scale_upper    = partial(scale_upper_converter,    info),
+                scale_fixed    = partial(scale_fixed_converter,    info),
+            )
         )
-    )
-    df.sort_values('line', inplace=True)
-    return df
+        df.sort_values('line', inplace=True)
+        return df[df['n_max'] != 0]
+    
+    @classmethod
+    def _validate(cls, value: object) -> Self:
+
+        if not isinstance(value, DataFrame):
+            msg = f"Expected a 'pandas.DataFrame', got {type(value).__name__}"
+            raise PydanticCustomError('validation_error', msg)
+        
+        missing_columns = [
+            col for col in cls.REQUIRED_COLUMNS
+            if col not in value.columns
+        ]
+        if len(missing_columns) > 0:
+            cols = ", ".join(missing_columns)
+            msg = f"Line list DataFrame is missing required columns: {cols}"
+            raise PydanticCustomError('validation_error', msg)
+
+        return value
+    
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        return no_info_plain_validator_function(cls._validate)
