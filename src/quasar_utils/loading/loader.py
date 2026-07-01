@@ -120,7 +120,9 @@ class _Loader:
         return {
             'path': self.path,
             'title': self.title,
-            'coords': (x, y, dy),
+            'x': x,
+            'y': y,
+            'dy': dy,
             'dx': dx,
             'info': self.info,
         }
