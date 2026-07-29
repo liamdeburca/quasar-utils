@@ -1,13 +1,19 @@
-from shutil import rmtree
-from typing import Iterator, Self
-from logging import FileHandler
+from collections.abc import Iterator
 from dataclasses import field
+from logging import FileHandler
+from shutil import rmtree
+from typing import Self
+
 from pydantic.dataclasses import dataclass
+from quasar_typing.pathlib import (
+    AbsoluteFilePath,
+    AbsoluteLogPath,
+    AnyAbsoluteDirPath,
+)
 
-from quasar_typing.pathlib import AnyAbsoluteDirPath, AbsoluteFilePath, AbsoluteLogPath
-
-from .sub_dir import SubDir
 from .input_dir import InputDir
+from .sub_dir import SubDir
+
 
 @dataclass
 class OutputDir:
@@ -30,10 +36,10 @@ class OutputDir:
         self.dangerous = False
 
     def batched(
-        self, 
+        self,
         batch_size: int,
         *,
-        input_dir: InputDir | None = None, 
+        input_dir: InputDir | None = None,
         path: AnyAbsoluteDirPath | None = None,
     ) -> Iterator[Self]:
         if path is None:
@@ -52,55 +58,57 @@ class OutputDir:
             )
 
     ###
-            
+
     def __len__(self) -> int:
         return len(self.subdirs)
 
     def __iter__(self) -> Iterator[SubDir]:
-        return iter(sorted(
-            self.subdirs,
-            key=lambda subdir: subdir._out_dir.name,
-        ))
-    
+        return iter(
+            sorted(
+                self.subdirs,
+                key=lambda subdir: subdir._out_dir.name,
+            )
+        )
+
     def __getstate__(self) -> dict:
         return {
-            'input_dir': self.input_dir,
-            'path': self.path,
-            'dangerous': False,
-            'subdirs': self.subdirs,
+            "input_dir": self.input_dir,
+            "path": self.path,
+            "dangerous": False,
+            "subdirs": self.subdirs,
         }
 
     def __setstate__(self, state: dict) -> None:
         self.__init__(
-            input_dir=state['input_dir'],
-            path=state['path'],
+            input_dir=state["input_dir"],
+            path=state["path"],
             dangerous=False,
-            subdirs=state['subdirs'],
+            subdirs=state["subdirs"],
         )
 
     @property
     def debug_logs(self) -> set[AbsoluteLogPath]:
         return {subdir.debug_log for subdir in self}
-    
+
     @property
     def main_logs(self) -> set[AbsoluteLogPath]:
         return {subdir.main_log for subdir in self}
-    
+
     @property
     def debug_handlers(self) -> list[FileHandler]:
-        return [subdir.handlers['debug'] for subdir in self]
-    
+        return [subdir.handlers["debug"] for subdir in self]
+
     @property
     def main_handlers(self) -> list[FileHandler]:
-        return [subdir.handlers['main'] for subdir in self]
-    
+        return [subdir.handlers["main"] for subdir in self]
+
     @property
     def all_handlers(self) -> list[FileHandler]:
         return self.debug_handlers + self.main_handlers
 
     def create_subdir(
-        self, 
-        path: AbsoluteFilePath, 
+        self,
+        path: AbsoluteFilePath,
         add: bool = True,
     ) -> SubDir:
         out_dir = self.path / f"{path.name.split('.')[0]}_out"
@@ -126,12 +134,12 @@ class OutputDir:
             msg += "does not exist."
 
         subdir = SubDir(path, out_dir)
-        subdir.current_log.append(msg)  
+        subdir.current_log.append(msg)
         if add:
             self.subdirs.add(subdir)
 
         return subdir
-    
+
     def create_subdirs(self) -> None:
         """
         Creates subdirectories for each input file.

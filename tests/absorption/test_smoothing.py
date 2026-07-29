@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+
 from quasar_utils.absorption.smoothing import get_gap_sizes
 
 
@@ -142,7 +142,9 @@ class TestGetGapSizes:
 
     def test_multiple_gaps_longer_sequence_both_ends_true(self):
         """[T, F, T, F, F, T, F, T] should return [(1, 1, 1), (3, 4, 2), (6, 6, 1)]."""
-        mask = np.array([True, False, True, False, False, True, False, True], dtype=bool)
+        mask = np.array(
+            [True, False, True, False, False, True, False, True], dtype=bool
+        )
         result = get_gap_sizes(mask)
         assert result == [(1, 1, 1), (3, 4, 2), (6, 6, 1)]
 
@@ -196,7 +198,9 @@ class TestGetGapSizes:
 
     def test_large_array_simple_pattern(self):
         """Larger array with simple True-False pattern."""
-        mask = np.array([True, False, True, False, True, False, True], dtype=bool)
+        mask = np.array(
+            [True, False, True, False, True, False, True], dtype=bool
+        )
         result = get_gap_sizes(mask)
         assert result == [(1, 1, 1), (3, 3, 1), (5, 5, 1)]
 
@@ -204,7 +208,7 @@ class TestGetGapSizes:
         """Larger array with varied gap sizes."""
         mask = np.array(
             [True, False, True, False, False, False, True, False, False, True],
-            dtype=bool
+            dtype=bool,
         )
         result = get_gap_sizes(mask)
         assert result == [(1, 1, 1), (3, 5, 3), (7, 8, 2)]
@@ -212,8 +216,7 @@ class TestGetGapSizes:
     def test_large_array_with_edge_gaps(self):
         """Larger array with gaps at edges."""
         mask = np.array(
-            [False, False, True, False, True, False, False, False],
-            dtype=bool
+            [False, False, True, False, True, False, False, False], dtype=bool
         )
         result = get_gap_sizes(mask)
         assert result == [(0, 1, 2), (3, 3, 1), (5, 7, 3)]
@@ -224,35 +227,42 @@ class TestGetGapSizes:
         """Each tuple should have (left, right, size) with size = right - left + 1."""
         mask = np.array([True, False, False, True, False, True], dtype=bool)
         result = get_gap_sizes(mask)
-        
+
         for left, right, size in result:
             # Verify size calculation
-            assert size == right - left + 1, \
+            assert size == right - left + 1, (
                 f"Tuple ({left}, {right}, {size}): size should be {right - left + 1}"
+            )
             # Verify indices are in bounds
-            assert 0 <= left <= right < len(mask), \
+            assert 0 <= left <= right < len(mask), (
                 f"Tuple ({left}, {right}, {size}): indices out of bounds"
+            )
 
     def test_all_gaps_are_false(self):
         """All indices in gaps should correspond to False values in mask."""
         mask = np.array([False, True, False, False, True, False], dtype=bool)
         result = get_gap_sizes(mask)
-        
+
         for left, right, size in result:
             # All elements in gap should be False
             for i in range(left, right + 1):
-                assert mask[i] == False, \
+                assert mask[i] == False, (
                     f"Index {i} in gap ({left}, {right}, {size}) is True, not False"
+                )
 
     def test_gaps_are_contiguous(self):
         """No gap should be adjacent to another without a True between."""
         mask = np.array([False, True, False, True, False], dtype=bool)
         result = get_gap_sizes(mask)
-        
+
         if len(result) > 1:
             for i in range(len(result) - 1):
                 current_right = result[i][1]
                 next_left = result[i + 1][0]
                 # There should be at least one True between gaps
-                assert current_right < next_left - 1 or current_right == next_left - 1, \
-                    f"Gap {i} ends at {current_right}, gap {i+1} starts at {next_left}"
+                assert (
+                    current_right < next_left - 1
+                    or current_right == next_left - 1
+                ), (
+                    f"Gap {i} ends at {current_right}, gap {i + 1} starts at {next_left}"
+                )

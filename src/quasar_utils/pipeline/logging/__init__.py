@@ -1,11 +1,16 @@
 __all__ = [
-    "CustomFormatter",
     "CONFIG_KWARGS",
+    "CustomFormatter",
+    "DisableLogging",
     "instantiate_logging",
     "switch_filehandlers",
     "switch_subdir",
-    "DisableLogging",
 ]
 
-from .custom_formatter import CustomFormatter, CONFIG_KWARGS
-from .utils import instantiate_logging, switch_filehandlers, switch_subdir, DisableLogging
+from .custom_formatter import CONFIG_KWARGS, CustomFormatter
+from .utils import (
+    DisableLogging,
+    instantiate_logging,
+    switch_filehandlers,
+    switch_subdir,
+)

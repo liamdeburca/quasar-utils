@@ -1,16 +1,22 @@
-__all__ = ['validate_call']
+__all__ = ["validate_call"]
+
+from collections.abc import Callable
+from typing import Protocol, TypeVar, overload
 
 from pydantic import validate_call as pydantic_validate_call
-from typing import Callable, TypeVar, overload, Protocol
 
-F = TypeVar('F', bound=Callable)
+F = TypeVar("F", bound=Callable)
 
-class Validated(Protocol[F]):    
+
+class Validated(Protocol[F]):
     """
     Use '__wrapped__' to access the original (unvalidated) function.
     """
+
     __wrapped__: F
+
     def __call__(self, *args, **kwargs): ...
+
 
 @overload
 def validate_call(
@@ -19,12 +25,14 @@ def validate_call(
     validate_return: bool = False,
 ) -> Validated[F]: ...
 
+
 @overload
 def validate_call(
     func: None = None,
     *,
     validate_return: bool = False,
 ) -> Callable[[F], Validated[F]]: ...
+
 
 def validate_call(
     func: F | None = None,

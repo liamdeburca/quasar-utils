@@ -1,14 +1,15 @@
-from typing import Any, Self
-from numpy import arange, float64, finfo
-from numpy.random import RandomState
 from dataclasses import dataclass
-from astropy.units import Unit, CompositeUnit
+from typing import Any, Self
 
+from astropy.units import CompositeUnit, Unit
+from numpy import arange, finfo, float64
+from numpy.random import RandomState
 from quasar_typing.misc.string_selection import StringSelection
 
 from . import unit_checking
 
 MACHINE_PRECISION = finfo(float64).eps
+
 
 @dataclass
 class JSONField:
@@ -17,13 +18,13 @@ class JSONField:
     value: Any
 
     def __str__(self) -> str:
-        return "JSONField({}-{}: value={})".format(
-            self.parent_field, self.field, self.value,
+        return (
+            f"JSONField({self.parent_field}-{self.field}: value={self.value})"
         )
 
     @classmethod
     def load_from_json(
-        cls, 
+        cls,
         d: dict,
         field: str,
         parent_field: str,
@@ -34,22 +35,21 @@ class JSONField:
 
         if (val is not None) and (parse_as is not None):
             match parse_as:
-                case "bool": 
+                case "bool":
                     val = bool(val)
-                case "int": 
+                case "int":
                     val = int(val)
-                case "float": 
+                case "float":
                     val = float(val)
                 case "optional_float":
                     val = float(val) if (val is not None) else None
                 case "float_bounds":
                     val = tuple(
-                        float(v) if (v is not None) else None 
-                        for v in val
+                        float(v) if (v is not None) else None for v in val
                     )
                 case "float_list":
                     val = [float(v) for v in val]
-                case "str": 
+                case "str":
                     val = str(val)
                 case "str_list":
                     val = [str(v) for v in val]
@@ -62,7 +62,7 @@ class JSONField:
                 case "composite_unit":
                     val = Unit(val)
                     if not isinstance(val, CompositeUnit):
-                        val = Unit(f"1.0 {str(val)}") 
+                        val = Unit(f"1.0 {val!s}")
                 case "n_pixels":
                     if unit_str:
                         unit = Unit(unit_str)
@@ -75,7 +75,7 @@ class JSONField:
                     if unit_str:
                         unit = Unit(unit_str)
                         unit_checking.check_is_velocity_unit(unit)
-                        val *= unit        
+                        val *= unit
                 case "wavelength":
                     if unit_str:
                         unit = Unit(unit_str)
@@ -95,14 +95,10 @@ class JSONField:
                         unit = Unit(unit_str)
                         unit_checking.check_is_wavelength_unit(unit)
                         val = tuple(
-                            v * unit if v is not None else v
-                            for v in val
+                            v * unit if v is not None else v for v in val
                         )
                     else:
-                        val = tuple(
-                            v if v is not None else v
-                            for v in val
-                        )
+                        val = tuple(v if v is not None else v for v in val)
                 case "wavelength_windows":
                     if unit_str:
                         unit = Unit(unit_str)
@@ -122,13 +118,11 @@ class JSONField:
                         unit = Unit(unit_str)
                         unit_checking.check_is_flux_unit(unit)
                         val = tuple(
-                            v * unit if v is not None else v
-                            for v in val
+                            v * unit if v is not None else v for v in val
                         )
                     else:
                         val = tuple(
-                            float(v) if v is not None else v
-                            for v in val
+                            float(v) if v is not None else v for v in val
                         )
                 case "strength":
                     if unit_str:
@@ -142,13 +136,11 @@ class JSONField:
                         unit = Unit(unit_str)
                         unit_checking.check_is_strength_unit(unit)
                         val = tuple(
-                            v * unit if v is not None else v
-                            for v in val
+                            v * unit if v is not None else v for v in val
                         )
                     else:
                         val = tuple(
-                            float(v) if v is not None else v
-                            for v in val
+                            float(v) if v is not None else v for v in val
                         )
 
                 case "velocity":
@@ -163,13 +155,11 @@ class JSONField:
                         unit = Unit(unit_str)
                         unit_checking.check_is_velocity_unit(unit)
                         val = tuple(
-                            v * unit if v is not None else v
-                            for v in val
+                            v * unit if v is not None else v for v in val
                         )
                     else:
                         val = tuple(
-                            float(v) if v is not None else v
-                            for v in val
+                            float(v) if v is not None else v for v in val
                         )
                 case "density":
                     if unit_str:
@@ -183,13 +173,11 @@ class JSONField:
                         unit = Unit(unit_str)
                         unit_checking.check_is_density_unit(unit)
                         val = tuple(
-                            v * unit if v is not None else v
-                            for v in val
+                            v * unit if v is not None else v for v in val
                         )
                     else:
                         val = tuple(
-                            float(v) if v is not None else v
-                            for v in val
+                            float(v) if v is not None else v for v in val
                         )
                 case "temperature":
                     if unit_str:
@@ -203,29 +191,29 @@ class JSONField:
                         unit = Unit(unit_str)
                         unit_checking.check_is_temperature_unit(unit)
                         val = tuple(
-                            v * unit if v is not None else v
-                            for v in val
+                            v * unit if v is not None else v for v in val
                         )
                     else:
                         val = tuple(
-                            float(v) if v is not None else v
-                            for v in val
+                            float(v) if v is not None else v for v in val
                         )
                 case "balmer_fixed_params":
-                    possible_values = {'fwhm', 'temp', 'tau', 'scale', 'ratio'}
-                    val = StringSelection(v for v in val if v in possible_values)
+                    possible_values = {"fwhm", "temp", "tau", "scale", "ratio"}
+                    val = StringSelection(
+                        v for v in val if v in possible_values
+                    )
                 case "loader":
-                    possible_values = {'ascii', 'fits', 'paqs', 'sdss'}
+                    possible_values = {"ascii", "fits", "paqs", "sdss"}
                     val = val.strip().lower()
                     assert val in possible_values
                 case "naming":
-                    possible_values = {'j2000', 'igr', 'sdss'}
+                    possible_values = {"j2000", "igr", "sdss"}
                     val = val.strip().lower()
                     assert val in possible_values
                 case "deredden":
-                    possible_maps = {'sfd', 'csfd'}
-                    possible_laws = {'ccm89', 'o94'}
-                    
+                    possible_maps = {"sfd", "csfd"}
+                    possible_laws = {"ccm89", "o94"}
+
                     b = val[0]
                     assert (map_ := val[1].strip().lower()) in possible_maps
                     assert (law_ := val[2].strip().lower()) in possible_laws
@@ -233,7 +221,7 @@ class JSONField:
 
                     val = (b, map_, law_, Rv)
                 case "bias":
-                    possible_values = {'left', 'right'}
+                    possible_values = {"left", "right"}
                     val = [v.strip().lower() for v in val]
                     assert all(v in possible_values for v in val)
                 case "split_scale":
@@ -243,7 +231,7 @@ class JSONField:
                         unit_checking.check_is_velocity_unit(unit)
                         val *= unit
                 case "algo":
-                    possible_values = {'trf', 'dogbox', 'lm'}
+                    possible_values = {"trf", "dogbox", "lm"}
                     val = val.strip().lower()
                     assert val in possible_values
                 case "tol":
@@ -255,14 +243,14 @@ class JSONField:
                     raise NotImplementedError(msg)
 
         return JSONField(field, parent_field, val)
-    
+
     @classmethod
     def load_all_from_json(
-        cls, 
+        cls,
         d: dict,
         parent_field: str,
     ) -> list[Self]:
         return [
-            JSONField.load_from_json(d, field, parent_field) 
+            JSONField.load_from_json(d, field, parent_field)
             for field in d.get(parent_field, {}).keys()
         ]

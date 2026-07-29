@@ -1,6 +1,6 @@
-from setuptools import setup, find_packages
 from Cython.Build import cythonize
 from numpy import get_include
+from setuptools import find_packages, setup
 
 setup(
     name="quasar_utils",
@@ -10,10 +10,13 @@ setup(
         [
             "src/quasar_utils/binning/alpha_matrix_elements.pyx",
             "src/quasar_utils/interpolation/interp_matrix_elements.pyx",
+            "src/quasar_utils/masking/irregular.pyx",
+            "src/quasar_utils/masking/linear.pyx",
+            "src/quasar_utils/masking/logarithmic.pyx",
         ],
         language_level=3,
         compiler_directives={
-            "boundscheck": False, 
+            "boundscheck": False,
             "wraparound": False,
             "cdivision": True,
         },

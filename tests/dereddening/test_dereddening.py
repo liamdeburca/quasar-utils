@@ -1,11 +1,11 @@
 """Tests for the top-level dereddening functions."""
-import numpy as np
-from numpy.testing import assert_allclose
-from astropy.coordinates import SkyCoord
 
+import numpy as np
+from astropy.coordinates import SkyCoord
+from numpy.testing import assert_allclose
 
 # High-latitude coordinates to ensure nonzero but modest E(B-V)
-SKY_COORD = SkyCoord(ra=180.0, dec=60.0, unit='deg', frame='icrs')
+SKY_COORD = SkyCoord(ra=180.0, dec=60.0, unit="deg", frame="icrs")
 
 WAVELENGTHS = np.arange(3700, 9300, 1.25, dtype=np.float64)
 FLUX = np.ones_like(WAVELENGTHS, dtype=np.float64)
@@ -17,6 +17,7 @@ class TestGetCorrection:
 
     def test_returns_array(self):
         from quasar_utils.dereddening import get_correction
+
         correction = get_correction(WAVELENGTHS, SKY_COORD)
         assert isinstance(correction, np.ndarray)
         assert correction.shape == WAVELENGTHS.shape
@@ -24,31 +25,37 @@ class TestGetCorrection:
     def test_correction_ge_one(self):
         """Dereddening correction must be >= 1 (adds flux back)."""
         from quasar_utils.dereddening import get_correction
+
         correction = get_correction(WAVELENGTHS, SKY_COORD)
         assert np.all(correction >= 1.0)
 
     def test_correction_with_sfd(self):
         from quasar_utils.dereddening import get_correction
-        correction = get_correction(WAVELENGTHS, SKY_COORD, map_name='sfd')
+
+        correction = get_correction(WAVELENGTHS, SKY_COORD, map_name="sfd")
         assert np.all(np.isfinite(correction))
 
     def test_correction_with_csfd(self):
         from quasar_utils.dereddening import get_correction
-        correction = get_correction(WAVELENGTHS, SKY_COORD, map_name='csfd')
+
+        correction = get_correction(WAVELENGTHS, SKY_COORD, map_name="csfd")
         assert np.all(np.isfinite(correction))
 
     def test_correction_with_ccm89(self):
         from quasar_utils.dereddening import get_correction
-        correction = get_correction(WAVELENGTHS, SKY_COORD, law_name='ccm89')
+
+        correction = get_correction(WAVELENGTHS, SKY_COORD, law_name="ccm89")
         assert np.all(np.isfinite(correction))
 
     def test_correction_with_o94(self):
         from quasar_utils.dereddening import get_correction
-        correction = get_correction(WAVELENGTHS, SKY_COORD, law_name='o94')
+
+        correction = get_correction(WAVELENGTHS, SKY_COORD, law_name="o94")
         assert np.all(np.isfinite(correction))
 
     def test_higher_rv_changes_correction(self):
         from quasar_utils.dereddening import get_correction
+
         c1 = get_correction(WAVELENGTHS, SKY_COORD, Rv=2.5)
         c2 = get_correction(WAVELENGTHS, SKY_COORD, Rv=4.0)
         assert not np.allclose(c1, c2)
@@ -56,6 +63,7 @@ class TestGetCorrection:
     def test_blue_corrected_more_than_red(self):
         """Shorter wavelengths should have larger correction factors."""
         from quasar_utils.dereddening import get_correction
+
         correction = get_correction(WAVELENGTHS, SKY_COORD)
         assert correction[0] > correction[-1]
 
@@ -65,30 +73,35 @@ class TestDereddenSpectrum:
 
     def test_returns_tuple_of_three(self):
         from quasar_utils.dereddening import deredden_spectrum
+
         result = deredden_spectrum((WAVELENGTHS, FLUX, ERROR), SKY_COORD)
         assert isinstance(result, tuple)
         assert len(result) == 3
 
     def test_wavelengths_unchanged(self):
         from quasar_utils.dereddening import deredden_spectrum
+
         result = deredden_spectrum((WAVELENGTHS, FLUX, ERROR), SKY_COORD)
         assert_allclose(result[0], WAVELENGTHS)
 
     def test_flux_increases(self):
         """Dereddened flux should be >= observed flux."""
         from quasar_utils.dereddening import deredden_spectrum
+
         result = deredden_spectrum((WAVELENGTHS, FLUX, ERROR), SKY_COORD)
         assert np.all(result[1] >= FLUX)
 
     def test_error_increases(self):
         """Dereddened error should be >= observed error (same scaling)."""
         from quasar_utils.dereddening import deredden_spectrum
+
         result = deredden_spectrum((WAVELENGTHS, FLUX, ERROR), SKY_COORD)
         assert np.all(result[2] >= ERROR)
 
     def test_flux_and_error_same_scaling(self):
         """Flux and error must be scaled by the same correction factor."""
         from quasar_utils.dereddening import deredden_spectrum
+
         result = deredden_spectrum((WAVELENGTHS, FLUX, ERROR), SKY_COORD)
         flux_ratio = result[1] / FLUX
         error_ratio = result[2] / ERROR
@@ -97,8 +110,9 @@ class TestDereddenSpectrum:
     def test_all_map_curve_combinations(self):
         """Every (map, curve) combination should run without error."""
         from quasar_utils.dereddening import deredden_spectrum
-        for map_name in ('sfd', 'csfd'):
-            for law_name in ('ccm89', 'o94'):
+
+        for map_name in ("sfd", "csfd"):
+            for law_name in ("ccm89", "o94"):
                 result = deredden_spectrum(
                     (WAVELENGTHS, FLUX, ERROR),
                     SKY_COORD,
@@ -111,7 +125,7 @@ class TestDereddenSpectrum:
 
 class TestRoundTrip:
     """
-    Validate that reddening followed by dereddening recovers the original 
+    Validate that reddening followed by dereddening recovers the original
     spectrum.
     """
 
@@ -120,7 +134,7 @@ class TestRoundTrip:
         Manually redden a flat spectrum with A(λ), then use deredden_spectrum
         to recover it. The round-trip should match to high precision.
         """
-        from quasar_utils.dereddening import get_correction, deredden_spectrum
+        from quasar_utils.dereddening import deredden_spectrum, get_correction
 
         correction = get_correction(WAVELENGTHS, SKY_COORD)
 
@@ -130,17 +144,20 @@ class TestRoundTrip:
 
         # Deredden the reddened spectrum
         result = deredden_spectrum(
-            (WAVELENGTHS, flux_reddened, error_reddened), SKY_COORD,
+            (WAVELENGTHS, flux_reddened, error_reddened),
+            SKY_COORD,
         )
 
         assert_allclose(result[1], FLUX, rtol=1e-10)
         assert_allclose(result[2], ERROR, rtol=1e-10)
 
     def test_roundtrip_with_o94(self):
-        from quasar_utils.dereddening import get_correction, deredden_spectrum
+        from quasar_utils.dereddening import deredden_spectrum, get_correction
 
         correction = get_correction(
-            WAVELENGTHS, SKY_COORD, law_name='o94',
+            WAVELENGTHS,
+            SKY_COORD,
+            law_name="o94",
         )
         flux_reddened = FLUX / correction
         error_reddened = ERROR / correction
@@ -148,7 +165,7 @@ class TestRoundTrip:
         result = deredden_spectrum(
             (WAVELENGTHS, flux_reddened, error_reddened),
             SKY_COORD,
-            law_name='o94',
+            law_name="o94",
         )
 
         assert_allclose(result[1], FLUX, rtol=1e-10)

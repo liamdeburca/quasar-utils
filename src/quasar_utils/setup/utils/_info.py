@@ -1,18 +1,20 @@
-from logging import getLogger, Logger
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Self, ClassVar
-from pathlib import Path
+from collections.abc import Callable
 from json import load as load_json
+from logging import Logger, getLogger
+from pathlib import Path
+from typing import Any, ClassVar, Self
+
 from numpy import ndarray
-
-from .json_field import JSONField
-from ...utils.utils import val_and_type
-
-from quasar_typing.pathlib import AbsoluteFilePath
-from quasar_typing.astropy import Unit_, CompositeUnit_
+from quasar_typing.astropy import CompositeUnit_, Unit_
 from quasar_typing.numpy import RandomState_
+from quasar_typing.pathlib import AbsoluteFilePath
+
+from ...utils.utils import val_and_type
+from .json_field import JSONField
 
 logger = getLogger(__name__)
+
 
 def _make_hashable(value: Any) -> Any:
     if isinstance(value, list):
@@ -23,55 +25,57 @@ def _make_hashable(value: Any) -> Any:
         return frozenset(_make_hashable(v) for v in value)
     elif isinstance(value, ndarray):
         return value.tobytes()
-    elif isinstance(value, (Unit_, CompositeUnit_)):
-        return str(value)
-    elif isinstance(value, Path):
+    elif isinstance(value, (Unit_, CompositeUnit_)) or isinstance(value, Path):
         return str(value)
     elif isinstance(value, RandomState_):
-        return value.get_state()    
+        return value.get_state()
     else:
         return value
+
 
 class _Info(ABC):
     """
     Class for method inheritance.
     """
+
     _keys: ClassVar[frozenset[str]] = frozenset()
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {}
 
     def __str__(self, simple: bool = False) -> str:
-        s = "'{}' class".format(self.__class__.__name__)
+        s = f"'{self.__class__.__name__}' class"
         if not simple:
             s += "w/ "
             for key in self._keys:
-                s += "({}) {}, ".format(key, self[key])
-        
-        return s.removesuffix(', ') + '.'
-    
+                s += f"({key}) {self[key]}, "
+
+        return s.removesuffix(", ") + "."
+
     def __getitem__(self, key: str) -> Any:
-        if key in self._keys: 
+        if key in self._keys:
             return getattr(self, key)
         raise KeyError(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        if key in self._keys: 
+        if key in self._keys:
             return setattr(self, key, value)
         raise KeyError(key)
 
     def __bool__(self) -> bool:
         return self.is_updated
-    
+
     def __hash__(self) -> int:
-        return hash(tuple(
-            (key, _make_hashable(self[key])) 
-            for key in self._keys
-            if not key.startswith('_')  
-        ))
-        
+        return hash(
+            tuple(
+                (key, _make_hashable(self[key]))
+                for key in self._keys
+                if not key.startswith("_")
+            )
+        )
+
     def __getstate__(self) -> dict:
         return {key: getattr(self, key) for key in self._keys}
-    
+
     def __setstate__(self, state: dict) -> None:
         for key, value in state.items():
             setattr(self, key, value)
@@ -81,18 +85,22 @@ class _Info(ABC):
         Creates a copy of the class instance.
         """
         new = self.__class__()
-        for key in self._keys: new[key] = self[key]
+        for key in self._keys:
+            new[key] = self[key]
         return new
-    
+
     def or_default(self, kwargs: dict) -> Callable[[str], Any]:
         def _or_default(key: str) -> Any:
-            if key in kwargs: return kwargs[key]
-            else:             return self[key]
+            if key in kwargs:
+                return kwargs[key]
+            else:
+                return self[key]
+
         return _or_default
 
     def __enter__(self) -> Callable[[str], Any]:
         return self.f
-    
+
     def __exit__(self, type, value, traceback) -> None:
         del self.f
 
@@ -102,19 +110,19 @@ class _Info(ABC):
         Whether all parameters have been updated.
         """
         return all(getattr(self, key) is not None for key in self._keys)
-    
+
     # ----- Pydantic ----- #
 
     # @classmethod
     # def _validate(cls, value: object) -> Self:
     #     if not isinstance(value, cls):
     #         msg = "(TEST) Expected a {} instance, got {}".format(
-    #             cls.__name__, 
+    #             cls.__name__,
     #             type(value).__name__,
     #         )
     #         raise PydanticCustomError('validation_error', msg)
     #     return value
-    
+
     # @classmethod
     # def __get_pydantic_core_schema__(cls, source_type, handler):
     #     return no_info_plain_validator_function(cls._validate)
@@ -127,18 +135,17 @@ class _Info(ABC):
         """
         Creates and configures an instance from a file.
         """
-        pass
 
     def update(
-        self, 
-        info, 
+        self,
+        info,
         logger: Logger,
     ) -> None:
         """
-        Updates all parameters. 
+        Updates all parameters.
         """
         msg = f"Updating '{self.__class__.__name__}' class: "
-        if not self._values_to_update: 
+        if not self._values_to_update:
             msg += "(nothing to update)."
 
         logger.debug(msg)
@@ -150,7 +157,7 @@ class _Info(ABC):
 
             msg = f"[{count:<2}/{n_values:<2}] '{key}': "
             msg += (
-                # f"{val_and_type(old)} (no change)." 
+                # f"{val_and_type(old)} (no change)."
                 # if old == new else
                 f"{val_and_type(old)} -> {val_and_type(new)}."
             )
@@ -167,20 +174,20 @@ class _Info(ABC):
         parent_field: str,
         logger: Logger,
     ) -> Self:
-        
+
         if isinstance(json, Path) and str(json) in cls._cache.keys():
             logger.debug(f"Using cached '{cls.__name__}' for '{json}'.")
-            
+
             info = cls._cache[str(json)]
             return info.copy() if create_copy else info
 
         info: _Info = cls()
-        if json is None: 
+        if json is None:
             return info
 
-        if (add_to_cache := isinstance(json, Path)):
+        if add_to_cache := isinstance(json, Path):
             cache_key = str(json)
-            with open(json, 'r') as f:
+            with open(json, "r") as f:
                 json = load_json(f)
 
         fields = JSONField.load_all_from_json(json, parent_field)
@@ -191,9 +198,9 @@ class _Info(ABC):
                     f"Invalid key '{key}' in '{cls.__name__}' JSON configuration."
                 )
                 continue
-            
+
             if key in cls._values_to_update:
-                key = '_' + key
+                key = "_" + key
 
             info[key] = val = field.value
             logger.debug(

@@ -1,17 +1,20 @@
-__all__ = ['ContinuumFitResult']
+__all__ = ["ContinuumFitResult"]
 
-from typing import Self
-from numpy import diag, zeros_like, isclose
-from numpy.linalg import det
-from scipy.stats._multivariate import multivariate_normal, multivariate_normal_frozen
 from itertools import repeat
+from typing import Self
 
+from numpy import diag, isclose, zeros_like
+from numpy.linalg import det
 from pydantic import validate_call
 from pydantic_core import PydanticCustomError
 from pydantic_core.core_schema import no_info_plain_validator_function
-
-from quasar_typing.numpy import FloatVector, FloatMatrix
 from quasar_models.continuum import PowerLawModel
+from quasar_typing.numpy import FloatMatrix, FloatVector
+from scipy.stats._multivariate import (
+    multivariate_normal,
+    multivariate_normal_frozen,
+)
+
 
 class ContinuumFitResult:
     @validate_call
@@ -25,18 +28,18 @@ class ContinuumFitResult:
         """
         ** PYDANTIC VALIDATED METHOD **
         """
-        assert mean.ndim == 1, 'Mean vector must be 1D.'
-        assert mean.size == 2, 'Mean vector must have size 2.'
-        assert cov.ndim == 2, 'Covariance matrix must be 2D.'
-        assert cov.shape == (2, 2), 'Covariance matrix must be 2x2.'
+        assert mean.ndim == 1, "Mean vector must be 1D."
+        assert mean.size == 2, "Mean vector must have size 2."
+        assert cov.ndim == 2, "Covariance matrix must be 2D."
+        assert cov.shape == (2, 2), "Covariance matrix must be 2x2."
 
         self.mean: FloatVector = mean
-        self.cov:  FloatMatrix = cov
-        self.std:  FloatVector = diag(cov)**0.5
+        self.cov: FloatMatrix = cov
+        self.std: FloatVector = diag(cov) ** 0.5
 
-        _var = self.std[:,None] * self.std[None,:]
+        _var = self.std[:, None] * self.std[None, :]
         is_valid = ~isclose(_var, 0)
-        
+
         self.corr = zeros_like(cov)
         self.corr[is_valid] = self.cov[is_valid] / _var[is_valid]
 
@@ -69,26 +72,25 @@ class ContinuumFitResult:
         random_state,
     ) -> None:
         match method_type:
-            case 'default' | 'wiggle' | 'fixed':
-                out = self.mean \
-                    if iterations == 1 \
+            case "default" | "wiggle" | "fixed":
+                out = (
+                    self.mean
+                    if iterations == 1
                     else repeat(self.mean, iterations)
-            case 'full' | 'continuum':
-                out = self.dist.rvs(
-                    size = iterations,
-                    random_state = random_state
                 )
-            case 'ellipse' | 'square':
+            case "full" | "continuum":
+                out = self.dist.rvs(size=iterations, random_state=random_state)
+            case "ellipse" | "square":
                 msg = f"Please implement '{method_type}' method type."
                 raise NotImplementedError(msg)
 
         return out
-    
+
     def toPowerLawModel(
         self,
         n_sigmas: float | None = None,
     ) -> PowerLawModel:
-        powerlaw_model = PowerLawModel(self.x0, self.y0, *self.mean)        
+        powerlaw_model = PowerLawModel(self.x0, self.y0, *self.mean)
         if n_sigmas is not None:
             powerlaw_model.flux.bounds = (
                 self.mean[0] - n_sigmas * self.std[0],

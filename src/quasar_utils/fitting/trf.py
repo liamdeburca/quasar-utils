@@ -1,5 +1,7 @@
 from astropy.modeling.fitting import deprecated_renamed_argument
+
 from .baseclasses import _BaseClass
+
 
 class TRFLSQFitter(_BaseClass):
     """

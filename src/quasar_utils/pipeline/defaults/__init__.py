@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 from pathlib import Path
+
 from quasar_typing.pathlib import AbsoluteCSVPath, AbsoluteJSONPath
 
 _this_path: Path = Path(__file__).resolve()

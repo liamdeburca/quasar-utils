@@ -1,17 +1,21 @@
-__all__ = ['lru_cache']
+__all__ = ["lru_cache"]
 
+from collections.abc import Callable
 from functools import lru_cache as _lru_cache
-from typing import Callable, TypeVar, overload, Protocol
+from typing import Protocol, TypeVar, overload
 
-F = TypeVar('F', bound=Callable)
+F = TypeVar("F", bound=Callable)
 
-class LRUCached(Protocol[F]):    
+
+class LRUCached(Protocol[F]):
     """
     Use '__wrapped__' to access the original (uncached) function.
     """
+
     __wrapped__: F
-    def __call__(self, *args, **kwargs):
-        ...
+
+    def __call__(self, *args, **kwargs): ...
+
 
 @overload
 def lru_cache(
@@ -20,12 +24,14 @@ def lru_cache(
     maxsize: int | None = None,
 ) -> LRUCached[F]: ...
 
+
 @overload
 def lru_cache(
     func: None = None,
     *,
     maxsize: int | None = None,
 ) -> Callable[[F], LRUCached[F]]: ...
+
 
 def lru_cache(
     func: F | None = None,

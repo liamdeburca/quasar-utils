@@ -1,12 +1,15 @@
-from numpy import roll, float64, empty, log, arange, exp, stack, int32, zeros
+from numpy import arange, empty, exp, float64, int32, log, roll, stack, zeros
 from numpy.typing import NDArray
-from scipy.sparse import csr_matrix, diags_array
-
 from quasar_typing.numpy import FloatVector, SortedFloatVector
 from quasar_typing.scipy import csr_matrix_
+from scipy.sparse import csr_matrix, diags_array
 
 from ..decorators import validate_call
-from .alpha_matrix_elements import _alpha_matrix_elements, _alpha_matrix_elements_conserved
+from .alpha_matrix_elements import (
+    _alpha_matrix_elements,
+    _alpha_matrix_elements_conserved,
+)
+
 
 def lin_dx(x: NDArray[float64]) -> NDArray[float64]:
     dx = 0.5 * (roll(x, -1) - roll(x, 1))
@@ -14,14 +17,15 @@ def lin_dx(x: NDArray[float64]) -> NDArray[float64]:
     dx[-1] = x[-1] - x[-2]
     return dx
 
+
 def log_edges(
-    x: NDArray[float64], 
+    x: NDArray[float64],
     v_res: float,
     *,
     dx: NDArray[float64] | None = None,
     x_edges: NDArray[float64] | None = None,
 ) -> tuple[NDArray[float64], NDArray[float64], NDArray[float64]]:
-    
+
     if dx is None:
         dx = lin_dx(x)
     else:
@@ -40,19 +44,20 @@ def log_edges(
 
     return x_edges, xr_edges, xr
 
+
 def alpha_matrix_elements(
-    x: NDArray[float64], 
+    x: NDArray[float64],
     xr: NDArray[float64],
     dx: NDArray[float64],
 ) -> tuple[NDArray[int32], NDArray[int32], NDArray[float64]]:
     """
-    Numba-optimised function to compute the non-zero elements of the alpha 
+    Numba-optimised function to compute the non-zero elements of the alpha
     resampling matrix for logarithmic binning.
 
-    Returns row_indices, col_indices, values and bias for sparse matrix 
+    Returns row_indices, col_indices, values and bias for sparse matrix
     construction.
     """
-    nx  = x.size - 1
+    nx = x.size - 1
     nxr = xr.size - 1
 
     i_indices = empty(nx + nxr, dtype=int32)
@@ -63,28 +68,32 @@ def alpha_matrix_elements(
 
     return i_indices[:count], j_indices[:count], vals[:count]
 
+
 def alpha_matrix_elements_conserved(
-    x: NDArray[float64], 
+    x: NDArray[float64],
     xr: NDArray[float64],
     dxr: NDArray[float64],
 ) -> tuple[NDArray[int32], NDArray[int32], NDArray[float64]]:
     """
-    Numba-optimised function to compute the non-zero elements of the alpha 
+    Numba-optimised function to compute the non-zero elements of the alpha
     resampling matrix for logarithmic binning.
 
-    Returns row_indices, col_indices, values and bias for sparse matrix 
+    Returns row_indices, col_indices, values and bias for sparse matrix
     construction.
     """
-    nx  = x.size - 1
+    nx = x.size - 1
     nxr = xr.size - 1
 
     i_indices = empty(nx + nxr, dtype=int32)
     j_indices = empty(nx + nxr, dtype=int32)
     vals = empty(nx + nxr, dtype=float64)
 
-    count = _alpha_matrix_elements_conserved(x, xr, dxr, i_indices, j_indices, vals)
+    count = _alpha_matrix_elements_conserved(
+        x, xr, dxr, i_indices, j_indices, vals
+    )
 
     return i_indices[:count], j_indices[:count], vals[:count]
+
 
 @validate_call
 def alpha_matrix_sparse(
@@ -106,7 +115,8 @@ def alpha_matrix_sparse(
         i, j, data = alpha_matrix_elements(x_edges, xr_edges, dx)
 
     ij = stack([i, j], axis=0, dtype=int32)
-    return csr_matrix((data, ij), shape=(xr_edges.size-1, x_edges.size-1))
+    return csr_matrix((data, ij), shape=(xr_edges.size - 1, x_edges.size - 1))
+
 
 @validate_call
 def log_resample(
@@ -122,8 +132,8 @@ def log_resample(
     """
     ** PYDANTIC VALIDATED METHOD **
 
-    Resample the input data (x, y, dy) onto a logarithmic grid defined by the 
-    velocity resolution v_res. The function returns the resampled x, y, and dy 
+    Resample the input data (x, y, dy) onto a logarithmic grid defined by the
+    velocity resolution v_res. The function returns the resampled x, y, and dy
     (or covariance)
     """
     if dx is None:
@@ -131,7 +141,8 @@ def log_resample(
 
     x_edges, xr_edges, xr = log_edges(x, v_res, dx=dx)
     alpha_matrix = alpha_matrix_sparse(
-        x_edges, xr_edges,
+        x_edges,
+        xr_edges,
         dx=dx,
         dxr=xr * v_res,
         conserve=conserve,
@@ -141,6 +152,6 @@ def log_resample(
 
     yr = alpha_matrix.dot(y)
     covr = alpha_matrix.dot(cov.dot(alpha_matrix.T))
-    dyr = covr if covariance else covr.diagonal()**0.5
+    dyr = covr if covariance else covr.diagonal() ** 0.5
 
     return xr, yr, dyr

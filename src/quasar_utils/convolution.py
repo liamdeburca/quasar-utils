@@ -1,5 +1,5 @@
 from functools import lru_cache
-from numpy import log, ones, arange, exp, pad, searchsorted, zeros_like, int_, float64
+from numpy import log, ones, arange, exp, pad, searchsorted, int_, float64
 from scipy.signal import fftconvolve
 from math import pi
 
@@ -40,7 +40,8 @@ def kernel(
     """
     Creates a Gaussian kernel with the appropriate FWHM. 
     """
-    if fwhm == 0: return ones(1, dtype=float64)
+    if fwhm == 0: 
+        return ones(1, dtype=float64)
 
     s = _scale(fwhm, sigma_res)
     z = _pixels(s) / s
@@ -56,7 +57,8 @@ def kernel_deriv(
     """
     Creates a kernel equivalent to a Gaussian derivative w.r.t. its FWHM. 
     """
-    if fwhm == 0: return -sigma_to_fwhm * ones(1, dtype=float64)
+    if fwhm == 0: 
+        return -sigma_to_fwhm * ones(1, dtype=float64)
     
     k = kernel(fwhm, sigma_res)
     s = _scale(fwhm, sigma_res)

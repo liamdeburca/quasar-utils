@@ -1,14 +1,19 @@
-from typing import Self, ClassVar
-from pathlib import Path
-from json import load as json_load
 from dataclasses import field
-from pydantic.dataclasses import dataclass
+from json import load as json_load
+from pathlib import Path
+from typing import ClassVar, Self
 
+from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import (
-    AbsolutePath, AnyAbsolutePath, AbsoluteCSVPath, 
-    AbsoluteDirPath, AbsoluteJSONPath,
+    AbsoluteCSVPath,
+    AbsoluteDirPath,
+    AbsoluteJSONPath,
+    AbsolutePath,
+    AnyAbsolutePath,
 )
+
 from .defaults import DIRECTORY_TO_DEFAULTS
+
 
 @dataclass
 class BackupFile:
@@ -23,7 +28,9 @@ class BackupFile:
 
     def __post_init__(self) -> None:
         if self.fitting_info is None:
-            self.fitting_info = self.directory_to_defaults / "fitting_info.json"
+            self.fitting_info = (
+                self.directory_to_defaults / "fitting_info.json"
+            )
         if self.line_list is None:
             self.line_list = self.directory_to_defaults / "line_list.csv"
         if self.measure_list is None:
@@ -36,7 +43,7 @@ class BackupFile:
         """
         if path is None:
             return cls()
-        
+
         with open(path) as f:
             backup_info: dict[str, Path] = json_load(f)
 

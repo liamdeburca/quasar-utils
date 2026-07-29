@@ -1,12 +1,19 @@
 import warnings
+
 from astropy.modeling.fitting import fitter_unit_support
 from astropy.utils.exceptions import AstropyDeprecationWarning
-
-from .baseclasses import _BaseClass, DEFAULT_MAXITER, DEFAULT_FTOL, \
-    DEFAULT_XTOL, DEFAULT_GTOL, DEFAULT_EPS
-
-from quasar_typing.numpy import FittableFloatVector
 from quasar_typing.astropy import Model_
+from quasar_typing.numpy import FittableFloatVector
+
+from .baseclasses import (
+    DEFAULT_EPS,
+    DEFAULT_FTOL,
+    DEFAULT_GTOL,
+    DEFAULT_MAXITER,
+    DEFAULT_XTOL,
+    _BaseClass,
+)
+
 
 class LMLSQFitter(_BaseClass):
     """
@@ -69,18 +76,18 @@ class LMLSQFitter(_BaseClass):
             model,
             x,
             y,
-            z = z,
-            weights = weights,
-            maxiter = maxiter,
-            ftol = ftol,
-            xtol = xtol,
-            gtol = gtol,
-            loss = 'linear',
-            f_scale = f_scale,
-            epsilon = epsilon,
-            estimate_jacobian = estimate_jacobian,
-            filter_non_finite = filter_non_finite,
-            inplace = inplace,
-            warn_me = warn_me,
-            verbose = verbose,
+            z=z,
+            weights=weights,
+            maxiter=maxiter,
+            ftol=ftol,
+            xtol=xtol,
+            gtol=gtol,
+            loss="linear",
+            f_scale=f_scale,
+            epsilon=epsilon,
+            estimate_jacobian=estimate_jacobian,
+            filter_non_finite=filter_non_finite,
+            inplace=inplace,
+            warn_me=warn_me,
+            verbose=verbose,
         )

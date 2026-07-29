@@ -1,8 +1,8 @@
 # cython: boundscheck=False, wraparound=False, cdivision=True, language_level=3
 
 cdef inline int _interp_matrix_elements_no_bias_c(
-    double[::1] x,
-    double[::1] xb,
+    const double[::1] x,
+    const double[::1] xb,
     int[::1] indices,
     int[::1] i_indices,
     int[::1] j_indices,
@@ -53,15 +53,15 @@ cdef inline int _interp_matrix_elements_no_bias_c(
     return count
 
 cdef inline int _interp_matrix_elements_c(
-    double[::1] x,
-    double[::1] xb,
+    const double[::1] x,
+    const double[::1] xb,
     int[::1] indices,
     int[::1] i_indices,
     int[::1] j_indices,
     double[::1] vals,
     double[::1] bias,
-    double left_val,
-    double right_val,
+    const double left_val,
+    const double right_val,
 ):
     cdef int n_in = len(x)
     cdef int n_out = len(xb)
@@ -109,8 +109,8 @@ cdef inline int _interp_matrix_elements_c(
     return count
 
 def _interp_matrix_elements_no_bias(
-    double[::1] x,
-    double[::1] xb,
+    const double[::1] x,
+    const double[::1] xb,
     int[::1] indices,
     int[::1] i_indices,
     int[::1] j_indices,
@@ -122,15 +122,15 @@ def _interp_matrix_elements_no_bias(
     )
 
 def _interp_matrix_elements(
-    double[::1] x,
-    double[::1] xb,
+    const double[::1] x,
+    const double[::1] xb,
     int[::1] indices,
     int[::1] i_indices,
     int[::1] j_indices,
     double[::1] vals,
     double[::1] bias,
-    double left_val,
-    double right_val,
+    const double left_val,
+    const double right_val,
 ):
     return _interp_matrix_elements_c(
         x, xb, 

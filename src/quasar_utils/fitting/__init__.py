@@ -1,11 +1,11 @@
 __all__ = [
-    'TRFLSQFitter',
-    'LMLSQFitter',
-    'DogBoxLSQFitter',
-    'FitterInstance',
+    "DogBoxLSQFitter",
+    "FitterInstance",
+    "LMLSQFitter",
+    "TRFLSQFitter",
 ]
 
-from .trf import TRFLSQFitter
-from .lm import LMLSQFitter
 from .dogbox import DogBoxLSQFitter
 from .fitter_instance import FitterInstance
+from .lm import LMLSQFitter
+from .trf import TRFLSQFitter

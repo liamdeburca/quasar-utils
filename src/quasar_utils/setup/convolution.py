@@ -1,11 +1,11 @@
 from logging import getLogger
 from typing import ClassVar, Self
-from pydantic.dataclasses import dataclass
+
 from pydantic import validate_call
+from pydantic.dataclasses import dataclass
+from quasar_typing.pathlib import AbsoluteFilePath
 
 from .utils._info import _Info
-
-from quasar_typing.pathlib import AbsoluteFilePath
 
 logger = getLogger(__name__)
 
@@ -14,11 +14,13 @@ logger = getLogger(__name__)
 class ConvolutionInfo(_Info):
     allow_interp_fitting: bool = True
     n_scales: float = 3.0
-    
-    _keys: ClassVar[frozenset[str]] = frozenset([
-        'allow_interp_fitting',
-        'n_scales',
-    ])
+
+    _keys: ClassVar[frozenset[str]] = frozenset(
+        [
+            "allow_interp_fitting",
+            "n_scales",
+        ]
+    )
     _cache: ClassVar[dict[str, Self]] = {}
     _values_to_update: ClassVar[dict[str, str]] = {}
 
@@ -36,7 +38,7 @@ class ConvolutionInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
         raise NotImplementedError
-    
+
     @classmethod
     @validate_call
     def from_json(

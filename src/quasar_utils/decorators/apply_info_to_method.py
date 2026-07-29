@@ -1,17 +1,21 @@
-__all__ = ['apply_info_to_method']
+__all__ = ["apply_info_to_method"]
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, TypeVar, overload, Protocol
+from typing import Protocol, TypeVar, overload
 
-M = TypeVar('M', bound=Callable)
+M = TypeVar("M", bound=Callable)
 
-class Applied(Protocol[M]):    
+
+class Applied(Protocol[M]):
     """
     Use '__wrapped__' to access the original method.
     """
+
     __wrapped__: M
-    def __call__(self, *args, **kwargs):
-        ...
+
+    def __call__(self, *args, **kwargs): ...
+
 
 @overload
 def apply_info_to_method(
@@ -23,6 +27,7 @@ def apply_info_to_method(
     specific_kwargs: set[str] | None = None,
 ) -> Callable[[M], Applied[M]]: ...
 
+
 @overload
 def apply_info_to_method(
     method: M,
@@ -32,6 +37,7 @@ def apply_info_to_method(
     stop: int = 100,
     specific_kwargs: set[str] | None = None,
 ) -> Applied[M]: ...
+
 
 def apply_info_to_method(
     method: M | None = None,
@@ -48,25 +54,26 @@ def apply_info_to_method(
             nonlocal subjects, start, stop, specific_kwargs
             new_kwargs = kwargs.copy()
             all_keys = list(method.__kwdefaults__.keys())
-            
+
             if len(all_keys) == 0:
                 raise UserWarning
-            
+
             for i in range(start, min(stop, len(all_keys))):
                 key = all_keys[i]
                 if kwargs.get(key) is not None:
                     continue
-                if specific_kwargs is not None \
-                    and (key not in specific_kwargs):
+                if specific_kwargs is not None and (
+                    key not in specific_kwargs
+                ):
                     continue
 
                 new_kwargs[key] = self.info.__getitem__(
-                    key, 
+                    key,
                     subjects=subjects,
                 )
 
             return method(self, *args, **new_kwargs)
-        
+
         return wrapped_method
-    
+
     return decorator if (method is None) else decorator(method)

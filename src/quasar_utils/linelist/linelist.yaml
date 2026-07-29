@@ -1,0 +1,95 @@
+Lyman-a-geocoranal:
+  complex: geocoronal
+  line: 1200.00 angstrom
+
+  v_off_lower: -3000.0 km/s
+  v_off_upper: 0.0 km/s
+
+  fwhm_lower: 100.0 km/s
+  fwhm_upper: 5000.0 km/s
+
+nLyman-a:
+  complex: Lyman
+  line: 1216.00 angstrom
+  strength_lower: 0.0
+  fwhm_lower: 250.0 km/s
+  fwhm_upper: 1000.0 km/s
+
+bLyman-a:
+  complex: Lyman
+  line: 1216.00 angstrom
+  fwhm_lower: 1000.0 km/s
+
+nNV-1240a:
+  complex: NV-1240
+  line: 1238.82 angstrom
+  v_off_lower: 0 km/s
+  v_off_upper: 2000 km/s
+  fwhm_lower: 100 km/s
+  fwhm_upper: 1000 km/s
+
+bNV-1240a:
+  complex: NV-1240
+  line: 1238.82 angstrom
+  v_off_lower: 0 km/s
+  v_off_upper: 2000 km/s
+  fwhm_lower: 1000 km/s
+  fwhm_upper: 5000 km/s
+
+nNV-1240b:
+  complex: NV-1240
+  line: 1242.80 angstrom
+  is_copy_of: nNV-1240a
+  scale_init: 1.0
+  scale_fixed: True
+
+bNV-1240b:
+  complex: NV-1240
+  line: 1242.80 angstrom
+  is_copy_of: bNV-1240a
+  scale_init: 1.0
+  scale_fixed: True
+
+SiII-1260a:
+  complex: SiII-1260
+  line: 1260.42 angstrom
+  strength_lower: 0.0
+  v_off_lower: 0.0 km/s
+  v_off_upper: 2000.0 km/s
+  fwhm_lower: 100.0 km/s
+  fwhm_upper: 1000.0 km/s
+
+SiII-1260b:
+  complex: SiII-1260
+  line: 1264.74 angstrom
+  is_copy_of: SiII-1260a
+  scale_init: 1.0
+  scale_fixed: True
+
+SiII-1260c:
+  complex: SiII-1260
+  line: 1266.00 angstrom
+  is_copy_of: SiII-1260a
+  scale_init: 1.0
+  scale_fixed: True
+
+OI-1303a:
+  complex: OI-1303
+  line: 1302.17 angstrom
+
+OI-1303b:
+  complex: OI-1303
+  line: 1304.86 angstrom
+  is_copy_of: OI-1303a
+  scale_init: 1.0
+  scale_fixed: True
+
+OI-1303c:
+  complex: OI-1303
+  line: 1306.03 angstrom
+  is_copy_of: OI-1303a
+  scale_init: 1.0
+  scale_fixed: True
+
+1
+

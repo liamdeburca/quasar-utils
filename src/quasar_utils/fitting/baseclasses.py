@@ -1,25 +1,27 @@
-from typing import Callable
+import warnings
+from collections.abc import Callable
 
 from astropy.modeling.fitting import (
-    _NonLinearLSQFitter, fitter_unit_support, _validate_model, 
-    model_to_fit_params, _convert_input, fitter_to_model_params, 
+    _convert_input,
+    _NonLinearLSQFitter,
+    _validate_model,
+    fitter_to_model_params,
+    fitter_unit_support,
+    model_to_fit_params,
 )
 from astropy.utils.exceptions import AstropyUserWarning
-
-import warnings
-from numpy import inf, transpose, finfo, dot, float64
+from numpy import dot, finfo, float64, inf, transpose
+from quasar_typing.astropy import Model_
+from quasar_typing.numpy import FittableFloatVector
 from scipy import optimize
 from scipy.linalg import svd
 
-from quasar_typing.numpy import FittableFloatVector
-from quasar_typing.astropy import Model_
-
 LOSSES: dict = {
-    'linear': 'linear',
-    'soft_l1': 'soft_l1',
-    'huber': 'huber',
-    'cauchy': 'cauchy',
-    'arctan': 'arctan',
+    "linear": "linear",
+    "soft_l1": "soft_l1",
+    "huber": "huber",
+    "cauchy": "cauchy",
+    "arctan": "arctan",
 }
 PRECISION: float = finfo(float).eps
 
@@ -28,6 +30,7 @@ DEFAULT_FTOL: float = 1e-8
 DEFAULT_XTOL: float = PRECISION
 DEFAULT_GTOL: float = PRECISION
 DEFAULT_EPS: float = float64(1.4901161193847656e-08)
+
 
 class _NonLinearLSQFitter(_NonLinearLSQFitter):
     """
@@ -48,8 +51,11 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
     """
     The constraint types supported by this fitter type.
     """
+
     @staticmethod
-    def _wrap_deriv(params, model, weights, x, y, z=None, fit_param_indices=None):
+    def _wrap_deriv(
+        params, model, weights, x, y, z=None, fit_param_indices=None
+    ):
         """
         Wraps the method calculating the Jacobian of the function to account
         for model constraints.
@@ -66,11 +72,11 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
         # print('----- _wrap_deriv -----')
         # print('has_fixed: ', model.has_fixed)
         # if model.has_fixed:
-            # print('>>>', [item[0] for item in model.fixed.items() if item[1]])
+        # print('>>>', [item[0] for item in model.fixed.items() if item[1]])
 
         # print('has_tied: ', model.has_tied)
         # if model.has_tied:
-            # print('>>>', [item[0] for item in model.tied.items() if item[1]])
+        # print('>>>', [item[0] for item in model.tied.items() if item[1]])
 
         if model.has_fixed or model.has_tied:
             # update the parameters with the current values from the fitter
@@ -86,7 +92,10 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
                     full_deriv = np.ravel(weights) * full
             else:
                 full = np.array(
-                    [np.ravel(_) for _ in model.fit_deriv(x, y, *model.parameters)]
+                    [
+                        np.ravel(_)
+                        for _ in model.fit_deriv(x, y, *model.parameters)
+                    ]
                 )
                 if not model.col_fit_deriv:
                     full_deriv = np.ravel(weights) * full.T
@@ -99,7 +108,9 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
             fixed = [par.fixed for par in pars]
             # print('fixed:', fixed)
             tied = [par.tied for par in pars]
-            tied = list(np.where([par.tied is not False for par in pars], True, tied))
+            tied = list(
+                np.where([par.tied is not False for par in pars], True, tied)
+            )
             # print('tied:', tied)
             fix_and_tie = np.logical_or(fixed, tied)
             # print('fix_and_tie:', fix_and_tie)
@@ -124,14 +135,18 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
                     )
                     if output.shape != fit_deriv.shape:
                         output = np.array(
-                            [np.ravel(_) for _ in np.atleast_2d(weights).T * fit_deriv]
+                            [
+                                np.ravel(_)
+                                for _ in np.atleast_2d(weights).T * fit_deriv
+                            ]
                         )
                     return output
                 except ValueError:
                     return np.array(
                         [
                             np.ravel(_)
-                            for _ in np.array(weights) * np.moveaxis(fit_deriv, -1, 0)
+                            for _ in np.array(weights)
+                            * np.moveaxis(fit_deriv, -1, 0)
                         ]
                     ).transpose()
             else:
@@ -160,7 +175,7 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
         ftol: float = DEFAULT_FTOL,
         xtol: float = DEFAULT_XTOL,
         gtol: float = DEFAULT_GTOL,
-        loss: str = 'linear',
+        loss: str = "linear",
         f_scale: float = 1,
         epsilon: float = DEFAULT_EPS,
         estimate_jacobian: bool = False,
@@ -241,7 +256,10 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
         if filter_non_finite:
             x, y, z, weights = self._filter_non_finite(x, y, z, weights)
 
-        farg = (model_copy, weights,) + _convert_input(x, y, z)
+        farg = (
+            model_copy,
+            weights,
+        ) + _convert_input(x, y, z)
         fkwarg = {"fit_param_indices": set(fit_param_indices)}
 
         # import numpy as np
@@ -259,10 +277,19 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
         # print("fit_deriv raw output type:", type(fit_deriv))
 
         init_values, fitparams, cov_x = self._run_fitter(
-            model_copy, farg, fkwarg, maxiter, 
-            ftol, xtol, gtol, loss, 
-            f_scale, epsilon, 
-            estimate_jacobian, warn_me, verbose,
+            model_copy,
+            farg,
+            fkwarg,
+            maxiter,
+            ftol,
+            xtol,
+            gtol,
+            loss,
+            f_scale,
+            epsilon,
+            estimate_jacobian,
+            warn_me,
+            verbose,
         )
         self._compute_param_cov(
             model_copy, y, init_values, cov_x, fitparams, farg, fkwarg, weights
@@ -274,7 +301,7 @@ class _NonLinearLSQFitter(_NonLinearLSQFitter):
 
 class _BaseClass(_NonLinearLSQFitter):
     """
-    (Modified) Wrapper class for `scipy.optimize.least_squares` method, which 
+    (Modified) Wrapper class for `scipy.optimize.least_squares` method, which
     provides:
         - Trust Region Reflective
         - dogbox
@@ -307,29 +334,30 @@ class _BaseClass(_NonLinearLSQFitter):
         A `scipy.optimize.OptimizeResult` class which contains all of
         the most recent fit information
     """
+
     def __init__(
-        self, 
-        method: str, 
-        calc_uncertainties: bool = False, 
+        self,
+        method: str,
+        calc_uncertainties: bool = False,
         use_min_max_bounds: bool = False,
     ):
         super().__init__(calc_uncertainties, use_min_max_bounds)
         self._method: str = method
 
     def _run_fitter(
-        self, 
-        model: Model_, 
-        farg, 
-        fkwarg, 
-        maxiter: int, 
-        ftol: float, 
-        xtol: float, 
-        gtol: float, 
-        loss: str | Callable, 
-        f_scale: float, 
-        epsilon: float, 
-        estimate_jacobian: bool, 
-        warn_me: bool, 
+        self,
+        model: Model_,
+        farg,
+        fkwarg,
+        maxiter: int,
+        ftol: float,
+        xtol: float,
+        gtol: float,
+        loss: str | Callable,
+        f_scale: float,
+        epsilon: float,
+        estimate_jacobian: bool,
+        warn_me: bool,
         verbose: bool,
     ):
 
@@ -339,7 +367,11 @@ class _BaseClass(_NonLinearLSQFitter):
 
             def _dfunc(params, model: Model_, weights, *args, **context):
                 out = self._wrap_deriv(
-                    params, model, weights, *args, fit_param_indices=None,
+                    params,
+                    model,
+                    weights,
+                    *args,
+                    fit_param_indices=None,
                 )
                 return transpose(out) if model.col_fit_deriv else out
 
@@ -356,15 +388,15 @@ class _BaseClass(_NonLinearLSQFitter):
             bounds = (-inf, inf)
 
         self.fit_info = optimize.least_squares(
-            self.objective_function, # fun
-            init_values, # x0
+            self.objective_function,  # fun
+            init_values,  # x0
             jac=dfunc,
             bounds=bounds,
             method=self._method,
             ftol=ftol,
             xtol=xtol,
             gtol=gtol,
-            loss=LOSSES.get(loss, 'linear'),
+            loss=LOSSES.get(loss, "linear"),
             f_scale=f_scale,
             max_nfev=maxiter,
             diff_step=epsilon**0.5,

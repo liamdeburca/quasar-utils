@@ -1,12 +1,17 @@
-__all__ = ['Info']
+__all__ = ["Info"]
 
-from logging import getLogger
-from typing import Iterable, Any, Self, ClassVar
+from collections.abc import Iterable
+from dataclasses import field
 from json import load as load_json
+from logging import getLogger
+from typing import Any, ClassVar, Self
+
+from astropy.units import Quantity
 from numpy import array, float64
 from numpy.typing import NDArray
-from astropy.units import Quantity
-from dataclasses import field
+from pydantic import validate_call
+from pydantic.dataclasses import dataclass
+from quasar_typing.pathlib import AbsoluteFilePath
 
 from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
@@ -20,31 +25,46 @@ from .loading import LoadingInfo
 from .nonlinear import NonLinearInfo
 from .units import UnitsInfo
 
-from pydantic import validate_call
-from pydantic.dataclasses import dataclass
-
-from quasar_typing.pathlib import AbsoluteFilePath
-
 logger = getLogger(__name__)
+
 
 @dataclass
 class Info:
-    absorption: AbsorptionInfo = field(kw_only=True, default_factory=AbsorptionInfo)
+    absorption: AbsorptionInfo = field(
+        kw_only=True, default_factory=AbsorptionInfo
+    )
     balmer: BalmerInfo = field(kw_only=True, default_factory=BalmerInfo)
-    continuum: ContinuumInfo = field(kw_only=True, default_factory=ContinuumInfo)
-    convolution: ConvolutionInfo = field(kw_only=True, default_factory=ConvolutionInfo)
+    continuum: ContinuumInfo = field(
+        kw_only=True, default_factory=ContinuumInfo
+    )
+    convolution: ConvolutionInfo = field(
+        kw_only=True, default_factory=ConvolutionInfo
+    )
     error: ErrorInfo = field(kw_only=True, default_factory=ErrorInfo)
     host: HostInfo = field(kw_only=True, default_factory=HostInfo)
     iron: IronInfo = field(kw_only=True, default_factory=IronInfo)
     lines: LinesInfo = field(kw_only=True, default_factory=LinesInfo)
     loading: LoadingInfo = field(kw_only=True, default_factory=LoadingInfo)
-    nonlinear: NonLinearInfo = field(kw_only=True, default_factory=NonLinearInfo)
+    nonlinear: NonLinearInfo = field(
+        kw_only=True, default_factory=NonLinearInfo
+    )
     units: UnitsInfo = field(kw_only=True, default_factory=UnitsInfo)
 
-    _keys: ClassVar[frozenset[str]] = frozenset([
-        'absorption', 'balmer', 'continuum', 'convolution', 'error', 'host', 'iron', 'lines', 
-        'loading', 'nonlinear', 'units',
-    ])
+    _keys: ClassVar[frozenset[str]] = frozenset(
+        [
+            "absorption",
+            "balmer",
+            "continuum",
+            "convolution",
+            "error",
+            "host",
+            "iron",
+            "lines",
+            "loading",
+            "nonlinear",
+            "units",
+        ]
+    )
 
     def __post_init__(self) -> None:
         self.update()
@@ -55,14 +75,15 @@ class Info:
     @classmethod
     @validate_call
     def from_file(
-        cls, 
+        cls,
         path: AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        if path is None: 
+        if path is None:
             return Info()
 
-        kwargs = {'path': path, 'create_copy': create_copy}
+        kwargs = {"path": path, "create_copy": create_copy}
+
         def inner(cls):
             nonlocal kwargs
             return cls.from_file.__wrapped__(cls, **kwargs)
@@ -80,7 +101,7 @@ class Info:
             nonlinear=inner(NonLinearInfo),
             units=inner(UnitsInfo),
         )
-    
+
     @classmethod
     @validate_call
     def from_json(
@@ -88,15 +109,16 @@ class Info:
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        
+
         if json is None:
             return Info()
-        
+
         if not isinstance(json, dict):
-            with open(json, 'r') as f:
+            with open(json, "r") as f:
                 json = load_json(f)
 
-        kwargs = {'json': json, 'create_copy': create_copy}
+        kwargs = {"json": json, "create_copy": create_copy}
+
         def inner(cls):
             nonlocal kwargs
             return cls.from_json.__wrapped__(cls, **kwargs)
@@ -116,12 +138,12 @@ class Info:
         )
 
     def __getstate__(self) -> dict:
-        state: dict = {'_keys': self._keys}
+        state: dict = {"_keys": self._keys}
         state.update({key: getattr(self, key) for key in self._keys})
         return state
-    
+
     def __setstate__(self, state: dict) -> None:
-        self._keys: frozenset[str] = state.pop('_keys')
+        self._keys: frozenset[str] = state.pop("_keys")
         for key, value in state.items():
             setattr(self, key, value)
 
@@ -143,35 +165,46 @@ class Info:
 
     def __bool__(self) -> bool:
         return self.is_updated
-        
+
     def __getitem__(
-        self, 
-        key: str, 
+        self,
+        key: str,
         subjects: Iterable[str] = [
-            'absorption', 'balmer', 'continuum', 'convolution', 'error', 'host', 
-            'iron', 'lines', 'loading', 'nonlinear', 'units',
-            # 'plotting', 
+            "absorption",
+            "balmer",
+            "continuum",
+            "convolution",
+            "error",
+            "host",
+            "iron",
+            "lines",
+            "loading",
+            "nonlinear",
+            "units",
+            # 'plotting',
         ],
     ) -> Any:
         result = None
         for subinfo in (getattr(self, subject) for subject in subjects):
-            if key in subinfo._keys: 
+            if key in subinfo._keys:
                 result = getattr(subinfo, key)
                 break
 
         return result
-    
+
     def update_value(
         self,
         value: Any,
         conversion_name: str,
     ) -> Any:
-        
+
         uinfo = self.units
-        
+
         match conversion_name, isinstance(value, Quantity):
             case "to_n_pixels", True:
-                result: int = int(uinfo.getC(value) / self.loading['sigma_res'])
+                result: int = int(
+                    uinfo.getC(value) / self.loading["sigma_res"]
+                )
             case "to_n_pixels", False:
                 result: int = int(value)
 
@@ -182,14 +215,15 @@ class Info:
 
             case "to_wavelength_bounds", _:
                 result: tuple[float | None, float | None] = tuple(
-                    None if b is None else self.update_value(b, "to_wavelength")
+                    None
+                    if b is None
+                    else self.update_value(b, "to_wavelength")
                     for b in value
                 )
 
             case "to_wavelength_bounds", _:
                 result: tuple[float | None, float | None] = tuple(
-                    None if b is None else float(b)
-                    for b in value
+                    None if b is None else float(b) for b in value
                 )
 
             case "to_wavelength_list", _:
@@ -203,15 +237,19 @@ class Info:
                 result: NDArray[float64] = array(value, dtype=float64)
 
             case "to_wavelength_windows", True:
-                result: list[tuple[float | None, float | None]] = list(map(
-                    tuple, 
-                    uinfo.getWavelength(value),
-                ))
+                result: list[tuple[float | None, float | None]] = list(
+                    map(
+                        tuple,
+                        uinfo.getWavelength(value),
+                    )
+                )
             case "to_wavelength_windows", False:
-                result: list[tuple[float | None, float | None]] = list(map(
-                    tuple, 
-                    value,
-                ))
+                result: list[tuple[float | None, float | None]] = list(
+                    map(
+                        tuple,
+                        value,
+                    )
+                )
 
             case "to_density", True:
                 result: float = uinfo.getDensity(value)
@@ -225,13 +263,15 @@ class Info:
 
             case "to_temperature_bounds", _:
                 result: tuple[float | None, float | None] = tuple(
-                    None if b is None else self.update_value(b, "to_temperature")
+                    None
+                    if b is None
+                    else self.update_value(b, "to_temperature")
                     for b in value
                 )
 
             case "to_flux", True:
                 result: float = uinfo.getFlux(value)
-            case "to_flux", False: 
+            case "to_flux", False:
                 result: float = float(value)
 
             case "to_flux_bounds", _:
@@ -263,13 +303,14 @@ class Info:
                 )
 
             case "to_scale", _:
-                result: float = self.update_value(value, "to_velocity") \
-                    / self.loading['sigma_res']
-                
+                result: float = (
+                    self.update_value(value, "to_velocity")
+                    / self.loading["sigma_res"]
+                )
+
             case "to_scale_list", _:
                 result: list[float] = [
-                    self.update_value(v, "to_scale") 
-                    for v in value
+                    self.update_value(v, "to_scale") for v in value
                 ]
 
             case "to_fixed", _:
