@@ -1,3 +1,7 @@
-__all__ = ["Info"]
+__all__ = [
+    "FitterKwargs",
+    "Info",
+]
 
 from .info import Info
+from .nonlinear import FitterKwargs

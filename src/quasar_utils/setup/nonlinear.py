@@ -1,14 +1,17 @@
+__all__ = [
+    "FitterKwargs",
+    "NonLinearInfo",
+]
+
 from dataclasses import field
-from functools import cached_property
 from logging import getLogger
-from typing import Any, ClassVar, Literal, Self
+from typing import Any, ClassVar, Literal, Self, TypedDict
 
 from numpy import finfo
 from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from quasar_utils.fitting import FitterInstance
 from quasar_utils.setup.utils._info import _Info
 from quasar_utils.utils import parsing
 from quasar_utils.utils.utils import val_and_type
@@ -17,39 +20,36 @@ logger = getLogger(__name__)
 
 MACHINE_PRECISION = finfo(float).eps
 
-DEFAULT_VALUES: dict[str, Any] = {
-    "algo": "trf",
-    "loss": "linear",
-    "maxiter": 100,
-    "ftol": 1e-8,
-    "xtol": MACHINE_PRECISION,
-    "gtol": MACHINE_PRECISION,
-    "f_scale": 1.0,
-}
+class FitterKwargs(TypedDict):
+    method: Literal["trf", "dogbox", "lm"]
+    loss: str
+    max_nfev: int
+    ftol: float
+    xtol: float
+    gtol: float
+    f_scale: float
 
 
 @dataclass
 class NonLinearInfo(_Info):
-    algo: Literal["trf", "dogbox", "lm"] | None = field(
-        default=DEFAULT_VALUES["algo"], init=False
-    )
-    loss: str = field(default=DEFAULT_VALUES["loss"])
-    maxiter: int = field(default=DEFAULT_VALUES["maxiter"])
-    ftol: float = field(default=DEFAULT_VALUES["ftol"])
-    xtol: float = field(default=DEFAULT_VALUES["xtol"])
-    gtol: float = field(default=DEFAULT_VALUES["gtol"])
-    f_scale: float = field(default=DEFAULT_VALUES["f_scale"])
+    method: Literal["trf", "dogbox", "lm"] = 'trf'
+    loss: str = field(default='linear')
+    max_nfev: int = field(default=100)
+    ftol: float = field(default=1e-8)
+    xtol: float = field(default=MACHINE_PRECISION)
+    gtol: float = field(default=MACHINE_PRECISION)
+    f_scale: float = field(default=1.0)
 
     _keys: ClassVar[frozenset[str]] = frozenset(
         [
-            "algo",
+            "method",
             "loss",
-            "maxiter",
+            "max_nfev",
             "ftol",
             "xtol",
             "gtol",
             "f_scale",
-            "fitter",
+            "fitter_kwargs",
         ]
     )
     _cache: ClassVar[dict[str, Self]] = {}
@@ -58,33 +58,29 @@ class NonLinearInfo(_Info):
     def __hash__(self) -> int:
         return super().__hash__()
 
-    # def __getstate__(self) -> dict:
-    #     state = super().__getstate__()
-    #     state.pop('fitter')
-    #     return state
-
-    # def __setstate__(self, state: dict) -> None:
-    #     super().__setstate__(state)
-
     def __getitem__(self, key: str) -> Any:
-        if key == "fitter":
-            return self.fitter
+        if key == "fitter_kwargs":
+            return self.fitter_kwargs
         return super().__getitem__(key)
 
     def update(self, info) -> None:
         super().update(info, logger)
 
-    @cached_property
-    def fitter(self) -> FitterInstance:
-        return FitterInstance(
-            self.algo,
-            loss=self.loss,
-            maxiter=self.maxiter,
-            ftol=self.ftol,
-            xtol=self.xtol,
-            gtol=self.gtol,
-            f_scale=self.f_scale,
-        )
+    @property
+    def fitter_kwargs(self) -> FitterKwargs:
+        """
+        Returns a dictionary of keyword arguments fully compatible with 
+        `scipy.optimize.least_squares`.
+        """
+        return {
+            'method': self.method,
+            'loss': self.loss,
+            'max_nfev': self.max_nfev,
+            'ftol': self.ftol,
+            'xtol': self.xtol,
+            'gtol': self.gtol,
+            'f_scale': self.f_scale,
+        }
 
     @classmethod
     @validate_call
@@ -94,7 +90,7 @@ class NonLinearInfo(_Info):
         create_copy: bool = True,
     ) -> Self:
 
-        if path is not None and str(path) in cls._cache.keys():
+        if path is not None and str(path) in cls._cache:
             logger.debug(f"Using cached 'NonLinearInfo' for '{path}'.")
 
             ninfo = cls._cache[str(path)]
@@ -116,12 +112,11 @@ class NonLinearInfo(_Info):
             key = line[0].lower()
 
             match key:
-                case "algo":
-                    key = "_" + key
+                case "method":
                     val = parsing.as_str(line[1])
                 case "loss":
                     val = line[1]
-                case "maxiter":
+                case "max_nfev":
                     val = max([parsing.as_int(line[1]), 1])
                 case "ftol" | "xtol" | "gtol" | "f_scale":
                     val = max([parsing.as_float(line[1]), MACHINE_PRECISION])
