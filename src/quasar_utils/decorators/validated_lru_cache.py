@@ -28,13 +28,13 @@ class ValidatedAndLRUCached(Protocol[F]):
 
 
 @overload
-def validated_lru_cache(
+def validated_lru_cache[F](
     func: F,
 ) -> ValidatedAndLRUCached[F]: ...
 
 
 @overload
-def validated_lru_cache(
+def validated_lru_cache[F](
     func: None = None,
     *,
     maxsize: int = 256,
@@ -42,12 +42,12 @@ def validated_lru_cache(
 ) -> Callable[[F], ValidatedAndLRUCached[F]]: ...
 
 
-def validated_lru_cache(
+def validated_lru_cache[F](
     func: F | None = None,
     *,
     maxsize: int = 64,
     validate_return: bool = False,
-) -> Callable[[F], ValidatedAndLRUCached[F]]:
+) -> ValidatedAndLRUCached[F] | Callable[[F], ValidatedAndLRUCached[F]]:
     """
     Creates a decorator that applies both LRU caching and Pydantic validation to
     a function.

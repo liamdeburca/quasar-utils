@@ -1,9 +1,8 @@
 from logging import getLogger
 from typing import Any, Self
 
-from pydantic import validate_call
-
 from ....utils.utils import _Info
+from ..decorators import validate_call
 from ..plotting.colors import pet10
 from ..typing_.paths import AbsoluteFilePath
 
@@ -74,7 +73,7 @@ class PlottingInfo(_Info):
         self["x_unit"] = new = f(info.units["wavelength_unit"])
         logger.debug(f">>> [1/2] 'x_unit': {new}.")
 
-        self["y_unit"] = new = f(info.units.getFluxUnit())
+        self["y_unit"] = new = f(info.units.flux_unit)
         logger.debug(f">>> [2/2] 'y_unit': {new}.")
 
         self.update_from_self()

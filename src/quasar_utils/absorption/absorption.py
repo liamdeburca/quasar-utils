@@ -1,13 +1,15 @@
 __all__ = [
-    "fft",
     "fft_approach",
+    "fft_test",
     "join_regions",
+    "log_fft_test",
     "refine_regions",
     "remove_single",
 ]
 
 from logging import getLogger
 from math import log as math_log
+from typing import Literal
 
 from numpy import (
     bool_,
@@ -20,18 +22,23 @@ from numpy import (
 )
 from numpy.lib.stride_tricks import sliding_window_view
 from numpy.typing import NDArray
+from pydantic import NonNegativeInt, PositiveFloat, PositiveInt
+from quasar_typing.numpy import (
+    BoolArray,
+    BoolVector,
+    FittableFloatArray,
+    FloatArray,
+    FloatVector,
+)
 from scipy.fft import fft as scipy_fft
 from scipy.ndimage import binary_dilation, binary_erosion
 from scipy.stats import gamma
 
-logger = getLogger(__name__)
-
-from pydantic import validate_call
-from quasar_typing.numpy import BoolArray, BoolVector, FloatArray, FloatVector
-
+from ..decorators import validate_call
 from .smoothing import interpolate_missing
 from .utils import nan_residuals
 
+logger = getLogger(__name__)
 
 @validate_call
 def remove_single(mask: BoolArray) -> BoolArray:
@@ -45,13 +52,12 @@ def remove_single(mask: BoolArray) -> BoolArray:
 
 
 @validate_call
-def fft(
-    z: FloatArray,
-    k: int | None = None,
-    log: bool | float | None = 10,
+def log_fft_test(
+    z: FittableFloatArray,
+    k: NonNegativeInt | None = None,
+    base: PositiveFloat | None = None,
 ) -> tuple[float | FloatArray, float | FloatArray]:
-    """
-    Lorem ipsum...
+    """Perform the FFT-based normality test on the residuals.
 
     Parameters
     ----------
@@ -61,11 +67,70 @@ def fft(
     k : int, optional
         Index of frequency to consider. If not defined, all frequencies are
         used.
-    log : bool or float, optional
-        Whether to calculate the logarithm of the statistical significance, and
-        optionally, what base to use.If True, the natural logarithm is used. If
-        a number is given, the specified base is used. If None, no logarithm is
-        calculated. Default: 10.
+    base : float, optional
+        Base of the logarithm used for the statistical significance. If not
+        defined, the natural logarithm is used.
+
+    Returns
+    -------
+    stat : float
+        Statistical measure.
+    log_p : float
+        Statistical significance of the measure in logarithmic form. If `base`
+        is specified, this is the logarithm of the statistical significance with
+        the given base.
+
+    Raises
+    ------
+    ValueError
+        - If the input array is shorter than `N=6` elements.
+        - If the frequency index `k` is out of range for the input array: `k>=N`
+        - If the logarithm base is less than or equal to 1.
+    """
+    N: int = z.shape[-1]
+    x: NDArray[complex128] = scipy_fft(z, axis=-1)
+
+    # Validate small-N cases for aggregate statistic
+    if k is None and N < 6:
+        raise ValueError(f"fft: insufficient input length N={N} for aggregate-frequency statistic; require N>=6")
+
+    if k is None:
+        stat: float = (abs(x[..., 1 : N // 2]) ** 2).sum(axis=-1) / N
+        m: int = int(N // 2 - 2)
+        log_p: float = gamma(m, 1).logsf(stat)
+    else:
+        # validate provided frequency index
+        if k >= N:
+            raise ValueError(f"fft: frequency index k={k} out of range for length N={N}")
+        stat: float = abs(x[..., k]) ** 2 / N
+        log_p: float = -stat
+
+    if base is not None:
+        if base <= 1:
+            msg = f"The logarithm base must be greater than 1: {base=}"
+            logger.critical(msg)
+            raise ValueError(msg)
+        log_p /= math_log(base)
+
+    return stat, log_p
+
+@validate_call
+def fft_test(
+    z: FittableFloatArray,
+    k: NonNegativeInt | None = None,
+) -> tuple[float | FloatArray, float | FloatArray]:
+    """Perform the FFT-based normality test on the residuals.
+
+    See `log_fft_test` for details.
+
+    Parameters
+    ----------
+    z : numpy.array
+        Array of residuals. If not 1-dimensional, the last axis runs along the
+        spectral axis.
+    k : int, optional
+        Index of frequency to consider. If not defined, all frequencies are
+        used.
 
     Returns
     -------
@@ -73,36 +138,23 @@ def fft(
         Statistical measure.
     p : float
         Statistical significance of the measure.
+
+    Raises
+    ------
+    ValueError
+        See `log_fft_test` for details.
     """
-    N: int = z.shape[-1]
-    x: NDArray[complex128] = scipy_fft(z, axis=-1)
-
-    if isinstance(k, int):
-        stat: float = abs(x[..., k]) ** 2 / N
-        log_p: float = -stat
-
-    else:
-        stat: float = (abs(x[..., 1 : N // 2]) ** 2).sum(axis=-1) / N
-        m: int = int(N // 2 - 2)
-        log_p: float = gamma(m, 1).logsf(stat)
-
-    if isinstance(log, bool) and log is True:
-        p = log_p
-    elif isinstance(log, (int, float)) and log > 1:
-        p = log_p / math_log(log)
-    else:
-        p = exp(log_p)
-
-    return stat, p
-
+    stat, log_p = log_fft_test.__wrapped__(z, k=k, base=None)
+    return stat, exp(log_p)
 
 @validate_call
 def fft_approach(
-    z: FloatArray, p_crit: float, z_crit: float, w: int
+    z: FittableFloatArray, 
+    p_crit: PositiveFloat,
+    z_crit: float, 
+    w: PositiveInt,
 ) -> tuple[FloatArray, BoolArray]:
     """
-    ** PYDANTIC VALIDATED FUNCTION **
-
     Applies an absorption-identification approach based on a normality test
     based on the discrete Fourier transform. Residuals are assumed to be sampled
     from a (standard) normal distribution.
@@ -137,10 +189,11 @@ def fft_approach(
         z, w, axis=-1
     )  # (N-w+1, w)
 
-    ps: NDArray[float64] = ones_like(z, dtype=float64)
-    ps[..., l:-l] = fft.__wrapped__(z_slices, log=False)[1]
+    ps: NDArray[float64] = ones_like(z, dtype=float64, order="C")
+    # Request actual p-values (not logarithms) from fft for the sliding windows.
+    ps[..., l:-l] = fft_test.__wrapped__(z_slices)[1]
 
-    not_edge: NDArray[bool_] = ones_like(z, dtype=bool_)
+    not_edge: NDArray[bool_] = ones_like(z, dtype=bool_, order="C")
     not_edge[:w] = False
     not_edge[-w:] = False
 
@@ -155,13 +208,10 @@ def fft_approach(
 
 @validate_call
 def join_regions(
-    mask: BoolArray,
-    iterations: int,
-) -> BoolArray:
-    """
-    ** PYDANTIC VALIDATED FUNCTION **
-
-    Joins nearby highlighted regions.
+    mask: BoolVector,
+    iterations: PositiveInt | Literal[0],
+) -> BoolVector:
+    """Joins nearby highlighted regions.
 
     Parameters
     ----------
@@ -176,11 +226,11 @@ def join_regions(
     mask : numpy.array
         Modification of the input mask with True pixels potentially joined.
     """
-    _mask: NDArray[bool_] = binary_erosion(
+    new_mask: NDArray[bool_] = binary_erosion(
         binary_dilation(mask, iterations=iterations),
         iterations=iterations,
     )
-    return mask | _mask
+    return mask | new_mask
 
 
 @validate_call
@@ -194,8 +244,6 @@ def refine_regions(
     valid_pixels: BoolVector | None = None,
 ) -> tuple[BoolVector, FloatVector]:
     """
-    ** PYDANTIC VALIDATED FUNCTION **
-
     Refines the selection of outlying pixels using linear interpolation.
 
     Parameters
@@ -213,32 +261,15 @@ def refine_regions(
 
     Returns
     -------
-    mask : numpy.array
+    new_mask : numpy.array
         Boolean array of the refined selection of anomalous pixels.
     y_smooth : numpy.array
         Refined smoothed flux density array, with rejected pixels' values
         replaced using a linear interpolator.
     """
-    y_smooth: NDArray[float64] = interpolate_missing.__wrapped__(
-        x,
-        y_smooth,
-        invert(mask),
-    )
-    z: NDArray[float64] = nan_residuals(
-        y,
-        maximum(y_smooth, y_bg),
-        dy,
-        z_fill=0,
-        mask=valid_pixels,
-    )
-    mask: NDArray[bool_] = binary_dilation(
-        binary_erosion(
-            mask,
-            iterations=0,
-            mask=(z > 0),
-        ),
-        iterations=0,
-        mask=(z < 0),
-    )
+    y_smooth = interpolate_missing.__wrapped__(x, y_smooth, invert(mask))
+    z = nan_residuals(y, maximum(y_smooth, y_bg), dy, z_fill=0, mask=valid_pixels)
+    new_mask = binary_erosion(mask, iterations=0, mask=(z > 0))
+    binary_dilation(new_mask, iterations=0, mask=(z < 0), output=new_mask)
 
-    return mask, y_smooth
+    return new_mask, y_smooth

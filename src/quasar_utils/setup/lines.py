@@ -1,80 +1,141 @@
-from dataclasses import field
 from logging import getLogger
-from typing import Any, ClassVar, Self
+from typing import Any, Literal, Self
 
 from astropy.units import Unit
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds
+from quasar_typing.numpy import SortedFloatVector
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from ..utils import parsing
-from ..utils.parsing import get_lines_from_file
-from ..utils.utils import val_and_type
-from .utils._info import _Info
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
-DEFAULT_VALUES: dict[str, Any] = {
-    "_x_limit": 1220 * Unit("angstrom"),
-    "_v_sep": 10_000 * Unit("km/s"),
-    "_v_off_bounds": (-5_000, 5_000) * Unit("km/s"),
-    "_fwhm_v_bounds": (500, 10_000) * Unit("km/s"),
-    "_strength_bounds": (1e-16, 1) * Unit("erg/(s.cm2)"),
-    "_w": 25,
-    "_forced_splits": [1450, 1680, 2000] * Unit("angstrom"),
-    "min_fittable_total": 50,
-    "min_fittable_ratio": 0.6,
-    "evaluate_initial": 3,
-    "aggressive": False,
-    "crop": False,
-    "measure": "getFluxSNR",
-    "reverse": False,
-    "snr": 10,
-    "make_copies": False,
-    "adapt_scale": True,
-    "scale_init": 1.0,
-    "scale_bounds": (0.0, 100.0),
-}
 
-
+@finalise_dataclass
 @dataclass
 class LinesInfo(_Info):
-    fit: bool = True
-
-    _x_limit: float | Quantity_ = field(default=DEFAULT_VALUES["_x_limit"])
-    _v_sep: float | Quantity_ = field(default=DEFAULT_VALUES["_v_sep"])
+    fit: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    _x_limit: float | Quantity_ = field(
+        default=1220 * Unit("angstrom"),
+        dtype="float",
+        parse_as="wavelength",
+        update_to="wavelength",
+        has_unit=True,
+    )
+    _v_sep: float | Quantity_ = field(
+        default=10_000 * Unit("km/s"),
+        dtype="float",
+        parse_as="velocity",
+        update_to="velocity",
+        has_unit=True,
+    )
     _v_off_bounds: AstropyBounds | Quantity_ = field(
-        default=DEFAULT_VALUES["_v_off_bounds"]
+        default=(-1_000, 1_000) * Unit("km/s"),
+        dtype="list[float | None]",
+        parse_as="velocity_bounds",
+        update_to="velocity_bounds",
+        has_unit=True,
     )
     _fwhm_v_bounds: AstropyBounds | Quantity_ = field(
-        default=DEFAULT_VALUES["_fwhm_v_bounds"]
+        default=(1000, 10_000) * Unit("km/s"),
+        dtype="list[float | None]",
+        parse_as="velocity_bounds",
+        update_to="velocity_bounds",
+        has_unit=True,
     )
     _strength_bounds: AstropyBounds | Quantity_ = field(
-        default=DEFAULT_VALUES["_strength_bounds"]
+        default=(0.0, 100_000.0),
+        dtype="list[float | None]",
+        parse_as="flux_bounds",
+        update_to="flux_bounds",
+        has_unit=True,
     )
-    _w: int | Quantity_ = field(default=DEFAULT_VALUES["_w"])
+    _w: int | Quantity_ = field(
+        default=25,
+        dtype="int",
+        parse_as="n_pixels",
+        update_to="n_pixels",
+        has_unit=True,
+    )
     _forced_splits: list[float] | Quantity_ = field(
-        default=DEFAULT_VALUES["_forced_splits"]
+        default=[1450, 1680, 2000] * Unit("angstrom"),
+        dtype="list[float]",
+        parse_as="wavelength_list",
+        update_to="sorted_wavelength_array",
+        has_unit=True,
     )
     min_fittable_total: int = field(
-        default=DEFAULT_VALUES["min_fittable_total"]
+        default=50,
+        dtype="int",
+        parse_as="int",
     )
     min_fittable_ratio: float = field(
-        default=DEFAULT_VALUES["min_fittable_ratio"]
+        default=0.6,
+        dtype="float",
+        parse_as="float",
     )
-    evaluate_initial: int = field(default=DEFAULT_VALUES["evaluate_initial"])
-    aggressive: bool = field(default=DEFAULT_VALUES["aggressive"])
-    crop: bool = field(default=DEFAULT_VALUES["crop"])
-    measure: str = field(default=DEFAULT_VALUES["measure"])
-    reverse: bool = field(default=DEFAULT_VALUES["reverse"])
-    snr: float | int = field(default=DEFAULT_VALUES["snr"])
-    make_copies: bool = field(default=DEFAULT_VALUES["make_copies"])
-    adapt_scale: bool = field(default=DEFAULT_VALUES["adapt_scale"])
-    scale_init: float = field(default=DEFAULT_VALUES["scale_init"])
-    scale_bounds: AstropyBounds = field(default=DEFAULT_VALUES["scale_bounds"])
-    scale_fixed: bool = field(default=False)
+    evaluate_initial: float = field(
+        default=3.0,
+        dtype="float",
+        parse_as="float",
+    )
+    aggressive: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
+    crop: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
+    measure: str = field(
+        default="getFluxSNR",
+        dtype="str",
+        parse_as="str",
+    )
+    reverse: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
+    snr: float | int = field(
+        default=10,
+        dtype="float",
+        parse_as="float",
+    )
+    make_copies: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
+    adapt_scale: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    scale_init: float = field(
+        default=1.0,
+        dtype="float",
+        parse_as="float",
+    )
+    scale_bounds: AstropyBounds = field(
+        default=(0.0, 10.0),
+        dtype="list[float | None]",
+        parse_as="float_bounds",
+    )
+    scale_fixed: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
 
     x_limit: float | None = field(default=None, init=False)
     v_sep: float | None = field(default=None, init=False)
@@ -82,50 +143,7 @@ class LinesInfo(_Info):
     fwhm_v_bounds: AstropyBounds | None = field(default=None, init=False)
     strength_bounds: AstropyBounds | None = field(default=None, init=False)
     w: int | None = field(default=None, init=False)
-    forced_splits: list[float] | None = field(default=None, init=False)
-
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "fit",
-            "_x_limit",
-            "x_limit",
-            "_v_sep",
-            "v_sep",
-            "_v_off_bounds",
-            "v_off_bounds",
-            "_fwhm_v_bounds",
-            "fwhm_v_bounds",
-            "_strength_bounds",
-            "strength_bounds",
-            "_w",
-            "w",
-            "_forced_splits",
-            "forced_splits",
-            "min_fittable_total",
-            "min_fittable_ratio",
-            "evaluate_initial",
-            "aggressive",
-            "crop",
-            "measure",
-            "reverse",
-            "snr",
-            "make_copies",
-            "adapt_scale",
-            "scale_init",
-            "scale_bounds",
-            "scale_fixed",
-        ]
-    )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {
-        "x_limit": "to_wavelength",
-        "v_sep": "to_velocity",
-        "v_off_bounds": "to_velocity_bounds",
-        "fwhm_v_bounds": "to_velocity_bounds",
-        "strength_bounds": "to_strength_bounds",
-        "w": "to_n_pixels",
-        "forced_splits": "to_wavelength_array",
-    }
+    forced_splits: SortedFloatVector | None = field(default=None, init=False)
 
     def __hash__(self) -> int:
         return super().__hash__()
@@ -136,83 +154,11 @@ class LinesInfo(_Info):
         """
         super().update(info, logger)
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-
-        if path is not None and str(path) in cls._cache.keys():
-            logger.debug(f"Using cached 'LinesInfo' for '{path}'.")
-
-            linfo = cls._cache[str(path)]
-            return linfo.copy() if create_copy else linfo
-
-        linfo: LinesInfo = LinesInfo()
-        if path is None:
-            return linfo
-
-        logger.debug(f"Configuring 'LinesInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__("LINES", path, logger)
-
-        for count, line in enumerate(lines, start=1):
-            key = line[0].lower()
-
-            match key:
-                case "min_fittable_total":
-                    val = parsing.as_int(line[1])
-
-                case (
-                    "refine"
-                    | "crop"
-                    | "reverse"
-                    | "aggressive"
-                    | "reverse"
-                    | "make_copies"
-                    | "adapt_scale"
-                ):
-                    val = parsing.as_bool(line[1])
-
-                case "v_sep" | "w":
-                    key = "_" + key
-                    val = parsing.as_scalar_or_quantity(line[1:])
-
-                case "v_off_bounds" | "fwhm_v_bounds" | "strength_bounds":
-                    key = "_" + key
-                    val = parsing.as_bounds_of_scalars_or_quantity(line[1:])
-
-                case "forced_splits":
-                    key = "_" + key
-                    val = parsing.as_list_of_scalars_or_quantity(line[1:])
-
-                case "measure":
-                    val = line[1]
-
-                case "x_limit":
-                    key = "_" + key
-                    val = parsing.as_quantity(line[1:])
-
-                case (
-                    "min_fittable_ratio"
-                    | "evaluate_initial"
-                    | "snr"
-                    | "scale_init"
-                ):
-                    val = parsing.as_float(line[1])
-
-                case "scale_bounds":
-                    val = parsing.as_bounds(line[1:])
-
-            linfo[key] = val
-            logger.debug(
-                f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
-            )
-
-        cls._cache[str(path)] = linfo
-
-        return linfo
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["lines"], dict[str, Any]]:
+        return super().to_dict("lines", jsonify=jsonify)
 
     @classmethod
     @validate_call
@@ -221,4 +167,4 @@ class LinesInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "lines", logger)
+        return cls._from_json(json, create_copy, "lines", logger)

@@ -1,111 +1,125 @@
-from dataclasses import field
 from logging import getLogger
-from pathlib import Path
-from typing import ClassVar, Self
+from typing import Any, Literal, Self
 
-from astropy.units import Quantity, Unit
+from astropy.units import Unit
 from numpy import arange
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
-from quasar_typing.numpy import FittableFloatVector, SortedFloatVector
+from quasar_typing.numpy import FloatVector, SortedFloatVector
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from ..utils import parsing
-from ..utils.parsing import get_lines_from_file
-from ..utils.utils import val_and_type
-from .utils._info import _Info
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
-DEFAULT_WINDOWS: Quantity = [[2050, 2700], [3000, 3500]] * Unit("angstrom")
-DEFAULT_TEMPLATE_FILES: list[str] = ["vw_2001.fits", "bw.fits", "v_2003.fits"]
-DEFAULT_FWHM: Quantity = arange(1_000, 20_000 + 1, 250) * Unit("km/s")
-DEFAULT_FLUX_BOUNDS: Quantity = [1e-17, 1e-14] * Unit("erg/(s.cm2.angstrom)")
-DEFAULT_FWHM_BOUNDS: Quantity = [1_000, 20_000] * Unit("km/s")
-DEFAULT_SPLIT: Quantity = [0, 0, 0] * Unit("angstrom")
-DEFAULT_BIAS: list[str] = ["right", "right", "right"]
-DEFAULT_RATIO: list[float] = [1.0, 1.0, 1.0]
-DEFAULT_FIXED: list[bool] = [True, True, True]
 
-
+@finalise_dataclass
 @dataclass
 class IronInfo(_Info):
-    fit: bool = True
-
-    _windows: list[list] | Quantity_ = field(
-        default_factory=lambda: DEFAULT_WINDOWS
+    fit: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    _windows: list[CoordBounds] | Quantity_ = field(
+        default=[
+            [2050.0, 2700.0],
+            [3000.0, 3500.0],
+            [4400.0, 4600.0],
+            [5100.0, 5400.0],
+        ] * Unit("angstrom"),
+        dtype="list[list[float, float]]",
+        parse_as="wavelength_windows",
+        update_to="wavelength_windows",
+        has_unit=True,
     )
     template_files: list[str] = field(
-        default_factory=lambda: DEFAULT_TEMPLATE_FILES
+        default_factory=lambda: ["vw2001", "bw", "v2003"],
+        dtype="list[str]",
+        parse_as="str_list",
     )
-    resample: bool = True
+    resample: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
     _fwhm: list[float] | Quantity_ = field(
-        default_factory=lambda: DEFAULT_FWHM
+        default=arange(1_000, 20_000 + 1, 250) * Unit("km/s"),
+        dtype="list[float]",
+        parse_as="velocity_list",
+        update_to="sorted_velocity_array",
+        has_unit=True,
     )
     _flux_bounds: AstropyBounds | Quantity_ = field(
-        default_factory=lambda: DEFAULT_FLUX_BOUNDS
+        default=(1.0, 1000.0),
+        dtype="list[float | None]",
+        parse_as="flux_bounds",
+        update_to="flux_bounds",
+        has_unit=True,
     )
     _fwhm_bounds: AstropyBounds | Quantity_ = field(
-        default_factory=lambda: DEFAULT_FWHM_BOUNDS
+        default=[1_000, 20_000] * Unit("km/s"),
+        dtype="list[float | None]",
+        parse_as="velocity_bounds",
+        update_to="velocity_bounds",
+        has_unit=True,
     )
-    _split: list[float] | Quantity_ = field(
-        default_factory=lambda: DEFAULT_SPLIT
+    _split: list[str] | Quantity_ = field(
+        default=[0, 0, 0] * Unit("angstrom"),
+        dtype="list[float]",
+        parse_as="wavelength_list",
+        update_to="wavelength_array",
+        has_unit=True,
     )
-    bias: list[str] = field(default_factory=lambda: DEFAULT_BIAS)
-    ratio: list[float] = field(default_factory=lambda: DEFAULT_RATIO)
-    fixed: list[bool] = field(default_factory=lambda: DEFAULT_FIXED)
-    _scale: float | Quantity_ = 140.0
-    raster: bool = True
-    fine_tune: bool = False
-
-    _fwhm_norm: float | Quantity_ = 5_000 * Unit("km/s")
+    bias: list[str] = field(
+        default_factory=lambda: ["right", "right", "right"],
+        dtype="list[str]",
+        parse_as="bias",
+    )
+    ratio: list[float] = field(
+        default_factory=lambda: [1.0, 1.0, 1.0],
+        dtype="list[float]",
+        parse_as="float_list",
+    )
+    fixed: list[bool] = field(
+        default_factory=lambda: [True, True, True],
+        dtype="list[bool]",
+        parse_as="bool_list",
+    )
+    _scale: float | Quantity_ = field(
+        default=140.0 * Unit("angstrom"),
+        dtype="float",
+        parse_as="wavelength",
+        update_to="wavelength",
+        has_unit=True,
+    )
+    raster: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    fine_tune: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
+    _fwhm_norm: float | Quantity_ = field(
+        default=5_000 * Unit("km/s"),
+        dtype="float",
+        parse_as="velocity",
+        update_to="velocity",
+        has_unit=True,
+    )
 
     windows: list[CoordBounds] | None = field(default=None, init=False)
     fwhm: SortedFloatVector | None = field(default=None, init=False)
     flux_bounds: AstropyBounds | None = field(default=None, init=False)
     fwhm_bounds: AstropyBounds | None = field(default=None, init=False)
-    split: FittableFloatVector | None = field(default=None, init=False)
+    split: FloatVector | None = field(default=None, init=False)
     scale: float | None = field(default=None, init=False)
     fwhm_norm: float | None = field(default=None, init=False)
-
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "fit",
-            "windows",
-            "_windows",
-            "template_files",
-            "resample",
-            "fwhm",
-            "_fwhm",
-            "flux_bounds",
-            "_flux_bounds",
-            "fwhm_bounds",
-            "_fwhm_bounds",
-            "split",
-            "_split",
-            "bias",
-            "ratio",
-            "fixed",
-            "_scale",
-            "scale",
-            "raster",
-            "fine_tune",
-            "_fwhm_norm",
-            "fwhm_norm",
-        ]
-    )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {
-        "windows": "to_wavelength_windows",
-        "fwhm": "to_velocity",
-        "flux_bounds": "to_flux_bounds",
-        "fwhm_bounds": "to_velocity_bounds",
-        "split": "to_wavelength_list",
-        "scale": "to_scale",
-        "fwhm_norm": "to_velocity",
-    }
 
     def __hash__(self) -> int:
         return super().__hash__()
@@ -113,69 +127,11 @@ class IronInfo(_Info):
     def update(self, info) -> None:
         super().update(info, logger)
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-
-        if path is not None and str(path) in cls._cache.keys():
-            logger.debug(f"Using cached 'IronInfo' for '{path}'.")
-
-            iinfo = cls._cache[str(path)]
-            if create_copy:
-                return iinfo.copy()
-            return iinfo
-
-        iinfo: IronInfo = IronInfo()
-        if path is None:
-            return iinfo
-
-        logger.debug(f"Configuring 'IronInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__("IRON", path, logger)
-
-        for count, line in enumerate(lines, start=1):
-            prefix = ""
-            key = line[0].lower()
-
-            match key:
-                case "windows":
-                    prefix = "_"
-                    val = parsing.as_pairs_of_floats_or_quantity(line[1:])
-                case "bias":
-                    val = parsing.as_list(line[1])
-                case "template_files":
-                    val = list(map(Path, parsing.as_list(line[1])))
-                case "resample" | "fine_tune":
-                    val = parsing.as_bool(line[1])
-                case "fwhm" | "split":
-                    prefix = "_"
-                    val = (
-                        parsing.as_range_of_quantities(line[1:])
-                        if line[1].lower().startswith("range:")
-                        else parsing.as_list_of_scalars_or_quantity(line[1:])
-                    )
-                case "ratio":
-                    val = parsing.as_array_of_floats(line[1])
-                case "fixed":
-                    val = parsing.as_array_of_bools(line[1])
-                case "flux_bounds":
-                    prefix = "_"
-                    val = parsing.as_bounds_of_scalars_or_quantity(line[1:])
-                case "scale":
-                    prefix = "_"
-                    val = parsing.as_scalar_or_quantity(line[1:])
-
-            iinfo[prefix + key] = val
-            logger.debug(
-                f">>> [{count}/{len(lines)}] 'key': {val_and_type(val)}"
-            )
-
-        cls._cache[str(path)] = iinfo
-
-        return iinfo
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["iron"], dict[str, Any]]:
+        return super().to_dict("iron", jsonify=jsonify)
 
     @classmethod
     @validate_call
@@ -184,4 +140,4 @@ class IronInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "iron", logger)
+        return cls._from_json(json, create_copy, "iron", logger)

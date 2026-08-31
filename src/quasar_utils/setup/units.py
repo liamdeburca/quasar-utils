@@ -1,129 +1,126 @@
 from collections.abc import Iterable
-from dataclasses import field
 from logging import getLogger
-from typing import Any, ClassVar, Self
+from typing import Any, Literal, Self
 
 from astropy.constants import c, h, k_B
 from astropy.units import Quantity, Unit
-from pydantic import validate_call
+from numpy import array2string
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import CompositeUnit_, Quantity_, Unit_
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from ..utils import parsing
-from ..utils.parsing import get_lines_from_file
+from ..decorators import validate_call
 from ..utils.utils import check_val
-from .utils._info import _Info
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
-DEFAULT_VALUES: dict[str, Any] = {
-    "wavelength_unit": Unit("1 angstrom"),
-    "energy_unit": Unit("1e-17 erg"),
-    "time_unit": Unit("1 s"),
-    "area_unit": Unit("1 cm2"),
-    "temp_unit": Unit("1 K"),
-    "dens_unit": Unit("1 cm^-3"),
-    "c_unit": Unit(c),
-    "velocity_unit": Unit("1 km/s"),
-    "wavelength_format": ".3f",
-    "velocity_format": ".3f",
-    "flux_format": ".3e",
-    "strength_format": ".3e",
-    "other_format": ".3e",
-}
 
-
+@finalise_dataclass(additional_keys=["strength_unit", "flux_unit"])
 @dataclass
 class UnitsInfo(_Info):
     wavelength_unit: CompositeUnit_ = field(
-        default=DEFAULT_VALUES["wavelength_unit"]
+        default=Unit("1 angstrom"),
+        desc="Choice of wavelength unit",
+        dtype="str",
+        parse_as="composite_unit",
     )
-    energy_unit: CompositeUnit_ = field(default=DEFAULT_VALUES["energy_unit"])
-    time_unit: CompositeUnit_ = field(default=DEFAULT_VALUES["time_unit"])
-    area_unit: CompositeUnit_ = field(default=DEFAULT_VALUES["area_unit"])
-    temp_unit: CompositeUnit_ = field(default=DEFAULT_VALUES["temp_unit"])
-    dens_unit: CompositeUnit_ = field(default=DEFAULT_VALUES["dens_unit"])
-    c_unit: CompositeUnit_ = field(default=DEFAULT_VALUES["c_unit"])
+    energy_unit: CompositeUnit_ = field(
+        default=Unit("1e-17 erg"),
+        desc="Choice of energy unit",
+        dtype="str",
+        parse_as="composite_unit",
+    )
+    time_unit: CompositeUnit_ = field(
+        default=Unit("1 s"),
+        desc="Choice of time unit",
+        dtype="str",
+        parse_as="composite_unit",
+    )
+    area_unit: CompositeUnit_ = field(
+        default=Unit("1 cm2"),
+        desc="Choice of area unit",
+        dtype="str",
+        parse_as="composite_unit",
+    )
+    temp_unit: CompositeUnit_ = field(
+        default=Unit("1 K"),
+        desc="Choice of temperature unit",
+        dtype="str",
+        parse_as="composite_unit",
+    )
+    dens_unit: CompositeUnit_ = field(
+        default=Unit("1 cm^-3"),
+        desc="Choice of density unit",
+        dtype="str",
+        parse_as="composite_unit",
+    )
+    c_unit: CompositeUnit_ = field(
+        default=Unit(c),
+        desc="Choice of speed-of-light unit",
+        dtype="str",
+        parse_as="composite_unit",
+    )
     velocity_unit: CompositeUnit_ = field(
-        default=DEFAULT_VALUES["velocity_unit"]
+        default=Unit("1 km/s"),
+        desc="Choice of velocity unit",
+        dtype="str",
+        parse_as="composite_unit",
     )
-    wavelength_format: str = field(default=DEFAULT_VALUES["wavelength_format"])
-    velocity_format: str = field(default=DEFAULT_VALUES["velocity_format"])
-    flux_format: str = field(default=DEFAULT_VALUES["flux_format"])
-    strength_format: str = field(default=DEFAULT_VALUES["strength_format"])
-    other_format: str = field(default=DEFAULT_VALUES["other_format"])
-
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "wavelength_unit",
-            "energy_unit",
-            "time_unit",
-            "area_unit",
-            "temp_unit",
-            "dens_unit",
-            "c_unit",
-            "velocity_unit",
-            "wavelength_format",
-            "velocity_format",
-            "flux_format",
-            "strength_format",
-            "other_format",
-        ]
+    wavelength_format: str = field(
+        default=".1f",
+        desc="How to format wavelength values",
+        dtype="str",
+        parse_as="str",
     )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {}
+    velocity_format: str = field(
+        default=".1f",
+        desc="How to format velocity values",
+        dtype="str",
+        parse_as="str",
+    )
+    flux_format: str = field(
+        default=".1f",
+        desc="How to format flux density values",
+        dtype="str",
+        parse_as="str",
+    )
+    strength_format: str = field(
+        default=".1f",
+        desc="How to format strength (integrated flux density) values",
+        dtype="str",
+        parse_as="str",
+    )
+    other_format: str = field(
+        default=".1f",
+        desc="How to format other values",
+        dtype="str",
+        parse_as="str",
+    )
 
     def __hash__(self) -> int:
         return super().__hash__()
 
     def update(self, info) -> None:
         super().update(info, logger)
-        # logger.debug("Updating 'UnitsInfo' class (does nothing).")
 
-    def getFluxUnit(self) -> CompositeUnit_:
-        return self.getStrengthUnit() / self["wavelength_unit"]
+    @property
+    def strength_unit(self) -> CompositeUnit_:
+        return self.energy_unit / self.time_unit / self.area_unit
 
-    def getStrengthUnit(self) -> CompositeUnit_:
-        return self["energy_unit"] / self["time_unit"] / self["area_unit"]
+    @property
+    def flux_unit(self) -> CompositeUnit_:
+        return self.strength_unit / self.wavelength_unit
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-
-        if path is not None and str(path) in cls._cache.keys():
-            logger.debug(f"Using cached 'UnitsInfo' for '{path}'.")
-
-            uinfo = cls._cache[str(path)]
-            return uinfo.copy() if create_copy else uinfo
-
-        uinfo: UnitsInfo = UnitsInfo()
-        if path is None:
-            return uinfo
-
-        logger.debug(f"Configuring 'UnitsInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__("UNITS", path, logger)
-
-        for count, line in enumerate(lines, start=1):
-            key = line.pop(0).lower()
-            match key.split("_")[1]:
-                case "unit":
-                    val = parsing.as_composite_unit(line)
-                case "format":
-                    val = line[0]
-
-            uinfo[key] = val
-            logger.debug(
-                f">>> [{count}/{len(lines)}] Configured '{key}' as '{val}'."
-            )
-
-        cls._cache[str(path)] = uinfo
-
-        return uinfo
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["units"], dict[str, Any]]:
+        return super().to_dict(
+            "units", 
+            blacklist=["strength_unit", "flux_unit"], 
+            jsonify=jsonify,
+        )
 
     @classmethod
     @validate_call
@@ -132,7 +129,7 @@ class UnitsInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "units", logger)
+        return cls._from_json(json, create_copy, "units", logger)
 
     ###
 
@@ -164,96 +161,387 @@ class UnitsInfo(_Info):
         unit: CompositeUnit_,
         val: Quantity_ | float | Iterable,
         power: float = 1,
-    ) -> Quantity_ | float | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
-        ...
+        Transforms a float or iterable of floats into a Quantity, or a Quantity
+        into a float or numpy array of floats. 
         """
         val = check_val(val)
-        is_quantity = isinstance(val, Quantity)
         unit = unit**power
+        return val.to(unit).value \
+            if isinstance(val, Quantity) \
+            else (val * unit).to(unit)
 
-        if is_quantity:
+    @staticmethod
+    def _get_dimensioned_value(
+        unit: CompositeUnit_,
+        val: Quantity_ | float | Iterable,
+        power: float = 1,
+    ) -> Quantity_ | float | Iterable[float]:
+        """
+        Returns a Quantity-representation of the input in the correct units. If 
+        the input is a scalar or iterable of scalars, it is multiplied by the 
+        specified (powered) unit.
+        """
+        val = check_val(val)
+        _unit = unit ** power
+        if not isinstance(val, Quantity):
+            val *= _unit
+        return val.to(_unit)
+
+    @staticmethod
+    def _get_unitless_value(
+        unit: CompositeUnit_,
+        val: Quantity_ | float | Iterable,
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        """
+        Returns the scalar value of a float, iterable of floats, or Quantity in 
+        the correct units. 
+        """
+        val = check_val(val)
+        if isinstance(val, Quantity):
+            unit = unit**power
             return val.to(unit).value
-        else:
-            return (val * unit).to(unit)
+        return val
+
+    @staticmethod
+    def _get_formatted_value(
+        val: Quantity_ | float | Iterable[float],
+        unit: CompositeUnit_,
+        fmt: str,
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        """
+        Get the formatted string representation of a value.
+
+        Parameters
+        ----------
+        val : Quantity_ | float | Iterable[float]
+            The value to format.
+        unit : CompositeUnit_
+            The unit of the value.
+        fmt : str
+            The format string.
+        power : float, optional
+            The power to raise the unit to, by default 1.0
+        with_unit : bool, optional
+            Whether to include the unit in the formatted string, by default True
+
+        Returns
+        -------
+        s : str
+            The formatted string representation of the value.
+        """
+        _unit = unit ** power
+        if not isinstance(val, Quantity):
+            val *= _unit
+
+        if with_unit:
+            return val.to_string(
+                format="latex_inline",
+                formatter=fmt,
+            )
+
+        if isinstance(val, Iterable):
+            return array2string(
+                val.to(_unit).value, 
+                formatter={'all': lambda v: format(v, fmt)}, 
+                sign="+",
+            )
+        return format(val.to(_unit).value, fmt)
+
+    def formatUnitless(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val, 
+            Unit(), 
+            self.other_format, 
+            with_unit=with_unit,
+        )
+
+    ###
 
     def getWavelength(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(
-            self["wavelength_unit"], val, power=power
+        return self._get_transformed_value(self.wavelength_unit, val, power=power)
+
+    def getUnitlessWavelength(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.wavelength_unit, val, power=power)
+
+    def formatWavelength(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val,
+            self.wavelength_unit,
+            self.wavelength_format,
+            power=power,
+            with_unit=with_unit,
         )
+
+    ###
 
     def getC(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(self["c_unit"], val, power=power)
+        return self._get_transformed_value(self.c_unit, val, power=power)
+
+    def getDimensionedC(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.c_unit, val, power=power)
+
+    def getUnitlessC(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.c_unit, val, power=power)
+
+    def getUnitlessCFromVelocity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self.getUnitlessC(
+            self.getDimensionedVelocity(val, power=power), 
+            power=power,
+        )
+
+    def formatC(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        if not isinstance(val, Quantity):
+            val *= c ** power
+        return self.formatVelocity(val, power=power, with_unit=with_unit)
+
+    ###
 
     def getVelocity(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | int | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(
-            self["velocity_unit"], val, power=power
+        return self._get_transformed_value(self.velocity_unit, val, power=power)
+
+    def getDimensionedVelocity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.velocity_unit, val, power=power)
+
+    def getUnitlessVelocity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.velocity_unit, val, power=power)
+
+    def formatVelocity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val,
+            self.velocity_unit,
+            self.velocity_format,
+            power=power,
+            with_unit=with_unit,
         )
+
+    ###
 
     def getFlux(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | int | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(
-            self.getFluxUnit(), val, power=power
+        return self._get_transformed_value(self.flux_unit, val, power=power)
+
+    def getDimensionedFlux(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.flux_unit, val, power=power)
+
+    def getUnitlessFlux(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.flux_unit, val, power=power)
+
+    def formatFlux(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val,
+            self.flux_unit,
+            self.flux_format,
+            power=power,
+            with_unit=with_unit,
         )
+
+    ###
 
     def getStrength(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | int | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(
-            self.getStrengthUnit(), val, power=power
+        return self._get_transformed_value(self.strength_unit, val, power=power)
+
+    def getDimensionedStrength(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.strength_unit, val, power=power)
+
+    def getUnitlessStrength(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.strength_unit, val, power=power)
+
+    def formatStrength(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val,
+            self.strength_unit,
+            self.strength_format,
+            power=power,
+            with_unit=with_unit,
         )
+
+    ###
 
     def getDensity(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(self["dens_unit"], val, power=power)
+        return self._get_transformed_value(self.dens_unit, val, power=power)
+
+    def getDimensionedDensity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.dens_unit, val, power=power)
+
+    def getUnitlessDensity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.dens_unit, val, power=power)
+
+    def formatDensity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val,
+            self.dens_unit,
+            self.other_format,
+            power=power,
+            with_unit=with_unit,
+        )
+
+    ###
 
     def getTemperature(
         self,
-        val: Quantity_ | float | Iterable,
+        val: Quantity_ | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable:
+    ) -> Quantity_ | float | Iterable[float]:
         """
         ...
         """
-        return self._get_transformed_value(self["temp_unit"], val, power=power)
+        return self._get_transformed_value(self.temp_unit, val, power=power)
+
+    def getDimensionedTemperature(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.temp_unit, val, power=power)
+
+    def getUnitlessTemperature(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.temp_unit, val, power=power)
+
+    def formatTemperature(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        return self._get_formatted_value(
+            val,
+            self.temp_unit,
+            self.other_format,
+            power=power,
+            with_unit=with_unit,
+        )
 
     def getBoltzmannFactor(self) -> float:
         """
@@ -265,9 +553,7 @@ class UnitsInfo(_Info):
         Although 'boltz' is unitless, its true units are:
             [boltz] = [temperature] x [wavelength]
         """
-        return (
-            (h * c / k_B).to(self["temp_unit"] * self["wavelength_unit"]).value
-        )
+        return (h * c / k_B).to(self.temp_unit * self.wavelength_unit).value
 
     def getCorrespondingUnit(
         self,

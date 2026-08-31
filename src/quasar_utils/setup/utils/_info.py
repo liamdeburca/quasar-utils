@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Callable
+from dataclasses import Field, fields
 from json import load as load_json
 from logging import Logger, getLogger
 from pathlib import Path
@@ -8,10 +9,10 @@ from typing import Any, ClassVar, Self
 from numpy import ndarray
 from quasar_typing.astropy import CompositeUnit_, Unit_
 from quasar_typing.numpy import RandomState_
-from quasar_typing.pathlib import AbsoluteFilePath
 
-from ...utils.utils import val_and_type
-from .json_field import JSONField
+from .dataclasses import field_to_dict, get_field_metadata
+from .parsing import Parser
+from .updating import Updater
 
 logger = getLogger(__name__)
 
@@ -25,7 +26,7 @@ def _make_hashable(value: Any) -> Any:
         return frozenset(_make_hashable(v) for v in value)
     elif isinstance(value, ndarray):
         return value.tobytes()
-    elif isinstance(value, (Unit_, CompositeUnit_)) or isinstance(value, Path):
+    elif isinstance(value, (Unit_, CompositeUnit_, Path)):
         return str(value)
     elif isinstance(value, RandomState_):
         return value.get_state()
@@ -37,10 +38,9 @@ class _Info(ABC):
     """
     Class for method inheritance.
     """
-
-    _keys: ClassVar[frozenset[str]] = frozenset()
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {}
+    _keys: ClassVar[frozenset[str]]
+    _cache: ClassVar[dict[str, Self]]
+    _values_to_update: ClassVar[dict[str, str]]
 
     def __str__(self, simple: bool = False) -> str:
         s = f"'{self.__class__.__name__}' class"
@@ -52,10 +52,11 @@ class _Info(ABC):
         return s.removesuffix(", ") + "."
 
     def __getitem__(self, key: str) -> Any:
-        if key in self._keys:
+        try:
             return getattr(self, key)
-        raise KeyError(key)
-
+        except AttributeError:
+            raise KeyError(key)
+        
     def __setitem__(self, key: str, value: Any) -> None:
         if key in self._keys:
             return setattr(self, key, value)
@@ -86,16 +87,12 @@ class _Info(ABC):
         """
         new = self.__class__()
         for key in self._keys:
-            new[key] = self[key]
+            setattr(new, key, getattr(self, key))
         return new
 
     def or_default(self, kwargs: dict) -> Callable[[str], Any]:
         def _or_default(key: str) -> Any:
-            if key in kwargs:
-                return kwargs[key]
-            else:
-                return self[key]
-
+            return kwargs.get(key, getattr(self, key))
         return _or_default
 
     def __enter__(self) -> Callable[[str], Any]:
@@ -111,36 +108,7 @@ class _Info(ABC):
         """
         return all(getattr(self, key) is not None for key in self._keys)
 
-    # ----- Pydantic ----- #
-
-    # @classmethod
-    # def _validate(cls, value: object) -> Self:
-    #     if not isinstance(value, cls):
-    #         msg = "(TEST) Expected a {} instance, got {}".format(
-    #             cls.__name__,
-    #             type(value).__name__,
-    #         )
-    #         raise PydanticCustomError('validation_error', msg)
-    #     return value
-
-    # @classmethod
-    # def __get_pydantic_core_schema__(cls, source_type, handler):
-    #     return no_info_plain_validator_function(cls._validate)
-
-    # ----- Abstract Methods ----- #
-
-    @classmethod
-    @abstractmethod
-    def from_file(cls, path: AbsoluteFilePath = None):
-        """
-        Creates and configures an instance from a file.
-        """
-
-    def update(
-        self,
-        info,
-        logger: Logger,
-    ) -> None:
+    def update(self, info: object, logger: Logger) -> None:
         """
         Updates all parameters.
         """
@@ -151,31 +119,49 @@ class _Info(ABC):
         logger.debug(msg)
         n_values = len(self._values_to_update)
         count: int = 1
-        for key, conversion_name in self._values_to_update.items():
-            old = self["_" + key]
-            self[key] = new = info.update_value(old, conversion_name)
+        for name, method_name in self._values_to_update.items():
+            old = getattr(self, f"_{name}")
 
-            msg = f"[{count:<2}/{n_values:<2}] '{key}': "
-            msg += (
-                # f"{val_and_type(old)} (no change)."
-                # if old == new else
-                f"{val_and_type(old)} -> {val_and_type(new)}."
-            )
+            updater = Updater[method_name]
+            new = updater(info, old)
+            setattr(self, name, new)
+
+            msg = f"[{count:<2}/{n_values:<2}] '{name}': {old=} -> {new=}"
             logger.debug(msg)
             count += 1
 
         assert self.is_updated
 
+    def to_dict(
+        self, 
+        parent_field: str, 
+        blacklist: list[str] | None = None,
+        jsonify: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Creates a dictionary representation of this instance.
+
+        This function is designed for writing JSON/YAML config files.
+        """
+        def func(field: Field) -> bool:
+            return field.name not in self._values_to_update \
+                and (blacklist is None or field.name not in blacklist)
+
+        out = {}
+        for field in filter(func, fields(self)):
+            out.update(field_to_dict(self, field, jsonify=jsonify))
+        return {parent_field: out}
+
     @classmethod
-    def from_json(
+    def _from_json(
         cls,
-        json: dict[str, dict] | Path | None,
+        json: dict[str, dict] | Path | str | None,
         create_copy: bool,
         parent_field: str,
         logger: Logger,
     ) -> Self:
 
-        if isinstance(json, Path) and str(json) in cls._cache.keys():
+        if isinstance(json, Path) and str(json) in cls._cache:
             logger.debug(f"Using cached '{cls.__name__}' for '{json}'.")
 
             info = cls._cache[str(json)]
@@ -185,26 +171,32 @@ class _Info(ABC):
         if json is None:
             return info
 
-        if add_to_cache := isinstance(json, Path):
+        if add_to_cache := isinstance(json, (str, Path)):
             cache_key = str(json)
             with open(json, "r") as f:
                 json = load_json(f)
 
-        fields = JSONField.load_all_from_json(json, parent_field)
-        for count, field in enumerate(fields, start=1):
-            key = field.field
-            if key not in cls._keys:
-                logger.warning(
-                    f"Invalid key '{key}' in '{cls.__name__}' JSON configuration."
-                )
-                continue
+        json = json.get(parent_field, json)
 
-            if key in cls._values_to_update:
-                key = "_" + key
+        # Loop through all fields that: appear in the JSON file AND are not 
+        # updated versions of existing fields (i.e., not in _values_to_update).
+        for name, metadata in (
+            item
+            for item in get_field_metadata(cls).items()
+            if (item[0].removeprefix('_') in json)
+                and (item[0] not in cls._values_to_update)
+        ):
+            parser = Parser._parse(metadata["parse_as"])
+            field = json[name.removeprefix('_')]
+            try:
+                value = parser(field)
+            except AssertionError as e:
+                msg = f"Failed to parse '{parent_field}::{name}': {field}."
+                raise AssertionError(msg) from e
+            setattr(info, name, value)
 
-            info[key] = val = field.value
             logger.debug(
-                f">>> [{count}/{len(fields)}] '{key}': {val_and_type(val)}."
+                f">>> [{cls.__name__}] '{name}' ({metadata['dtype']}): {value}."
             )
 
         if add_to_cache:

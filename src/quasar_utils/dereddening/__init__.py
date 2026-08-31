@@ -32,7 +32,7 @@ def get_correction(
     *,
     map_name: Literal["sfd", "csfd"] = "sfd",
     law_name: Literal["ccm89", "o94"] = "ccm89",
-    wavelength_unit: Unit_ | CompositeUnit_ = Unit("angstrom"),
+    wavelength_unit: Unit_ | CompositeUnit_ | None = None,
     Rv: float = 3.1,
 ) -> FloatVector:
     """
@@ -64,6 +64,9 @@ def get_correction(
     FloatVector
         Correction factor for the input spectrum.
     """
+    if wavelength_unit is None:
+        wavelength_unit = Unit("angstrom")
+
     dust_map = get_dust_map(map_name)
     dust_law = get_dust_law(law_name)
 
@@ -82,7 +85,7 @@ def deredden_spectrum(
     *,
     map_name: Literal["sfd", "csfd"] = "sfd",
     law_name: Literal["ccm89", "o94"] = "ccm89",
-    wavelength_unit: Unit_ | CompositeUnit_ = Unit("angstrom"),
+    wavelength_unit: Unit_ | CompositeUnit_ | None = None,
     Rv: float = 3.1,
 ) -> CoordsTuple:
     """
@@ -94,7 +97,7 @@ def deredden_spectrum(
     ----------
     coords: CoordsTuple
         Tuple of (x, y, dy) arrays representing the spectrum to be dereddened.
-    sky_coords: SkyCoord
+    sky_coords: SkyCoord_
         Sky coordinates of the source, used to query the dust map for the
         extinction value.
     map_name: Literal['sfd', 'csfd'], optional
@@ -103,8 +106,8 @@ def deredden_spectrum(
     law_name: Literal['ccm89', 'o94'], optional
         Name of the dust law to use for dereddening the spectrum.
         Default is 'ccm89'.
-    wavelength_unit: Unit | CompositeUnit, optional
-        Unit of the wavelength values in the input spectrum. Default is 'angstrom'.
+    wavelength_unit: Unit_ | CompositeUnit_ | None, optional
+        Unit of the wavelength values in the input spectrum.
     Rv: float, optional
         R(V) = A(V)/E(B-V) = total-to-selective extinction. Default is 3.1.
     """

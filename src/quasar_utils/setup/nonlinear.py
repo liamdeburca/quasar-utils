@@ -1,20 +1,12 @@
-__all__ = [
-    "FitterKwargs",
-    "NonLinearInfo",
-]
-
-from dataclasses import field
 from logging import getLogger
-from typing import Any, ClassVar, Literal, Self, TypedDict
+from typing import Any, Literal, Self, TypedDict
 
 from numpy import finfo
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from quasar_utils.setup.utils._info import _Info
-from quasar_utils.utils import parsing
-from quasar_utils.utils.utils import val_and_type
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
@@ -30,30 +22,44 @@ class FitterKwargs(TypedDict):
     f_scale: float
 
 
+@finalise_dataclass(additional_keys=["fitter_kwargs"])
 @dataclass
 class NonLinearInfo(_Info):
-    method: Literal["trf", "dogbox", "lm"] = 'trf'
-    loss: str = field(default='linear')
-    max_nfev: int = field(default=100)
-    ftol: float = field(default=1e-8)
-    xtol: float = field(default=MACHINE_PRECISION)
-    gtol: float = field(default=MACHINE_PRECISION)
-    f_scale: float = field(default=1.0)
-
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "method",
-            "loss",
-            "max_nfev",
-            "ftol",
-            "xtol",
-            "gtol",
-            "f_scale",
-            "fitter_kwargs",
-        ]
+    method: Literal["trf", "dogbox", "lm"] = field(
+        default="trf",
+        dtype="str",
+        parse_as="algo",
     )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {}
+    loss: str = field(
+        default="linear",
+        dtype="str",
+        parse_as="str",
+    )
+    max_nfev: int = field(
+        default=100,
+        dtype="int",
+        parse_as="int",
+    )
+    ftol: float = field(
+        default=1e-8,
+        dtype="float",
+        parse_as="float",
+    )
+    xtol: float = field(
+        default_factory=lambda: float(finfo(float).eps),
+        dtype="float",
+        parse_as="float",
+    )
+    gtol: float = field(
+        default_factory=lambda: float(finfo(float).eps),
+        dtype="float",
+        parse_as="float",
+    )
+    f_scale: float = field(
+        default=1.0,
+        dtype="float",
+        parse_as="float",
+    )
 
     def __hash__(self) -> int:
         return super().__hash__()
@@ -62,6 +68,11 @@ class NonLinearInfo(_Info):
         if key == "fitter_kwargs":
             return self.fitter_kwargs
         return super().__getitem__(key)
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = super().__getstate__()
+        state.pop("fitter_kwargs")
+        return state
 
     def update(self, info) -> None:
         super().update(info, logger)
@@ -82,53 +93,15 @@ class NonLinearInfo(_Info):
             'f_scale': self.f_scale,
         }
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-
-        if path is not None and str(path) in cls._cache:
-            logger.debug(f"Using cached 'NonLinearInfo' for '{path}'.")
-
-            ninfo = cls._cache[str(path)]
-            if create_copy:
-                return ninfo.copy()
-            else:
-                return ninfo
-
-        ninfo: NonLinearInfo = NonLinearInfo()
-        if path is None:
-            return ninfo
-
-        logger.debug(f"Configuring 'NonLinearInfo' using '{path}':")
-        lines = parsing.get_lines_from_file.__wrapped__(
-            "NONLINEAR", path, logger
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["nonlinear"], dict[str, Any]]:
+        return super().to_dict(
+            "nonlinear", 
+            blacklist=["fitter_kwargs"], 
+            jsonify=jsonify,
         )
-
-        for count, line in enumerate(lines, start=1):
-            key = line[0].lower()
-
-            match key:
-                case "method":
-                    val = parsing.as_str(line[1])
-                case "loss":
-                    val = line[1]
-                case "max_nfev":
-                    val = max([parsing.as_int(line[1]), 1])
-                case "ftol" | "xtol" | "gtol" | "f_scale":
-                    val = max([parsing.as_float(line[1]), MACHINE_PRECISION])
-
-            ninfo[key] = val
-            logger.debug(
-                f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
-            )
-
-        cls._cache[str(path)] = ninfo
-
-        return ninfo
 
     @classmethod
     @validate_call
@@ -137,4 +110,4 @@ class NonLinearInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "nonlinear", logger)
+        return cls._from_json(json, create_copy, "nonlinear", logger)

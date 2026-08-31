@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from astropy.units import Unit
 from numpy import float64, polyval, zeros_like
 from quasar_typing.numpy import FloatVector
@@ -27,9 +29,9 @@ class CCM89(BaseModel):
     """
 
     x_unit = Unit("1/micron")
-    Rv_range = [2.0, 6.0]
-    x_range = [0.3, 10.0]
-    ab_cache: dict[str, tuple[FloatVector, FloatVector]] = {}
+    Rv_range: ClassVar[list[float]] = [2.0, 6.0]
+    x_range: ClassVar[list[float]] = [0.3, 10.0]
+    ab_cache: ClassVar[dict[str, tuple[FloatVector, FloatVector]]] = {}
 
     @classmethod
     def get_ab_arrays(cls, k: FloatVector) -> tuple[FloatVector, FloatVector]:
@@ -42,7 +44,7 @@ class CCM89(BaseModel):
         This method assumes that the input `k` values are in units of micron^-1.
         """
         cache_key: str = cls.get_cache_key(k)
-        if cache_key not in cls.ab_cache.keys():
+        if cache_key not in cls.ab_cache:
             a = zeros_like(k, dtype=float64)
             b = zeros_like(k, dtype=float64)
 

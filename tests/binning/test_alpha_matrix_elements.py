@@ -33,14 +33,16 @@ def generate_test_arrays(n_test: int = 100) -> list[tuple[NDArray, NDArray]]:
         # Generate random sorted x_edges (bin edges)
         n_x = np.random.randint(5, 50)
         x_edges = np.sort(np.random.uniform(1, 1000, n_x)).astype(np.float64)
+        dx = np.diff(x_edges)
 
         # Generate random sorted xr_edges (resampling bin edges)
         n_xr = np.random.randint(5, 50)
         xr_edges = np.sort(
             np.random.uniform(x_edges[0] * 0.9, x_edges[-1] * 1.1, n_xr)
         ).astype(np.float64)
+        dxr = np.diff(xr_edges)
 
-        test_cases.append((x_edges, xr_edges))
+        test_cases.append((x_edges, xr_edges, dx, dxr))
 
     return test_cases
 
@@ -54,7 +56,7 @@ def test_cython_vs_numba_alpha_matrix_elements():
     """
     test_cases = generate_test_arrays(n_test=100)
 
-    for idx, (x_edges, xr_edges) in enumerate(test_cases):
+    for idx, (x_edges, xr_edges, dx, _) in enumerate(test_cases):
         # Get results from Numba implementation
         numba_i, numba_j, numba_vals = numba_alpha_matrix_elements(
             x_edges, xr_edges
@@ -71,7 +73,8 @@ def test_cython_vs_numba_alpha_matrix_elements():
         cython_vals_arr = np.empty(max_elements, dtype=np.float64)
 
         count = cython_alpha_matrix_elements(
-            x_edges, xr_edges, cython_i_arr, cython_j_arr, cython_vals_arr
+            x_edges, xr_edges,dx, 
+            cython_i_arr, cython_j_arr, cython_vals_arr,
         )
 
         cython_i = cython_i_arr[:count].astype(np.int_)

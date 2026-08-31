@@ -7,8 +7,8 @@ REQUIRED_COLUMNS = [
     "name",
     "complex",
     "n_max",
-    "needs_line",
     "line",
+    "needs_line",
     "strength_lower",
     "strength_upper",
     "v_off_lower",
@@ -22,92 +22,115 @@ REQUIRED_COLUMNS = [
     "scale_fixed",
 ]
 
+def name_converter(s: str) -> str:
+    _s = s.strip()
+    assert len(_s) > 0
+    return _s
+
+def complex_converter(s: str) -> str | None:
+    _s = s.strip()
+    return _s or None
+
 
 def n_max_converter(s: str) -> int:
-    return int(s) if s else 1
+    _s = s.strip()
+    return int(_s) if _s else 1
 
 
 def line_converter(info: Info, s: str) -> float:
-    assert len(s) > 0
+    _s = s.strip()
+    assert len(_s) > 0
     return (
-        float(s)
-        if len(s.split(" ")) == 1
-        else info.units.getWavelength(Quantity(s))
+        float(_s)
+        if len(_s.split(" ")) == 1
+        else info.units.getWavelength(Quantity(_s))
     )
 
 
 def needs_line_converter(s: str) -> str | None:
-    return s or None
+    _s = s.strip()
+    return _s or None
 
 
 def strength_lower_converter(info: Info, s: str) -> float:
-    if not s:
+    _s = s.strip()
+    if not _s:
         return info.lines.strength_bounds[0]
 
     return (
-        float(s)
-        if len(s.split(" ")) == 1
-        else info.units.getStrength(Quantity(s))
+        float(_s)
+        if len(_s.split(" ")) == 1
+        else info.units.getStrength(Quantity(_s))
     )
 
 
 def strength_upper_converter(info: Info, s: str) -> float:
-    if not s:
+    _s = s.strip()
+    if not _s:
         return info.lines.strength_bounds[1]
 
     return (
-        float(s)
-        if len(s.split(" ")) == 1
-        else info.units.getStrength(Quantity(s))
+        float(_s)
+        if len(_s.split(" ")) == 1
+        else info.units.getStrength(Quantity(_s))
     )
 
 
 def fwhm_v_lower_converter(info: Info, s: str) -> float:
-    if not s:
+    _s = s.strip()
+    if not _s:
         return info.lines.fwhm_v_bounds[0]
 
-    return float(s) if len(s.split(" ")) == 1 else info.units.getC(Quantity(s))
+    return float(_s) if len(_s.split(" ")) == 1 else info.units.getC(Quantity(_s))
 
 
 def fwhm_v_upper_converter(info: Info, s: str) -> float:
-    if not s:
+    _s = s.strip()
+    if not _s:
         return info.lines.fwhm_v_bounds[1]
 
-    return float(s) if len(s.split(" ")) == 1 else info.units.getC(Quantity(s))
+    return float(_s) if len(_s.split(" ")) == 1 else info.units.getC(Quantity(_s))
 
 
 def v_off_lower_converter(info: Info, s: str) -> float:
-    if not s:
+    _s = s.strip()
+    if not _s:
         return info.lines.v_off_bounds[0]
 
-    return float(s) if len(s.split(" ")) == 1 else info.units.getC(Quantity(s))
+    return float(_s) if len(_s.split(" ")) == 1 else info.units.getC(Quantity(_s))
 
 
 def v_off_upper_converter(info: Info, s: str) -> float:
-    if not s:
+    _s = s.strip()
+    if not _s:
         return info.lines.v_off_bounds[1]
 
-    return float(s) if len(s.split(" ")) == 1 else info.units.getC(Quantity(s))
+    return float(_s) if len(_s.split(" ")) == 1 else info.units.getC(Quantity(_s))
 
 
 def is_copy_of_converter(s: str) -> str | None:
-    return s or None
+    _s = s.strip()
+    return _s or None
 
 
 def scale_init_converter(info: Info, s: str) -> float:
-    return float(s) if s else info.lines.scale_init
+    _s = s.strip()
+    return float(_s) if _s else info.lines.scale_init
 
 
 def scale_lower_converter(info: Info, s: str) -> float:
-    return float(s) if s else info.lines.scale_bounds[0]
+    _s = s.strip()
+    return float(_s) if _s else info.lines.scale_bounds[0]
 
 
 def scale_upper_converter(info: Info, s: str) -> float:
-    return float(s) if s else info.lines.scale_bounds[1]
+    _s = s.strip()
+    return float(_s) if _s else info.lines.scale_bounds[1]
 
 
 def scale_fixed_converter(info: Info, s: str) -> bool:
-    return bool(s) if s else info.lines.scale_fixed
+    _s = s.strip()
+    return bool(_s) if _s else info.lines.scale_fixed
 
 
 ###

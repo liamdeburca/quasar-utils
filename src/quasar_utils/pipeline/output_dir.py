@@ -9,6 +9,7 @@ from quasar_typing.pathlib import (
     AbsoluteFilePath,
     AbsoluteLogPath,
     AnyAbsoluteDirPath,
+    AnyAbsoluteLogPath,
 )
 
 from .input_dir import InputDir
@@ -63,12 +64,7 @@ class OutputDir:
         return len(self.subdirs)
 
     def __iter__(self) -> Iterator[SubDir]:
-        return iter(
-            sorted(
-                self.subdirs,
-                key=lambda subdir: subdir._out_dir.name,
-            )
-        )
+        yield from sorted(self.subdirs, key=lambda subdir: subdir._out_dir.stem)
 
     def __getstate__(self) -> dict:
         return {
@@ -87,16 +83,36 @@ class OutputDir:
         )
 
     @property
+    def _debug_logs(self) -> set[AnyAbsoluteLogPath]:
+        """
+        Returns the set of debug log paths for all subdirectories.
+        """
+        return {subdir._debug_log for subdir in self}
+
+    @property
     def debug_logs(self) -> set[AbsoluteLogPath]:
+        """
+        Returns the set of (existing) debug log paths for all subdirectories.
+        """
         return {subdir.debug_log for subdir in self}
 
     @property
+    def _main_logs(self) -> set[AnyAbsoluteLogPath]:
+        """
+        Returns the set of main log paths for all subdirectories.
+        """
+        return {subdir._main_log for subdir in self}
+
+    @property
     def main_logs(self) -> set[AbsoluteLogPath]:
+        """
+        Returns the set of (existing) main log paths for all subdirectories.
+        """
         return {subdir.main_log for subdir in self}
 
     @property
     def debug_handlers(self) -> list[FileHandler]:
-        return [subdir.handlers["debug"] for subdir in self]
+        return [subdir.handlers.get("debug") for subdir in self]
 
     @property
     def main_handlers(self) -> list[FileHandler]:
@@ -109,35 +125,44 @@ class OutputDir:
     def create_subdir(
         self,
         path: AbsoluteFilePath,
-        add: bool = True,
     ) -> SubDir:
-        out_dir = self.path / f"{path.name.split('.')[0]}_out"
+        """Creates a 'SubDir' object for the given input file path.
+
+        Parameters
+        ----------
+        path : AbsoluteFilePath
+            The input file path for which to create the subdirectory.
+
+        Returns
+        -------
+        SubDir
+            The created 'SubDir' object.
+
+        Raises
+        ------
+        FileExistsError
+            If the non-empty output directory already exists and 'dangerous' is 
+            set to False.
+        """
+        out_dir = self.path / f"{path.stem}_out"
 
         msg = f"Output directory @ {out_dir} "
-        if out_dir.exists():
-            is_empty = True
-            for _ in out_dir.glob("*_out"):
-                is_empty = False
-                break
-
+        if not out_dir.exists():
+            msg += "does not exist."
+        else:
+            is_empty = next(out_dir.iterdir(), None) is None
             if is_empty:
                 msg += "exists but is empty -> using directory."
-                rmtree(out_dir, ignore_errors=True)
             elif self.dangerous:
                 msg += "exists and is not empty -> deleting contents."
                 rmtree(out_dir, ignore_errors=True)
             else:
                 msg += "exists and is not empty! "
                 msg += "Use 'dangerous=True' to automatically delete contents."
-                raise ValueError(msg)
-        else:
-            msg += "does not exist."
+                raise FileExistsError(msg)
 
         subdir = SubDir(path, out_dir)
         subdir.current_log.append(msg)
-        if add:
-            self.subdirs.add(subdir)
-
         return subdir
 
     def create_subdirs(self) -> None:
@@ -145,4 +170,4 @@ class OutputDir:
         Creates subdirectories for each input file.
         """
         for in_path in self.input_dir.files:
-            _ = self.create_subdir(in_path, add=True)
+            self.subdirs.add(self.create_subdir(in_path))

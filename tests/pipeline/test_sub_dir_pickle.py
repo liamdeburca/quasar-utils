@@ -159,6 +159,7 @@ class TestSubDirPickle:
             "_out_dir",
             "_debug_log",
             "_main_log",
+            "_flags_log",
             "_profile",
             "handlers",
             "current_log",

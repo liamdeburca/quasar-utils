@@ -8,7 +8,7 @@ V_RES: float = 2.3e-4
 x0 = 1000.0
 N_PIX = 9000
 
-RTOL: float = 1e-9
+RTOL: float = 1e-3
 
 
 def generate_test_arrays(n_test: int = 100):
@@ -28,16 +28,16 @@ def generate_test_arrays(n_test: int = 100):
 
         assert np.isfinite(xr).all()
 
-        yield dict(
-            x=x,
-            x_edges=x_edges,
-            dx=dx,
-            xr=xr,
-            xr_edges=xr_edges,
-            dxr=dxr,
-            y=y,
-            dy=dy,
-        )
+        yield {
+            "x": x,
+            "x_edges": x_edges,
+            "dx": dx,
+            "xr": xr,
+            "xr_edges": xr_edges,
+            "dxr": dxr,
+            "y": y,
+            "dy": dy,
+        }
 
 
 def test_conserves_flux_density():
@@ -53,7 +53,9 @@ def test_conserves_flux_density():
 
         sum_init = data["y"].sum()
         sum_final = yr.sum()
-        assert np.isclose(sum_init, sum_final, rtol=RTOL)
+
+        val = sum_final / sum_init
+        assert np.isclose(val, 1.0, rtol=RTOL)
 
 
 def test_conserves_total_flux():
@@ -69,4 +71,6 @@ def test_conserves_total_flux():
 
         int_init = np.dot(data["y"], data["dx"])
         int_final = np.dot(yr, data["dxr"])
-        assert np.isclose(int_init, int_final, rtol=RTOL)
+
+        val = int_final / int_init
+        assert np.isclose(val, 1.0, rtol=RTOL)

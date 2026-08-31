@@ -1,40 +1,99 @@
-from dataclasses import field
 from logging import getLogger
-from typing import ClassVar, Literal, Self
+from typing import Any, Literal, Self
 
 from astropy.units import Unit
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
 from quasar_typing.misc import HostGalaxyModelParams
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from .utils._info import _Info
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
+@finalise_dataclass
 @dataclass
 class HostInfo(_Info):
-    fit: bool = True
-
-    _windows: list[CoordBounds] | Quantity_ = [[3000, 4500]] * Unit("angstrom")
-    _x_norm: float | Quantity_ = 6000 * Unit("angstrom")
-    _fwhm_norm: float | Quantity_ = 0 * Unit("km/s")
-    _flux: float | Quantity_ = 1e-17 * Unit("erg/(s.cm2.angstrom)")
-    _fwhm: float | Quantity_ = 0 * Unit("km/s")
-    _flux_bounds: AstropyBounds | Quantity_ = [1e-18, 1e-15] * Unit(
-        "erg/(s.cm2.angstrom)"
+    fit: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
     )
-    _fwhm_bounds: AstropyBounds | Quantity_ = [0, 1000] * Unit("km/s")
+    _windows: list[CoordBounds] | Quantity_ = field(
+        default=[[3000, 4500]] * Unit("angstrom"),
+        dtype="list[list[float, float]]",
+        parse_as="wavelength_windows",
+        update_to="wavelength_windows",
+        has_unit=True,
+    )
+    _x_norm: float | Quantity_ = field(
+        default=6000 * Unit("angstrom"),
+        dtype="float",
+        parse_as="wavelength",
+        update_to="wavelength",
+        has_unit=True,
+    )
+    _fwhm_norm: float | Quantity_ = field(
+        default=0 * Unit("km/s"),
+        dtype="float",
+        parse_as="velocity",
+        update_to="velocity",
+        has_unit=True,
+    )
+    _flux: float | Quantity_ = field(
+        default=1.0,
+        dtype="float",
+        parse_as="flux",
+        update_to="flux",
+        has_unit=True,
+    )
+    _fwhm: float | Quantity_ = field(
+        default=0 * Unit("km/s"),
+        dtype="float",
+        parse_as="velocity",
+        update_to="velocity",
+        has_unit=True,
+    )
+    _flux_bounds: AstropyBounds | Quantity_ = field(
+        default=(0.0, 1000.0),
+        dtype="list[float | None]",
+        parse_as="flux_bounds",
+        update_to="flux_bounds",
+        has_unit=True,
+    )
+    _fwhm_bounds: AstropyBounds | Quantity_ = field(
+        default=[0, 1000] * Unit("km/s"),
+        dtype="list[float | None]",
+        parse_as="velocity_bounds",
+        update_to="velocity_bounds",
+        has_unit=True,
+    )
     _fixed: HostGalaxyModelParams = field(
-        default_factory=lambda: HostGalaxyModelParams({"fwhm"})
+        default_factory=lambda: HostGalaxyModelParams({"fwhm"}),
+        dtype="list[str]",
+        parse_as="host_galaxy_params",
+        update_to="fixed",
     )
-
-    template_files: list[str | AbsoluteFilePath] = field(default_factory=list)
+    template_files: list[str | AbsoluteFilePath] = field(
+        default_factory=list,
+        dtype="list[str]",
+        parse_as="str_list",
+    )
     sources: list[Literal["bc2003"]] = field(
-        default_factory=lambda: ["bc2003"]
+        default_factory=lambda: [
+            "bc2003",
+            "bc2003",
+            "bc2003",
+            "bc2003",
+            "bc2003",
+            "bc2003",
+            "bc2003",
+        ],
+        dtype="list[str]",
+        parse_as="str_list",
     )
     ages: list[int] = field(
         default_factory=lambda: [
@@ -45,15 +104,35 @@ class HostInfo(_Info):
             6_000_000_000,
             8_000_000_000,
             12_000_000_000,
-        ]
+        ],
+        dtype="list[int]",
+        parse_as="int_list",
     )
-
-    raster: bool = True
-    fine_tune: bool = True
-    only_model: bool = False
-
-    min_fittable_ratio: float = 0.6
-    min_fittable_total: int = 100
+    raster: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    fine_tune: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    only_model: bool = field(
+        default=False,
+        dtype="bool",
+        parse_as="bool",
+    )
+    min_fittable_ratio: float = field(
+        default=0.6,
+        dtype="float",
+        parse_as="float",
+    )
+    min_fittable_total: int = field(
+        default=100,
+        dtype="int",
+        parse_as="int",
+    )
 
     windows: list[CoordBounds] | None = field(default=None, init=False)
     x_norm: float | None = field(default=None, init=False)
@@ -64,67 +143,17 @@ class HostInfo(_Info):
     fwhm_bounds: AstropyBounds | None = field(default=None, init=False)
     fixed: dict[str, bool] | None = field(default=None, init=False)
 
-    min_fittable_ratio: float = 0.6
-    min_fittable_total: int = 100
-
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "fit",
-            "_windows",
-            "windows",
-            "_x_norm",
-            "x_norm",
-            "_fwhm_norm",
-            "fwhm_norm",
-            "_flux",
-            "flux",
-            "_fwhm",
-            "fwhm",
-            "_flux_bounds",
-            "flux_bounds",
-            "_fwhm_bounds",
-            "fwhm_bounds",
-            "_fixed",
-            "fixed",
-            "template_files",
-            "sources",
-            "ages",
-            "raster",
-            "fine_tune",
-            "only_model",
-            "min_fittable_ratio",
-            "min_fittable_total",
-        ]
-    )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {
-        "windows": "to_wavelength_windows",
-        "x_norm": "to_wavelength",
-        "fwhm_norm": "to_velocity",
-        "flux": "to_flux",
-        "fwhm": "to_velocity",
-        "flux_bounds": "to_flux_bounds",
-        "fwhm_bounds": "to_velocity_bounds",
-        "fixed": "to_fixed",
-    }
-
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def update(self, info) -> None:
-        """
-        Convert to unitsless.
-        """
+    def update(self, info: object) -> None:
         super().update(info, logger)
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-        raise NotImplementedError()
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["host"], dict[str, Any]]:
+        return super().to_dict("host", jsonify=jsonify)
 
     @classmethod
     @validate_call
@@ -133,4 +162,4 @@ class HostInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "host", logger)
+        return cls._from_json(json, create_copy, "host", logger)

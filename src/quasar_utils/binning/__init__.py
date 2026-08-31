@@ -1,4 +1,6 @@
-from numpy import arange, empty, exp, float64, int32, log, roll, stack, zeros
+from math import floor
+
+from numpy import arange, empty, exp, float64, int32, log, roll, stack
 from numpy.typing import NDArray
 from quasar_typing.numpy import FloatVector, SortedFloatVector
 from quasar_typing.scipy import csr_matrix_
@@ -37,7 +39,7 @@ def log_edges(
     else:
         assert x_edges.size == x.size + 1
 
-    n_xr = log(x_edges[-1] / x_edges[0]) // log(1 + v_res) + 1
+    n_xr: int = floor(log(x_edges[-1] / x_edges[0]) / log(1 + v_res))
     log_xr_edges = log(x_edges[0]) + log(1 + v_res) * arange(n_xr + 1)
     xr_edges = exp(log_xr_edges)
     xr = exp(0.5 * (log_xr_edges[:-1] + log_xr_edges[1:]))
@@ -51,8 +53,8 @@ def alpha_matrix_elements(
     dx: NDArray[float64],
 ) -> tuple[NDArray[int32], NDArray[int32], NDArray[float64]]:
     """
-    Numba-optimised function to compute the non-zero elements of the alpha
-    resampling matrix for logarithmic binning.
+    Compute the non-zero elements of the alpha resampling matrix for 
+    logarithmic binning.
 
     Returns row_indices, col_indices, values and bias for sparse matrix
     construction.
@@ -104,9 +106,6 @@ def alpha_matrix_sparse(
     dxr: FloatVector | None = None,
     conserve: bool = False,
 ) -> csr_matrix_:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
     if conserve:
         assert dxr is not None
         i, j, data = alpha_matrix_elements_conserved(x_edges, xr_edges, dxr)
@@ -130,8 +129,6 @@ def log_resample(
     covariance: bool = False,
 ) -> tuple[FloatVector, FloatVector, FloatVector]:
     """
-    ** PYDANTIC VALIDATED METHOD **
-
     Resample the input data (x, y, dy) onto a logarithmic grid defined by the
     velocity resolution v_res. The function returns the resampled x, y, and dy
     (or covariance)

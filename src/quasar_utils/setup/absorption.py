@@ -1,110 +1,78 @@
-from dataclasses import field
 from logging import getLogger
-from typing import ClassVar, Self
+from typing import Any, Literal, Self
 
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from ..utils import parsing
-from ..utils.parsing import get_lines_from_file
-from ..utils.utils import val_and_type
-from .utils._info import _Info
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
+@finalise_dataclass
 @dataclass
 class AbsorptionInfo(_Info):
-    fit: bool = True
-
-    p: int = 3
-    p_crit: float = 0.01
-    z_crit: float = -2
-    refine: bool = True
-    logspace: bool = True
-    _w: int | Quantity_ = 25
-    _join: int | Quantity_ = 3
+    fit: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    _w: int | Quantity_ = field(
+        default=25,
+        dtype="int | float",
+        parse_as="n_pixels",
+        update_to="n_pixels",
+        has_unit=True,
+    )
+    p: int = field(
+        default=2,
+        dtype="int",
+        parse_as="int",
+    )
+    p_crit: float = field(
+        default=0.01,
+        dtype="float",
+        parse_as="float",
+    )
+    z_crit: float = field(
+        default=-2,
+        dtype="float",
+        parse_as="float",
+    )
+    _join: int | Quantity_ = field(
+        default=3,
+        dtype="int | float",
+        parse_as="n_pixels",
+        update_to="n_pixels",
+        has_unit=True,
+    )
+    refine: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
+    logspace: bool = field(
+        default=True,
+        dtype="bool",
+        parse_as="bool",
+    )
 
     w: int | None = field(default=None, init=False)
     join: int | None = field(default=None, init=False)
 
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "fit",
-            "_w",
-            "p",
-            "p_crit",
-            "z_crit",
-            "_join",
-            "refine",
-            "logspace",
-            "w",
-            "join",
-        ]
-    )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {
-        "w": "to_n_pixels",
-        "join": "to_n_pixels",
-    }
-
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def update(self, info) -> None:
-        """
-        Converts parameters with units into their dimensionless equivalents.
-        """
+    def update(self, info: object) -> None:
         super().update(info, logger)
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-
-        if path is not None and str(path) in cls._cache.keys():
-            logger.debug(f"Using cached 'AbsorptionInfo' for '{path}'.")
-
-            ainfo = cls._cache[str(path)]
-            if create_copy:
-                return ainfo.copy()
-            else:
-                return ainfo
-
-        ainfo: AbsorptionInfo = AbsorptionInfo()
-        if path is None:
-            return ainfo
-
-        logger.debug(f"Configuring 'AbsorptionInfo' using '{path}'.")
-        lines = get_lines_from_file.__wrapped__("ABSORPTION", path, logger)
-
-        for count, line in enumerate(lines, start=1):
-            key = line[0].lower()
-
-            match key:
-                case "w" | "join":
-                    key = "_" + key
-                    val = parsing.as_scalar_or_quantity(line[1:])
-                case "p":
-                    val = parsing.as_int(line[1])
-                case "refine" | "logspace":
-                    val = parsing.as_bool(line[1])
-                case "z_crit" | "p_crit":
-                    val = parsing.as_float(line[1])
-
-            ainfo[key] = val
-            logger.debug(
-                f">>> [{count}/{len(lines)}] '{key}': {val_and_type(val)}."
-            )
-
-        AbsorptionInfo._cache[str(path)] = ainfo
-
-        return ainfo
+    def to_dict(
+        self, 
+        jsonify: bool = False,
+    ) -> dict[Literal["absorption"], dict[str, Any]]:
+        return super().to_dict("absorption", jsonify=jsonify)
 
     @classmethod
     @validate_call
@@ -113,4 +81,4 @@ class AbsorptionInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "absorption", logger)
+        return cls._from_json(json, create_copy, "absorption", logger)

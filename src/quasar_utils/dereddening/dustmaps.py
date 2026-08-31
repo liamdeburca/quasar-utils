@@ -5,13 +5,11 @@ For simplicity, the following maps are supported:
 - SFD (Schlegel, Finkbeiner & Davis 1998)
 - CSFD (Chiang 2023)
 """
-
 __all__ = [
-    "DUST_MAPS",
     "PATH_TO_CACHE",
+    "get_dust_map",
     "reset_cache",
-    "setup_csfd",
-    "setup_sfd",
+    "setup_dustmaps",
 ]
 
 from pathlib import Path
@@ -23,9 +21,7 @@ from dustmaps.csfd import CSFDQuery
 from dustmaps.sfd import SFDQuery
 
 _this_file: Path = Path(__file__).resolve()
-
 PATH_TO_CACHE: Path = _this_file.parent / "__cache__"
-
 
 # Set cache location
 def setup_dustmaps() -> None:
@@ -59,9 +55,7 @@ def reset_cache() -> None:
     setup_dustmaps()
 
 
-def get_dust_map(
-    map_name: Literal["sfd", "csfd"],
-) -> SFDQuery | CSFDQuery:
+def get_dust_map(map_name: Literal["sfd", "csfd"]) -> SFDQuery | CSFDQuery:
     match map_name.strip().lower():
         case "sfd":
             return SFDQuery()

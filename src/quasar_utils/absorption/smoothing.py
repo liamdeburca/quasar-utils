@@ -13,24 +13,29 @@ from typing import Literal
 
 from numpy import (
     append,
-    arange,
     argwhere,
     concatenate,
     convolve,
     float64,
+    full_like,
     interp,
     isfinite,
-    matmul,
     nan,
-    nansum,
     ones,
     where,
     zeros,
 )
 from numpy.lib.stride_tricks import sliding_window_view
-from numpy.linalg import inv
+from numpy.linalg import lstsq
 from numpy.polynomial.polynomial import polyvander
-from quasar_typing.numpy import BoolVector, FloatMatrix, FloatVector
+from pydantic import PositiveInt
+from quasar_typing.errors import SmoothingError
+from quasar_typing.numpy import (
+    BoolVector,
+    FloatMatrix,
+    FloatVector,
+    SortedFloatVector,
+)
 
 from ..decorators import validate_call
 
@@ -40,9 +45,6 @@ logger = getLogger(__name__)
 @validate_call
 def get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
     """
-
-    ** PYDANTIC VALIDATED FUNCTION **
-
     Calculates the sizes of gaps in the boolean array, i.e. a list of left
     index, right index, and size triplets.
 
@@ -70,7 +72,7 @@ def get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
         case 1:
             return [(0, 0, 1)] if not mask[0] else []
         case _:
-            if not any(mask):
+            if not mask.any():
                 return [(0, n_pix - 1, n_pix)]
             if not (mask[0] and mask[-1]):
                 true_indices = argwhere(mask).flatten()
@@ -93,13 +95,7 @@ def get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
                 if not mask[-1]:
                     left = true_indices[-1] + 1
                     right = len(mask) - 1
-                    out.append(
-                        (
-                            left,
-                            right,
-                            right - left + 1,
-                        )
-                    )
+                    out.append((left, right, right - left + 1))
 
                 return out
 
@@ -113,13 +109,12 @@ def get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
 
 @validate_call
 def interpolate_missing(
-    x: FloatVector,
+    x: SortedFloatVector,
     y: FloatVector,
     mask: BoolVector,
-) -> FloatVector:
+    out: FloatVector | None = None,
+) -> FloatVector | None:
     """
-    ** PYDANTIC VALIDATED FUNCTION **
-
     Linearly interpolate y-values based on the mask.
 
     Parameters
@@ -132,27 +127,47 @@ def interpolate_missing(
     mask : numpy.array
         Boolean array designating which values to linearly interpolate. A value
         of False replaces the original value.
+    out : numpy.array, optional
+        Optional output array to store the interpolated values. If None, a new
+        array is created and returned.
 
     Returns
     -------
-    y_int : numpy.array
+    numpy.array or None
         Array along the second axis with designated pixels' values interpolated.
-    """
-    return interp(x, x[mask], _y := y[mask], left=_y[0], right=_y[-1])
+        If `out` is provided, the function returns None and modifies `out` in 
+        place.
 
+    Raises
+    ------
+    ValueError
+        If the mask does not contain at least one True value for interpolation.
+    """
+    _x = x[mask]
+    _y = y[mask]
+    if _x.size == 0:
+        raise ValueError("'mask' must contain at least one True value for interpolation.")
+    elif _x.size == 1:
+        if out is None:
+            return full_like(y, _y[0], dtype=float64)
+        out.fill(_y[0])
+    else:
+        _out = interp(x, _x, _y, left=_y[0], right=_y[-1])
+        if out is None:
+            return _out
+        out[:] = _out
+
+    return None
 
 @validate_call
 def get_valid_indices(
     mask: BoolVector,
-    w: int,
-    p: int,
+    w: PositiveInt,
+    p: PositiveInt,
     side: Literal["left", "right"] | None = None,
     mode: Literal["flexible", "rigid", "semi-rigid", "standard"] = "standard",
 ) -> BoolVector:
-    """
-    ** PYDANTIC VALIDATED FUNCTION **
-
-    Calculated the pixels whose flux density values can be smoothed adequately.
+    """Calculate where the flux density array can be smoothed adequately.
 
     Parameters
     ----------
@@ -169,10 +184,10 @@ def get_valid_indices(
         the flux density array. Default is 'standard'.
 
         Within the sliding window:
-         * 'flexible': exactly avoids over-fitting.
-         * 'rigid': all pixels must be valid.
-         * 'semi-rigid': more than 3/4 pixels must be valid.
-         * 'standard': more than 1/2 pixels must be valid.
+        * 'flexible': exactly avoids over-fitting.
+        * 'rigid': all pixels must be valid.
+        * 'semi-rigid': more than 3/4 pixels must be valid.
+        * 'standard': more than 1/2 pixels must be valid.
 
     Returns
     -------
@@ -195,7 +210,7 @@ def get_valid_indices(
         case "flexible":
             n_points_minimum = p + 2
         case "rigid":
-            n_points_minimum = w + 1
+            n_points_minimum = w
         case "semi-rigid":
             n_points_minimum = 3 * (w // 4)
         case "standard":
@@ -209,7 +224,7 @@ def create_slides(
     x: FloatVector,
     y: FloatVector,
     dy: FloatVector,
-    w: int,
+    w: PositiveInt,
     mask: BoolVector | None = None,
 ) -> tuple[FloatMatrix, FloatMatrix, FloatMatrix]:
     """
@@ -225,7 +240,7 @@ def create_slides(
         Flux density array.
     dy : numpy.array (1d)
         Flux density uncertainty array.
-    w : int
+    w : PositiveInt
         Window size used for smoothing.
     mask : numpy.array
         Boolean array with False in pixels whose smoothed values aren't
@@ -267,7 +282,7 @@ def solve_weighted_poly(
     x_slides: FloatMatrix,
     y_slides: FloatMatrix,
     dy_slides: FloatMatrix,
-    p: int,
+    p: PositiveInt,
     full: bool = False,
 ) -> FloatVector | FloatMatrix:
     """
@@ -296,34 +311,36 @@ def solve_weighted_poly(
         the first coefficients are returned, which may be directly used as the
         smoothed flux density array.
     """
-    n_slides = y_slides.shape[0]  # Number of slides.
-    sq_weight_slides = 1 / dy_slides**2  # Slides of squared weights.
-    y_sq_weight_slides = y_slides * sq_weight_slides
+    # Use a numerically stable per-slide weighted least-squares solver.
+    # For each slide, form the design matrix X (columns 1, x, x^2, ..., x^p),
+    # scale rows by sqrt(weights)=1/dy and call lstsq. This avoids explicit
+    # formation/inversion of normal-equation matrices and is more robust.
+    n_slides = y_slides.shape[0]
+    coeffs = zeros((n_slides, p + 1), dtype=float64)
 
-    vandermonde_matrix = polyvander(x_slides, deg=2 * p)  # (n_slides, 2p+1)
-    elements = nansum(
-        vandermonde_matrix * sq_weight_slides[..., None], axis=1
-    )  # (n_slides, p+1)
+    for i in range(n_slides):
+        x_s = x_slides[i]
+        y_s = y_slides[i]
+        dy_s = dy_slides[i]
 
-    # Build matrix for left-hand-side of equation
-    LHS = ones(shape=(n_slides, 2 * p + 1, 2 * p + 1), dtype=float64)
-    for i, element in enumerate(elements.T, start=1):
-        indices = arange(i)
-        LHS[..., indices, indices[::-1]] = element[..., None]
+        # Select usable rows: finite x,y,dy and positive dy
+        valid = isfinite(x_s) & isfinite(y_s) & isfinite(dy_s) & (dy_s > 0)
+        if valid.sum() == 0:
+            coeffs[i, :] = nan
+            continue
 
-    # Crop the matrix, and invert it
-    LHS_inverted = inv(LHS[..., : p + 1, : p + 1])
+        # Design matrix (1, x, x^2, ..., x^p)
+        X = polyvander(x_s[valid], deg=p)
 
-    # Create the RHS vector
-    RHS = nansum(
-        vandermonde_matrix[..., : p + 1] * y_sq_weight_slides[..., None],
-        axis=1,
-    )  # (n_slides, p+1)
+        # Row-scale by sqrt(weights): sqrt_w = 1/dy
+        sqrt_w = 1.0 / dy_s[valid]
+        Xw = X * sqrt_w[:, None]
+        yw = y_s[valid] * sqrt_w
 
-    # Solve linear problems in parallel
-    solutions = matmul(LHS_inverted, RHS[..., None])
+        sol, *_ = lstsq(Xw, yw, rcond=None)
+        coeffs[i, :] = sol
 
-    return solutions if full else solutions[..., 0].T[0]
+    return coeffs if full else coeffs[:, 0]
 
 
 @validate_call
@@ -331,8 +348,8 @@ def weighted_savgol_filter(
     x: FloatVector,
     y: FloatVector,
     dy: FloatVector,
-    w: int,
-    p: int,
+    w: PositiveInt,
+    p: PositiveInt,
     mask: BoolVector | None = None,
     interpolate: bool = True,
     mode: str = "standard",
@@ -373,30 +390,44 @@ def weighted_savgol_filter(
     -------
     y_smooth : numpy.array
         Array of smoothed (and possible interpolated) flux density values.
-    """
+
+    Raises
+    ------
+    ValidationError
+        If Pydantic validation fails for the input parameters.
+    SmoothingError
+
+    """        
+    # Validate window and polynomial parameters at runtime -- pydantic
+    # enforces some checks but relational invariants (w > p) are enforced here.
+    if w <= 0:
+        raise SmoothingError("w must be a positive integer.")
+    if w % 2 == 0:
+        raise SmoothingError("w must be odd.")
+    if w <= p:
+        raise SmoothingError("w must be greater than polynomial order p.")
+    if x.shape[0] < w:
+        raise SmoothingError(f"Input array length ({x.shape[0]}) must be at least window size w ({w}).")
+
     y_smooth = y.copy()
 
     x_valid = isfinite(x)
-    mask = (
-        x_valid & isfinite(y) & isfinite(dy) & (dy > 0)
-        if mask is None
-        else mask
-    )
+    if mask is None:
+        mask = x_valid & isfinite(y) & isfinite(dy) & (dy > 0)
 
     gap_sizes = get_gap_sizes.__wrapped__(mask)
     if gap_sizes:
         msg = f"Identified the following gaps ('left', 'right', 'size'): {gap_sizes}."
         logger.debug(msg)
 
-    valid_indices = (
-        get_valid_indices.__wrapped__(
-            mask,
-            w,
-            p,
-            mode=mode,
-        )
-        & x_valid
-    )  # Require defined value of centre of window.
+    valid_indices = get_valid_indices.__wrapped__(mask, w, p, mode=mode)
+    valid_indices &= x_valid  # Require defined value of centre of window.
+
+    if not valid_indices.any():
+        msg = f"Cannot smooth the spectrum w/ {w=}, {p=}, and {mode=}: "
+        msg += "returning copy of original flux density array."
+        logger.warning(msg)
+        return y_smooth
 
     slides = create_slides.__wrapped__(
         where(x_valid, x, nan),
@@ -407,8 +438,6 @@ def weighted_savgol_filter(
     )
     y_smooth[valid_indices] = solve_weighted_poly.__wrapped__(*slides, p)
 
-    return (
-        interpolate_missing.__wrapped__(x, y_smooth, valid_indices)
-        if interpolate
-        else y_smooth
-    )
+    if interpolate:
+        interpolate_missing.__wrapped__(x, y_smooth, valid_indices, out=y_smooth)
+    return y_smooth

@@ -1,7 +1,7 @@
 __all__ = ["DEFAULT_LINE_LIST_PATH", "LineList"]
 
 from pathlib import Path
-from typing import Self
+from typing import ClassVar, Self
 
 from pandas import DataFrame
 from pydantic_core import PydanticCustomError
@@ -24,7 +24,7 @@ class LineList(DataFrame):
     pandas.DataFrame
     """
 
-    REQUIRED_COLUMNS = [
+    REQUIRED_COLUMNS: ClassVar[list[str]] = [
         "name",
         "complex",
         "n_max",
@@ -51,7 +51,7 @@ class LineList(DataFrame):
         path: AbsoluteCSVPath = DEFAULT_LINE_LIST_PATH,
         info: Info = None,
     ) -> Self:
-        return read_csv(path, info)
+        return cls(read_csv(path, info))
 
     @classmethod
     @validate_call
@@ -65,7 +65,6 @@ class LineList(DataFrame):
 
     @classmethod
     def _validate(cls, value: object) -> Self:
-
         if not isinstance(value, DataFrame):
             msg = f"Expected a 'pandas.DataFrame', got {type(value).__name__}"
             raise PydanticCustomError("validation_error", msg)

@@ -1,55 +1,83 @@
-from collections.abc import Iterable
-from dataclasses import field
 from logging import getLogger
-from typing import Any, ClassVar, Self
+from typing import Any, Literal, Self
 
 from astropy.units import Unit
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from ..utils import parsing
-from ..utils.parsing import get_lines_from_file
-from ..utils.utils import val_and_type
-from .utils._info import _Info
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
-DEFAULT_VALUES: dict[str, Any] = {
-    "_x0": 1450 * Unit("angstrom"),
-    "_y0": 1e-17 * Unit("erg/(s.cm2.angstrom)"),
-    "_windows": [
-        (1425, 1475),
-        (1675, 1690),
-        (1975, 2050),
-        (2150, 2250),
-    ]
-    * Unit("angstrom"),
-    "_flux_bounds": [1e-17, 1e-14] * Unit("erg/(s.cm2.angstrom)"),
-    "sigmas": [3.00, 2.75, 2.50],
-    "alpha_bounds": (-5.0, 0.0),
-}
 
-
+@finalise_dataclass
 @dataclass
 class ContinuumInfo(_Info):
-    fit: bool = True
-
-    _x0: float | Quantity_ = field(default=DEFAULT_VALUES["_x0"])
-    _y0: float | Quantity_ = field(default=DEFAULT_VALUES["_y0"])
-    _windows: Iterable[CoordBounds] | Quantity_ = field(
-        default_factory=lambda: DEFAULT_VALUES["_windows"]
+    fit: bool = field(
+        default=True,
+        desc="Whether to fit the power law continuum",
+        dtype="bool",
+        parse_as="bool",
     )
-    _flux_bounds: Iterable[float] | Quantity_ = field(
-        default_factory=lambda: DEFAULT_VALUES["_flux_bounds"]
+    _x0: float | Quantity_ = field(
+        default=1450.0 * Unit("angstrom"),
+        desc="Reference wavelength used for power law model",
+        dtype="float",
+        parse_as="wavelength",
+        update_to="wavelength",
+        has_unit=True,
+    )
+    _y0: float | Quantity_ = field(
+        default=1.0,
+        desc="Reference flux density used for power law linear fitting",
+        dtype="float",
+        parse_as="flux",
+        update_to="flux",
+        has_unit=True,
+    )
+    _windows: list[CoordBounds] | Quantity_ = field(
+        default=[
+            [1425.0, 1475.0],
+            [1675.0, 1690.0],
+            [1975.0, 2050.0],
+            [2150.0, 2250.0],
+            [5400.0, 5800.0],
+            [7000.0, 9000.0],
+        ] * Unit("angstrom"),
+        desc="List of wavelength windows used for continuum fitting",
+        dtype="list[list[float, float]]",
+        parse_as="wavelength_windows",
+        update_to="wavelength_windows",
+        has_unit=True,
+    )
+    _flux_bounds: AstropyBounds | Quantity_ = field(
+        default=(1.0, 10_000.0),
+        desc="Lower and upper bounds for the flux density at the reference wavelength",
+        dtype="list[float | None]",
+        parse_as="flux_bounds",
+        update_to="flux_bounds",
+        has_unit=True,
     )
     sigmas: list[float] = field(
-        default_factory=lambda: DEFAULT_VALUES["sigmas"]
+        default_factory=lambda: [3.00, 2.75, 2.50],
+        desc="Sequence of sigma-clipping thresholds",
+        dtype="list[float]",
+        parse_as="float_list",
     )
     alpha_bounds: AstropyBounds = field(
-        default_factory=lambda: DEFAULT_VALUES["alpha_bounds"]
+        default=(-3.0, 0.0),
+        desc="Lower and upper bounds for the power law index",
+        dtype="list[float | None]",
+        parse_as="float_bounds",
+    )
+    min_fittable_total: int = field(
+        default=10,
+        desc="Minimum total number of fittable pixels",
+        dtype="int",
+        parse_as="int",
     )
 
     x0: float | None = field(default=None, init=False)
@@ -57,93 +85,17 @@ class ContinuumInfo(_Info):
     windows: list[CoordBounds] | None = field(default=None, init=False)
     flux_bounds: AstropyBounds | None = field(default=None, init=False)
 
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "fit",
-            "_x0",
-            "_y0",
-            "_windows",
-            "_flux_bounds",
-            "sigmas",
-            "x0",
-            "y0",
-            "windows",
-            "flux_bounds",
-            "alpha_bounds",
-        ]
-    )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {
-        "x0": "to_wavelength",
-        "y0": "to_flux",
-        "windows": "to_wavelength_windows",
-        "flux_bounds": "to_flux_bounds",
-    }
-
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def update(self, info) -> None:
-        """
-        Convert to unitless.
-        """
+    def update(self, info: object) -> None:
         super().update(info, logger)
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-
-        if path is not None and str(path) in cls._cache.keys():
-            logger.debug(f"Using cached 'ContinuumInfo' for '{path}'.")
-
-            cinfo = cls._cache[str(path)]
-            if create_copy:
-                return cinfo.copy()
-            else:
-                return cinfo
-
-        cinfo: ContinuumInfo = ContinuumInfo()
-        if path is None:
-            return cinfo
-
-        logger.debug(f"Configuring 'ContinuumInfo' using '{path}':")
-        lines = get_lines_from_file.__wrapped__("CONTINUUM", path, logger)
-
-        for count, line in enumerate(lines, start=1):
-            key = line[0].lower()
-
-            match key:
-                case "x0" | "y0":
-                    key = "_" + key
-                    val = parsing.as_scalar_or_quantity(line[1:])
-
-                case "windows":
-                    key = "_" + key
-                    val = parsing.as_pairs_of_floats_or_quantity(line[1:])
-
-                case "sigmas":
-                    val = parsing.as_list_of_floats(line[1])
-
-                case "flux_bounds":
-                    key = "_" + key
-                    val = parsing.as_bounds_of_scalars_or_quantity(line[1:])
-
-                case "alpha_bounds":
-                    val = parsing.as_bounds(line[1:])
-
-            cinfo[key] = val
-            msg = ("\n" if (key == "_windows") else " ").join(
-                [f">>> [{count}/{len(lines)}] {key}:", f"{val_and_type(val)}."]
-            )
-            logger.debug(msg)
-
-        cls._cache[str(path)] = cinfo
-
-        return cinfo
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["continuum"], dict[str, Any]]:
+        return super().to_dict("continuum", jsonify=jsonify)
 
     @classmethod
     @validate_call
@@ -152,4 +104,4 @@ class ContinuumInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "continuum", logger)
+        return cls._from_json(json, create_copy, "continuum", logger)

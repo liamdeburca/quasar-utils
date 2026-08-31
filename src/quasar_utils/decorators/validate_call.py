@@ -19,7 +19,7 @@ class Validated(Protocol[F]):
 
 
 @overload
-def validate_call(
+def validate_call[F](
     func: F,
     *,
     validate_return: bool = False,
@@ -27,14 +27,14 @@ def validate_call(
 
 
 @overload
-def validate_call(
+def validate_call[F](
     func: None = None,
     *,
     validate_return: bool = False,
 ) -> Callable[[F], Validated[F]]: ...
 
 
-def validate_call(
+def validate_call[F](
     func: F | None = None,
     *,
     validate_return: bool = False,

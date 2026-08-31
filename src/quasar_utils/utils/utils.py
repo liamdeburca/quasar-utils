@@ -1,7 +1,7 @@
+from collections.abc import Iterable
 from typing import Any
 
 from astropy.units import Quantity, Unit
-from astropy.units.quantity import Quantity
 
 
 def check_if_comment(string: str):
@@ -21,10 +21,11 @@ def trim_line(line: str):
 
 
 def check_val(
-    val: Any | Quantity,
-) -> Any | Quantity:
+    val: Quantity | float | Iterable[float],
+) -> Quantity | float | Iterable[float]:
     """
-    Lorem ipsum...
+    Returns an Quantity if the input is a non-unitless Quantity. Otherwise 
+    returns the scalar value of the input.
     """
     if isinstance(val, Quantity) and val.unit == Unit():
         return val.value

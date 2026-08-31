@@ -11,7 +11,7 @@ from .ccm89 import CCM89
 from .o94 import O94
 
 
-def get_dust_law(law_name: Literal["ccm89", "o94"]) -> CCM89 | O94:
+def get_dust_law(law_name: Literal["ccm89", "o94"]) -> Union[CCM89, O94]:
     match law_name.strip().lower():
         case "ccm89":
             return CCM89()

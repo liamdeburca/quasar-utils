@@ -23,6 +23,25 @@ SIGMA_RES: float = 69.0 / c.to("km/s").value
 def get_data(
     hdul: HDUList_,
 ) -> tuple[Quantity_, Quantity_, Quantity_, Quantity_]:
+    """Return spectral arrays extracted from an SDSS HDUList.
+
+    Parameters
+    ----------
+    hdul : HDUList_
+        Opened FITS HDU list from an SDSS spectrum file.
+
+    Returns
+    -------
+    tuple[Quantity_, Quantity_, Quantity_, Quantity_]
+        Tuple ``(x, flux, dy, dx)`` where ``x`` and ``dx`` are
+        wavelength quantities (angstrom) and ``flux`` and ``dy`` are
+        flux quantities (1e-17 erg/(s.cm2.angstrom)).
+
+    Raises
+    ------
+    ValidationError
+        Pydantic type validation
+    """
     x_unit = Unit("angstrom")
     flux_unit = Unit("1e-17 erg/(s.cm2.angstrom)")
 
@@ -55,8 +74,29 @@ def get_from_header(
     key: str,
     default: Any,
 ) -> Any:
-    """
-    ** PYDANTIC VALIDATED METHOD **
+    """Retrieve a value from the FITS header using the loader map.
+
+    Parameters
+    ----------
+    hdul : HDUList_
+        Opened FITS HDU list.
+    info : Info
+        Project configuration that contains the loading map.
+    key : str
+        Key into ``info.loading`` used to find the extension and
+        header label.
+    default : Any
+        Value to return if the header label is not present.
+
+    Returns
+    -------
+    Any
+        The header value if present, otherwise ``default``.
+
+    Raises
+    ------
+    ValidationError
+        Pydantic type validation
     """
     ext, label = info.loading[key]
     return hdul[ext].header.get(label, default)
@@ -64,23 +104,58 @@ def get_from_header(
 
 @dataclass
 class SDSSLoader(_Loader):
-    """
-    Loader designed for reading SDSS files, i.e. outputs from the
-    'astroquery.sdss' module.
+    """Loader for SDSS spectrum FITS files.
+
+    This dataclass is specialised to read spectra produced by
+    ``astroquery.sdss``. When RA/DEC, title or redshift are not
+    provided the corresponding values are extracted from the FITS
+    primary header. Spectral arrays are read from the first
+    extension using :func:`get_data`.
+
+    Parameters
+    ----------
+    path : str | AbsoluteFilePath
+        Path to the SDSS FITS file.
+    info : Info, optional
+        Project configuration and unit helpers.
+    z : float | None, optional
+        Optional redshift override.
+    title : str, optional
+        Optional title override.
+    ra : float | None, optional
+        Right ascension in degrees.
+    dec : float | None, optional
+        Declination in degrees.
     """
 
     def __post_init__(self):
+        """Post-initialise the SDSS loader and extract metadata.
+
+        This opens the FITS file at ``self.path`` and, when not
+        provided, extracts RA, DEC, object name and redshift from the
+        primary header. The instance title is generated according to
+        ``self.info.loading.naming`` when possible. Finally the
+        spectral arrays are read via :func:`get_data` and assigned to
+        ``self.x, self.y, self.dy, self.dx``.
         """
-        ** PYDANTIC VALIDATED METHOD **
-        """
+
         msg: str = "Initialising loader (SDSS): "
 
         msg += f"(1) reading data from {self.path}, "
         with fits.open(self.path) as hdul:
-            self.ra = float(hdul[0].header["RADEG"])
-            self.dec = float(hdul[0].header["DECDEG"])
+            if self.ra is None:
+                self.ra = float(hdul[0].header["RADEG"])
+                msg += "(2) extracted 'ra' from header / "
+            else:
+                msg += "(2) got 'ra' from argument / "
 
-            msg += f"(2) extracted coordinates from header (ra={self.ra}, dec={self.dec}), "
+            if self.dec is None:
+                self.dec = float(hdul[0].header["DECDEG"])
+                msg += "extracted 'dec' from header / "
+            else:
+                msg += "got 'dec' from argument / "
+
+            msg += f"proceeding with coordinates: (ra={self.ra:.3f}, dec={self.dec:.3f}), "
 
             if "OBJ_NAME" in hdul[0].header:
                 name = hdul[0].header["OBJ_NAME"]
@@ -106,13 +181,15 @@ class SDSSLoader(_Loader):
                     self.title = name
                     msg += "(4) no valid naming convention specified, "
 
-            if self.z != 0.0:
-                msg += f"(5) got redshift from argument: {self.z:.3f}."
-            elif "OBJ_Z" in hdul[0].header:
-                self.z = float(hdul[0].header["OBJ_Z"])
-                msg += f"(5) got redshift from header: {self.z:.3f}."
+            if self.z is None:
+                try:
+                    self.z = float(hdul[0].header["OBJ_Z"])
+                    msg += f"(5) extracted redshift from header: {self.z:.3f}."
+                except KeyError:
+                    self.z = 0.0
+                    msg += "(5) no redshift found in header, defaulting to 0.0."
             else:
-                msg += f"(5) no redshift found in header, defaulting to: {self.z:.3f}."
+                msg += f"(5) got redshift from argument: {self.z:.3f}."
 
             self.x, self.y, self.dy, self.dx = get_data(hdul)
 

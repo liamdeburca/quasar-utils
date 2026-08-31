@@ -1,43 +1,42 @@
 from logging import getLogger
-from typing import ClassVar, Self
+from typing import Any, Literal, Self
 
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import AbsoluteFilePath
 
-from .utils._info import _Info
+from ..decorators import validate_call
+from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
+@finalise_dataclass
 @dataclass
 class ConvolutionInfo(_Info):
-    allow_interp_fitting: bool = True
-    n_scales: float = 3.0
-
-    _keys: ClassVar[frozenset[str]] = frozenset(
-        [
-            "allow_interp_fitting",
-            "n_scales",
-        ]
+    allow_interp_fitting: bool = field(
+        default=False,
+        desc="Whether to use fitting by interpolation instead of convolution",
+        dtype="bool",
+        parse_as="bool",
     )
-    _cache: ClassVar[dict[str, Self]] = {}
-    _values_to_update: ClassVar[dict[str, str]] = {}
+    n_scales: float = field(
+        default=3.0,
+        desc="Half-width of convolution kernel in units of sigma",
+        dtype="float",
+        parse_as="float",
+    )
 
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def update(self, info) -> None:
+    def update(self, info: object) -> None:
         super().update(info, logger)
 
-    @classmethod
-    @validate_call
-    def from_file(
-        cls,
-        path: AbsoluteFilePath | None = None,
-        create_copy: bool = True,
-    ) -> Self:
-        raise NotImplementedError
+    def to_dict(
+        self,
+        jsonify: bool = False,
+    ) -> dict[Literal["convolution"], dict[str, Any]]:
+        return super().to_dict("convolution", jsonify=jsonify)
 
     @classmethod
     @validate_call
@@ -46,4 +45,4 @@ class ConvolutionInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return super().from_json(json, create_copy, "convolution", logger)
+        return cls._from_json(json, create_copy, "convolution", logger)
