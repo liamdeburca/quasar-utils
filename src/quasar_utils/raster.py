@@ -23,17 +23,14 @@ def _validate_rasterise_inputs(
     data: FloatVector,
 ) -> None:
     if not y.size == dy.size == data.shape[1]:
-        msg = (
-            f"Input arrays y ({y.shape}), dy ({dy.shape}) must have the same shape, and \
-            match the second dimension of data ({data.shape[1]})!"
-        )
+        msg = f"Input arrays y ({y.shape}), dy ({dy.shape}) must have the "\
+            "same shape, and match the second dimension of data "\
+            f"({data.shape[1]})!"
         raise PydanticCustomError("validation_error", msg)
 
-    if not fwhm.size == data.shape[0]:
-        msg = (
-            f"Input array fwhm ({fwhm.shape}) must have the same shape as the first \
-            dimension of data ({data.shape[0]})!"
-        )
+    if fwhm.size != data.shape[0]:
+        msg = f"Input array fwhm ({fwhm.shape}) must have the same shape as "\
+            f"the first dimension of data ({data.shape[0]})!"
         raise PydanticCustomError("validation_error", msg)
 
 
@@ -70,16 +67,14 @@ def rasterise(
     if not mask.any():
         msg = f"No template rows within FWHM bounds ({fwhm_lb:.1e}, {fwhm_ub:.1e})"
         logger.info(msg)
-        return chi2s, fluxs
+        raise ValueError(msg)
 
     # If template is not covered by data
     if (data[mask] == 0).all():
-        msg = (
-            "All template rows are zero suggesting that data does not cover "
+        msg = "All template rows are zero suggesting that data does not cover "\
             "the template."
-        )
         logger.info(msg)
-        return chi2s, fluxs
+        raise ValueError(msg)
 
     den = zeros(fwhm.shape, dtype=float64)
     num = zeros(fwhm.shape, dtype=float64)
@@ -91,7 +86,7 @@ def rasterise(
     if not mask.any():
         msg = "All template rows have vanishing denominators!"
         logger.info(msg)
-        return chi2s, fluxs
+        raise ValueError(msg)
 
     num[mask] = einsum("ij,...j,...j->i", data[mask], y, w2)
 

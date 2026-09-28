@@ -426,7 +426,7 @@ def weighted_savgol_filter(
     if not valid_indices.any():
         msg = f"Cannot smooth the spectrum w/ {w=}, {p=}, and {mode=}: "
         msg += "returning copy of original flux density array."
-        logger.warning(msg)
+        logger.info(msg)
         return y_smooth
 
     slides = create_slides.__wrapped__(

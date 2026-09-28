@@ -20,13 +20,13 @@ class J2000:
             ra += 360 * Unit("degree")
 
         val = ra.to("hourangle").value
-        return f"{(hours := int(floor(val))):0>2d}h{(minutes := int(floor(60 * (val - hours)))):0>2d}m{3600 * (val - hours - minutes / 60):0>6.3f}s"
+        return f"{(hours := floor(val)):0>2d}h{(minutes := floor(60 * (val - hours))):0>2d}m{3600 * (val - hours - minutes / 60):0>6.3f}s"
 
     @classmethod
     def declination(cls, dec: Quantity_) -> str:
         sign = "+" if dec >= 0 else "-"
         val = abs(dec.to("degree").value)
-        return f"{sign}{(hours := int(floor(val))):0>2d}°{(minutes := int(floor(60 * (val - hours)))):0>2d}'{int(floor(3600 * (val - hours - minutes / 60))):0>6.3f}\""
+        return f"{sign}{(hours := floor(val)):0>2d}°{(minutes := floor(60 * (val - hours))):0>2d}'{floor(3600 * (val - hours - minutes / 60)):0>6.3f}\""
 
 
 class IGR:
@@ -45,13 +45,13 @@ class IGR:
             ra += 360 * Unit("degree")
 
         val = ra.to("hourangle").value
-        return f"{(hours := int(floor(val))):0>2d}{int(floor(60 * (val - hours))):.1f}"
+        return f"{(hours := floor(val)):0>2d}{floor(60 * (val - hours)):.1f}"
 
     @classmethod
     def declination(cls, dec: Quantity_) -> str:
         sign = "+" if dec >= 0 else "-"
         val = abs(dec.to("degree").value)
-        return f"{sign}{(hours := int(floor(val))):0>2d}{int(floor(60 * (val - hours))):0>2d}"
+        return f"{sign}{(hours := floor(val)):0>2d}{floor(60 * (val - hours)):0>2d}"
 
 
 class SDSS:

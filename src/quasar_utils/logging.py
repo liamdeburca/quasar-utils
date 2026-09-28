@@ -105,7 +105,7 @@ def flag(title: str, value: Any) -> None:
     """
     Log a flag message with the given title and value.
     """
-    flag_logger.info(title, value)
+    flag_logger.info(FLAG_FMT.format(title=title, value=value))
 
 
 class FlagFilter(Filter):
@@ -136,7 +136,8 @@ class FlagFormatter(Formatter):
                 "Must provide exactly one argument when logging a flag, "
                 f"got {n_args}"
             )
-        return self._fmt.format(title=record.msg, value=record.args[0])
+        return FLAG_FMT.format(title=record.msg, value=record.args[0])
+    
 
 ### Utils    
 
