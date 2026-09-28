@@ -2,120 +2,127 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
-from functools import partial
-from typing import Any
 
 from astropy.io import fits
-from astropy.units import Unit
-from numpy import float64
-from pydantic import validate_call
-from quasar_typing.astropy import HDUList_, Quantity_
-from quasar_typing.pathlib import AbsoluteFITSPath
+from astropy.io.fits import HDUList
+from astropy.units import Quantity, Unit
+from numpy import float64, full, ones
+from quasar_typing.numpy import FloatMatrix
 
 from ..naming import IGR, J2000
-from ..setup import Info
 from .loader import _Loader
 
 
-@validate_call
-def get_data(
-    hdul: HDUList_,
-) -> tuple[Quantity_, Quantity_, Quantity_]:
+def _get_data(hdul: HDUList) -> dict[str, Quantity | FloatMatrix]:
     """
-    ** PYDANTIC VALIDATED METHOD **
+    Loads PAQS data from a fits HDU list assuming: 
+
+    - The wavelength array is stored in the 'WAVE' column.
+    - The flux array is stored in the 'FLUX' column.
+    - The flux error array is stored in the 'ERR_FLUX' column.
+    - The wavelength unit is: 'angstrom'
+    - The flux unit is: 'erg/(s.cm2.angstrom)'
+    - The wavelength bin size is constant at 0.25 angstrom.
     """
-    x_unit: str = "angstrom"
-    flux_unit: str = "erg/(s.cm2.angstrom)"
+    wave_unit = Unit("angstrom")
+    flux_unit = Unit("erg/(s.cm2.angstrom)")
 
     data = hdul[1].data
 
-    x = data["wave"].flatten().astype(float64)
-    flux = data["flux"].flatten().astype(float64)
-    dy = data["err_flux"].flatten().astype(float64)
+    x = data["WAVE"].flatten().astype(float64)
+    y = data["FLUX"].flatten().astype(float64)
+    dy = data["ERR_FLUX"].flatten().astype(float64)
+    dx = full(x.size, 0.25, dtype=float64)
 
-    x *= Unit(x_unit)
-    flux *= Unit(flux_unit)
-    dy *= Unit(flux_unit)
+    # No correction for instrumental resolution
+    res_kernels = ones((1, x.size), dtype=float64)
 
-    return (x, flux, dy)
-
-
-@validate_call
-def get_from_header(
-    hdul: HDUList_,
-    info: Info,
-    key: str,
-    default: Any,
-) -> Any:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
-    ext, label = info.loading[key]
-    return hdul[ext].header.get(label, default)
+    return {
+        "x": x * wave_unit,
+        "y": y * flux_unit,
+        "dy": dy * flux_unit,
+        "dx": dx * wave_unit,
+        "res_kernels": res_kernels,
+    }
 
 
 class PAQSLoader(_Loader):
     """
     Loader designed for reading PAQS files.
     """
-
-    @validate_call
-    def __init__(
-        self,
-        path: AbsoluteFITSPath,
-        *,
-        info: Info = None,
-        z: float | None = None,
-    ):
-        """
-        ** PYDANTIC VALIDATED METHOD **
-        """
+    def __post_init__(self) -> None:
         msg: str = "Initialising loader (PAQS): "
 
-        msg += f"(1) reading data from {path}, "
-        with fits.open(path) as hdul:
-            from_header: partial = partial(get_from_header, hdul, info)
+        msg += f"(1) reading data from {self.path}, "
+        with fits.open(self.path) as hdul:
+            if self.ra is None:
+                ra = hdul[0].header.get("RADEG", None)
+                if ra is None:
+                    ra = 0.0
+                    msg += "(2) could not extract RA from header / "
+                else:
+                    ra = float(ra)
+                    msg += f"(2) got RA ({ra:.1f}) from header / "
+            else:
+                ra = self.ra
+                msg += f"(2) got RA from argument ({ra:.1f}) / "
 
-            ra = float(from_header("ra", 0)) * Unit("degree")
-            dec = float(from_header("dec", 0)) * Unit("degree")
-            msg += f"(2) extracted coordinates from header \
-                (ra={ra}, dec={dec}), "
+            if self.dec is None:
+                dec = hdul[0].header.get("DECDEG", None)
+                if dec is None:
+                    dec = 0.0
+                    msg += "could not extract DEC from header, "
+                else:
+                    dec = float(dec)
+                    msg += f"got DEC ({dec:.1f}) from header, "
+            else:
+                dec = self.dec
+                msg += f"got DEC from argument ({dec:.1f}), "
 
-            name = from_header("name", "missing_name")
-            if name == "missing_name":
+            msg += f"proceeding with coordinates: (ra={ra:.3f}, "\
+                f"(dec={dec:.3f}), "
+
+            name = hdul[0].header.get("OBJ_NAME", None)
+            if name is None:
+                name = "missing_name"
                 msg += "(3) no name in header, "
             else:
                 msg += f"(3) extracted name from header ({name}), "
 
-            match convention := info.loading["naming"].upper():
+            match self.info.loading.naming.upper():
                 case "IGR":
-                    title = IGR.get_name(ra, dec)
+                    self.title = IGR.get_name(
+                        ra * Unit("degree"),
+                        dec * Unit("degree"),
+                    )
+                    msg += f"(4) generated IGR title from coordinates: {self.title}"
                 case "J2000":
-                    title = J2000.get_name(ra, dec)
+                    self.title = J2000.get_name(
+                        ra * Unit("degree"),
+                        dec * Unit("degree"),
+                    )
+                    msg += f"(4) generated J2000 title from coordinates: {self.title}"
                 case _:
-                    title = name
+                    self.title = name
+                    msg += "(4) no valid naming convention specified, "
 
-            if title == name:
-                msg += "(4) no valid naming convention specified, "
+            if self.z is None:
+                z = hdul[0].header.get("OBJ_Z", None)
+                if z is None:
+                    self.z = 0.0
+                    msg += "(5) no redshift in header, defaulting to 0.0."
+                else:
+                    self.z = float(z)
+                    msg += f"(5) got redshift from header ({self.z:.3f})."
             else:
-                msg += f"(4) generated title from coordinates using \
-                    {convention} convention ({title}), "
+                msg += f"(5) got redshift from argument ({self.z:.3f})."
 
-            if z is not None:
-                msg += f"(5) got redshift from argument ({z:.3f})."
-            elif isinstance(val := info.loading["z"], float):
-                z = val
-                msg += f"(5) got redshift from Info instance ({z:.3f})."
-            else:
-                z: float = from_header("z", 0)
-                msg += f"(5) got redshift from header ({z:.3f})."
-
-            super().__init__(
-                *get_data(hdul=hdul),
-                z=z,
-                title=title,
-                path=path,
-                info=info,
-            )
+            data = _get_data(hdul)
+            self.x_original = data["x"]
+            self.y_original = data["y"]
+            self.dy_original = data["dy"]
+            self.dx_original = data["dx"]
+            self.res_kernels_original = data["res_kernels"]
 
         logger.debug(msg)
+        super().__post_init__()

@@ -4,13 +4,10 @@ from functools import partial
 from logging import getLogger
 from typing import Any
 
-from astropy.units import Unit
-from numpy import diff, float64, full_like, median, stack
+from astropy.units import Quantity, Unit
+from numpy import diff, float64, full_like, median, ones, stack
 from pandas import DataFrame
-from pydantic import validate_call
 from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
-from quasar_typing.pandas import DataFrame_
 from quasar_typing.pathlib import AbsoluteFilePath
 
 from ..naming import SDSS
@@ -19,14 +16,7 @@ from .loader import _Loader
 logger = getLogger(__name__)
 
 
-@validate_call
-def read_ascii(
-    path: AbsoluteFilePath,
-    skip: int = 0,
-) -> DataFrame_:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
+def _read_ascii(path: AbsoluteFilePath, skip: int = 0) -> DataFrame:
     with open(path, "r") as f:
         all_lines = [line.strip().split() for line in f.readlines()[skip:]]
 
@@ -38,11 +28,7 @@ def read_ascii(
     return DataFrame({col: arr for col, arr in zip(col_names, data)})
 
 
-@validate_call
-def get_from_data(key: str, df: DataFrame_) -> float | Quantity_:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
+def _get_from_data(key: str, df: DataFrame) -> float | Quantity:
     match key:
         case "x":
             unit = Unit("angstrom")
@@ -63,15 +49,7 @@ def get_from_data(key: str, df: DataFrame_) -> float | Quantity_:
     return df[col_name].to_numpy() * unit
 
 
-@validate_call
-def get_from_fname(
-    key: str,
-    fname: str,
-    default: Any,
-) -> Any:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
+def _get_from_fname(key: str, fname: str, default: Any) -> Any:
     return {s[0]: s[1:] for s in fname.split("_") if s[1:].isnumeric()}.get(
         key, default
     )
@@ -91,13 +69,13 @@ class ASCIILoader(_Loader):
         msg += f"reading data from {self.path}, "
 
         from_fname = partial(
-            get_from_fname.__wrapped__,
+            _get_from_fname,
             fname=self.path.name,
             default=0,
         )
         from_data = partial(
-            get_from_data.__wrapped__,
-            df=read_ascii(self.path, skip=1),
+            _get_from_data,
+            df=_read_ascii(self.path, skip=1),
         )
         plate: int = int(from_fname("p"))
         fiber: int = int(from_fname("f"))
@@ -118,9 +96,13 @@ class ASCIILoader(_Loader):
 
         logger.debug(msg)
 
-        self.x = from_data("x")
-        self.y = from_data("y")
-        self.dy = from_data("dy")
-        self.dx = from_data("dx")
+        self.x_original = from_data("x")
+        self.y_original = from_data("y")
+        self.dy_original = from_data("dy")
+        self.dx_original = from_data("dx")
+        self.res_kernels_original = ones(
+            (1, self.x_original.size), 
+            dtype=float64,
+        )
 
         super().__post_init__()

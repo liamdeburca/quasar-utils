@@ -3,30 +3,28 @@ from logging import getLogger
 from typing import Any
 
 from astropy.io import fits
-from astropy.units import Unit
-from numpy import diff, float64, full_like, median
+from astropy.io.fits import HDUList
+from astropy.units import Quantity, Unit
+from numpy import diff, float64, full_like, median, ones
 from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import HDUList_, Quantity_
 
-from quasar_utils.decorators import validate_call
-from quasar_utils.loading.loader import _Loader
-from quasar_utils.naming import IGR, J2000
-from quasar_utils.setup import Info
+from ..naming import IGR, J2000
+from ..setup import Info
+from .loader import _Loader
 
 logger = getLogger(__name__)
 
 
-@validate_call
-def get_from_data(
+def _get_from_data(
     key: str,
-    hdul: HDUList_,
+    hdul: HDUList,
     info: Info,
-) -> Quantity_:
+) -> Quantity:
     """
     ** PYDANTIC VALIDATED METHOD **
     """
     if key == "dx":
-        x = get_from_data.__wrapped__("x", hdul, info)
+        x = _get_from_data("x", hdul, info)
         return (
             full_like(x.value, median(diff(x.value)), dtype=float64) * x.unit
         )
@@ -40,16 +38,12 @@ def get_from_data(
     return hdu.data[label].flatten() * Unit(unit)
 
 
-@validate_call
-def get_from_header(
+def _get_from_header(
     key: str,
-    hdul: HDUList_,
+    hdul: HDUList,
     info: Info,
     default: Any,
 ) -> Any:
-    """
-    ** PYDANTIC VALIDATED METHOD **
-    """
     ext, label = info.loading[key]
     return hdul[ext].header.get(label, default)
 
@@ -66,12 +60,12 @@ class FITSLoader(_Loader):
         msg += f"(1) reading data from {self.path}, "
         with fits.open(self.path) as hdul:
             from_data: partial = partial(
-                get_from_data.__wrapped__,
+                _get_from_data,
                 hdul=hdul,
                 info=self.info,
             )
             from_header: partial = partial(
-                get_from_header.__wrapped__,
+                _get_from_header,
                 hdul=hdul,
                 info=self.info,
             )
@@ -110,10 +104,14 @@ class FITSLoader(_Loader):
                 self.z = float(from_header("z", 0))
                 msg += f"(5) got redshift from header ({self.z:.3f})."
 
-            self.x = from_data("x")
-            self.y = from_data("y")
-            self.dy = from_data("dy")
-            self.dx = from_data("dx")
+            self.x_original = from_data("x")
+            self.y_original = from_data("y")
+            self.dy_original = from_data("dy")
+            self.dx_original = from_data("dx")
+            self.res_kernels_original = ones(
+                (1, self.x_original.size), 
+                dtype=float64,
+            )
 
         logger.debug(msg)
         super().__post_init__()
