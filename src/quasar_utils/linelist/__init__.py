@@ -26,10 +26,11 @@ class LineList(DataFrame):
 
     REQUIRED_COLUMNS: ClassVar[list[str]] = [
         "name",
+        "linetype",
         "complex",
         "n_max",
         "needs_line",
-        "line",
+        "wave",
         "strength_lower",
         "strength_upper",
         "v_off_lower",
