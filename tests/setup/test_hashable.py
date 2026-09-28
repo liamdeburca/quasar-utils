@@ -65,10 +65,26 @@ def test_loading_info_is_hashable():
     assert isinstance(hash_value, int)
 
 
+def test_mcmc_info_is_hashable():
+    from quasar_utils.setup.mcmc import MCMCInfo
+
+    info = MCMCInfo()
+    hash_value = hash(info)
+    assert isinstance(hash_value, int)
+
+
 def test_nonlinear_info_is_hashable():
     from quasar_utils.setup.nonlinear import NonLinearInfo
 
     info = NonLinearInfo()
+    hash_value = hash(info)
+    assert isinstance(hash_value, int)
+
+
+def test_random_info_is_hashable():
+    from quasar_utils.setup.random import RandomInfo
+
+    info = RandomInfo()
     hash_value = hash(info)
     assert isinstance(hash_value, int)
 
@@ -85,18 +101,7 @@ def test_info_is_hashable():
     from quasar_utils.setup.info import Info
 
     info = Info()
-    # Info is not a dataclass so it cannot be hashed directly,
-    # but we can verify that all its *Info attributes are hashable
-    assert hash(info.absorption) is not None
-    assert hash(info.balmer) is not None
-    assert hash(info.continuum) is not None
-    assert hash(info.error) is not None
-    assert hash(info.host) is not None
-    assert hash(info.iron) is not None
-    assert hash(info.lines) is not None
-    assert hash(info.loading) is not None
-    assert hash(info.nonlinear) is not None
-    assert hash(info.units) is not None
+    assert hash(info) is not None
 
 
 def test_info_subclasses_can_be_used_in_set():

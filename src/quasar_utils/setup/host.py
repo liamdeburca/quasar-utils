@@ -3,6 +3,7 @@ from typing import Any, Literal, Self
 
 from astropy.units import Unit
 from pydantic.dataclasses import dataclass
+from pydantic_core import PydanticCustomError
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import AstropyBounds, CoordBounds
 from quasar_typing.misc import HostGalaxyModelParams
@@ -22,8 +23,20 @@ class HostInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
+
+    _x_min: float | Quantity_ = field(
+        desc="If the spectrum's largest wavelength is below this value, host galaxy emission will not be modelled.",
+        default=4000 * Unit("angstrom"),
+        dtype="float",
+        parse_as="wavelength",
+        update_to="wavelength",
+        has_unit=True,
+    )
     _windows: list[CoordBounds] | Quantity_ = field(
-        default=[[3000, 4500]] * Unit("angstrom"),
+        default=[
+            [5400.0, 5750.0],
+            [7000.0, 9000.0],
+        ] * Unit("angstrom"),
         dtype="list[list[float, float]]",
         parse_as="wavelength_windows",
         update_to="wavelength_windows",
@@ -40,7 +53,7 @@ class HostInfo(_Info):
         default=0 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_kms",
         has_unit=True,
     )
     _flux: float | Quantity_ = field(
@@ -54,7 +67,7 @@ class HostInfo(_Info):
         default=0 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_kms",
         has_unit=True,
     )
     _flux_bounds: AstropyBounds | Quantity_ = field(
@@ -68,7 +81,7 @@ class HostInfo(_Info):
         default=[0, 1000] * Unit("km/s"),
         dtype="list[float | None]",
         parse_as="velocity_bounds",
-        update_to="velocity_bounds",
+        update_to="velocity_kms_bounds",
         has_unit=True,
     )
     _fixed: HostGalaxyModelParams = field(
@@ -77,36 +90,43 @@ class HostInfo(_Info):
         parse_as="host_galaxy_params",
         update_to="fixed",
     )
-    template_files: list[str | AbsoluteFilePath] = field(
-        default_factory=list,
-        dtype="list[str]",
-        parse_as="str_list",
-    )
     sources: list[Literal["bc2003"]] = field(
         default_factory=lambda: [
             "bc2003",
             "bc2003",
             "bc2003",
-            "bc2003",
-            "bc2003",
-            "bc2003",
-            "bc2003",
+            # "bc2003",
+            # "bc2003",
+            # "bc2003",
+            # "bc2003",
         ],
         dtype="list[str]",
         parse_as="str_list",
     )
     ages: list[int] = field(
+        desc="Ages of the host galaxy templates in Gyr.",
         default_factory=lambda: [
-            1_015_190_000,
-            2_500_000_000,
-            4_500_000_000,
-            5_000_000_000,
-            6_000_000_000,
-            8_000_000_000,
-            12_000_000_000,
+            # int(1.015 * 1e9),
+            int(2.500 * 1e9),
+            int(4.500 * 1e9),
+            #  int(5.000 * 1e9),
+            #  int(6.000 * 1e9),
+            #  int(8.000 * 1e9),
+            int(12.000 * 1e9),
         ],
-        dtype="list[int]",
-        parse_as="int_list",
+        dtype="list[float | int]",
+        parse_as="gyr_list",
+        comment="Older ages are all quite similar in shape. It may be best to include one young and one older template.",
+    )
+    default_source: Literal["bc2003"] = field(
+        default="bc2003",
+        dtype="str",
+        parse_as="str",
+    )
+    default_age: int = field(
+        default=int(4.5 * 1e9),
+        dtype="float | int",
+        parse_as="gyr",
     )
     raster: bool = field(
         default=True,
@@ -118,22 +138,20 @@ class HostInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    only_model: bool = field(
-        default=False,
-        dtype="bool",
-        parse_as="bool",
-    )
     min_fittable_ratio: float = field(
+        comment="Not currently used",
         default=0.6,
         dtype="float",
         parse_as="float",
     )
     min_fittable_total: int = field(
+        comment="Not currently used",
         default=100,
         dtype="int",
         parse_as="int",
     )
 
+    x_min: float | None = field(default=None, init=False)
     windows: list[CoordBounds] | None = field(default=None, init=False)
     x_norm: float | None = field(default=None, init=False)
     fwhm_norm: float | None = field(default=None, init=False)
@@ -162,4 +180,15 @@ class HostInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return cls._from_json(json, create_copy, "host", logger)
+        out = cls._from_json(json, create_copy, "host", logger)
+
+        options: list[tuple[str, int]] = list(zip(out.sources, out.ages))
+        if (out.default_source, out.default_age) not in options:
+            raise PydanticCustomError(
+                "validation_error",
+                "Default source-age combination is not in the list of "
+                "available source-age options: "
+                f"({out.default_source}, {out.default_age}), {options=}"
+            )
+
+        return out

@@ -21,8 +21,15 @@ class BalmerInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
+    _x_min: float | Quantity_ = field(
+        default=3000.0 * Unit("angstrom"),
+        dtype="float",
+        parse_as="wavelength",
+        update_to="wavelength",
+        has_unit=True,
+    )
     _windows: list[CoordBounds] | Quantity_ = field(
-        default=[[3000, 4500]] * Unit("angstrom"),
+        default=[[3000.0, 4000.0]] * Unit("angstrom"),
         dtype="list[list[float, float]]",
         parse_as="wavelength_windows",
         update_to="wavelength_windows",
@@ -39,7 +46,7 @@ class BalmerInfo(_Info):
         default=5_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_kms",
         has_unit=True,
     )
     source: Literal["SH1995"] = field(
@@ -92,7 +99,7 @@ class BalmerInfo(_Info):
         default=5_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_kms",
         has_unit=True,
     )
     _flux_bounds: AstropyBounds | Quantity_ = field(
@@ -106,7 +113,7 @@ class BalmerInfo(_Info):
         default=[1000.0, 10_000.0] * Unit("km/s"),
         dtype="list[float]",
         parse_as="velocity_bounds",
-        update_to="velocity_bounds",
+        update_to="velocity_kms_bounds",
         has_unit=True,
     )
     ratio: float = field(
@@ -115,12 +122,12 @@ class BalmerInfo(_Info):
         parse_as="float",
     )
     ratio_bounds: AstropyBounds = field(
-        default=(0.5, 2.0),
+        default=(0.0, 2.0),
         dtype="list[float]",
         parse_as="float_bounds",
     )
     _fixed: BalmerModelParams = field(
-        default=BalmerModelParams({"ratio"}),
+        default=BalmerModelParams(set()),
         dtype="list[str]",
         parse_as="balmer_params",
         update_to="fixed",
@@ -150,6 +157,8 @@ class BalmerInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
+
+    x_min: float | None = field(default=None, init=False)
     windows: list[CoordBounds] | None = field(default=None, init=False)
     edge: float | None = field(default=None, init=False)
     fwhm_norm: float | None = field(default=None, init=False)

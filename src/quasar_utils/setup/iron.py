@@ -27,7 +27,7 @@ class IronInfo(_Info):
         default=[
             [2050.0, 2700.0],
             [3000.0, 3500.0],
-            [4400.0, 4600.0],
+            [4500.0, 4700.0],
             [5100.0, 5400.0],
         ] * Unit("angstrom"),
         dtype="list[list[float, float]]",
@@ -36,7 +36,11 @@ class IronInfo(_Info):
         has_unit=True,
     )
     template_files: list[str] = field(
-        default_factory=lambda: ["vw2001", "bw", "v2003"],
+        default_factory=lambda: [
+            "vw2001_blue", "vw2001_red", 
+            "bw", 
+            "v2003_blue", "v2003_red",
+        ],
         dtype="list[str]",
         parse_as="str_list",
     )
@@ -49,7 +53,7 @@ class IronInfo(_Info):
         default=arange(1_000, 20_000 + 1, 250) * Unit("km/s"),
         dtype="list[float]",
         parse_as="velocity_list",
-        update_to="sorted_velocity_array",
+        update_to="sorted_velocity_kms_array",
         has_unit=True,
     )
     _flux_bounds: AstropyBounds | Quantity_ = field(
@@ -60,31 +64,31 @@ class IronInfo(_Info):
         has_unit=True,
     )
     _fwhm_bounds: AstropyBounds | Quantity_ = field(
-        default=[1_000, 20_000] * Unit("km/s"),
+        default=[1_000, 10_000] * Unit("km/s"),
         dtype="list[float | None]",
         parse_as="velocity_bounds",
-        update_to="velocity_bounds",
+        update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _split: list[str] | Quantity_ = field(
-        default=[0, 0, 0] * Unit("angstrom"),
+    _split: list[float] | Quantity_ = field(
+        default=[0, 0, 0, 0, 0] * Unit("angstrom"),
         dtype="list[float]",
         parse_as="wavelength_list",
         update_to="wavelength_array",
         has_unit=True,
     )
     bias: list[str] = field(
-        default_factory=lambda: ["right", "right", "right"],
+        default_factory=lambda: 5 * ["right"],
         dtype="list[str]",
         parse_as="bias",
     )
     ratio: list[float] = field(
-        default_factory=lambda: [1.0, 1.0, 1.0],
+        default_factory=lambda: 5 * [1.0],
         dtype="list[float]",
         parse_as="float_list",
     )
     fixed: list[bool] = field(
-        default_factory=lambda: [True, True, True],
+        default_factory=lambda: 5 * [True],
         dtype="list[bool]",
         parse_as="bool_list",
     )
@@ -101,7 +105,7 @@ class IronInfo(_Info):
         parse_as="bool",
     )
     fine_tune: bool = field(
-        default=False,
+        default=True,
         dtype="bool",
         parse_as="bool",
     )
@@ -109,8 +113,14 @@ class IronInfo(_Info):
         default=5_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_kms",
         has_unit=True,
+    )
+    tie_similar: bool = field(
+        desc="If true, `IronModel` instances whose templates share the same prefix have their FWHM tied.",
+        default=True,
+        parse_as="bool",
+        dtype="bool",
     )
 
     windows: list[CoordBounds] | None = field(default=None, init=False)
@@ -140,4 +150,27 @@ class IronInfo(_Info):
         json: dict[str, dict] | AbsoluteFilePath | None = None,
         create_copy: bool = True,
     ) -> Self:
-        return cls._from_json(json, create_copy, "iron", logger)
+        out: IronInfo = cls._from_json(json, create_copy, "iron", logger)
+        n_templates = len(out.template_files)
+        if n_templates != len(out._split):
+            raise ValueError(
+                "Number of splits does not match the number of templates: "
+                f"{n_templates=} != {len(out._split)}"
+            )
+        if n_templates != len(out.ratio):
+            raise ValueError(
+                "Number of ratios does not match the number of templates: "
+                f"{n_templates=} != {len(out.ratio)}"
+            )
+        if n_templates != len(out.bias):
+            raise ValueError(
+                "Number of biases does not match the number of templates: "
+                f"{n_templates=} != {len(out.bias)}"
+            )
+        if n_templates != len(out.fixed):
+            raise ValueError(
+                "Number of fixed flags does not match the number of templates: "
+                f"{n_templates=} != {len(out.fixed)}"
+            )
+
+        return out

@@ -33,24 +33,52 @@ class LinesInfo(_Info):
         default=10_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_c",
         has_unit=True,
     )
-    _v_off_bounds: AstropyBounds | Quantity_ = field(
+
+    _v_off_bounds_n: AstropyBounds | Quantity_ = field(
+        desc="Velocity offset bounds for narrow components",
+        default=(-500, 500) * Unit("km/s"),
+        dtype="list[float | None]",
+        parse_as="velocity_bounds",
+        update_to="velocity_kms_bounds",
+        has_unit=True,
+    )
+    _v_off_bounds_b: AstropyBounds | Quantity_ = field(
+        desc="Velocity offset bounds for broad components",
         default=(-1_000, 1_000) * Unit("km/s"),
         dtype="list[float | None]",
         parse_as="velocity_bounds",
-        update_to="velocity_bounds",
+        update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _fwhm_v_bounds: AstropyBounds | Quantity_ = field(
+    _fwhm_v_bounds_n: AstropyBounds | Quantity_ = field(
+        desc="FWHM velocity bounds for narrow components",
+        default=(100, 1_000) * Unit("km/s"),
+        dtype="list[float | None]",
+        parse_as="velocity_bounds",
+        update_to="velocity_kms_bounds",
+        has_unit=True,
+    )
+    _fwhm_v_bounds_b: AstropyBounds | Quantity_ = field(
+        desc="FWHM velocity bounds for broad components",
         default=(1000, 10_000) * Unit("km/s"),
         dtype="list[float | None]",
         parse_as="velocity_bounds",
-        update_to="velocity_bounds",
+        update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _strength_bounds: AstropyBounds | Quantity_ = field(
+    _strength_bounds_n: AstropyBounds | Quantity_ = field(
+        desc="Strength bounds for narrow components",
+        default=(0.0, 100_000.0),
+        dtype="list[float | None]",
+        parse_as="flux_bounds",
+        update_to="flux_bounds",
+        has_unit=True,
+    )
+    _strength_bounds_b: AstropyBounds | Quantity_ = field(
+        desc="Strength bounds for broad components",
         default=(0.0, 100_000.0),
         dtype="list[float | None]",
         parse_as="flux_bounds",
@@ -139,9 +167,12 @@ class LinesInfo(_Info):
 
     x_limit: float | None = field(default=None, init=False)
     v_sep: float | None = field(default=None, init=False)
-    v_off_bounds: AstropyBounds | None = field(default=None, init=False)
-    fwhm_v_bounds: AstropyBounds | None = field(default=None, init=False)
-    strength_bounds: AstropyBounds | None = field(default=None, init=False)
+    v_off_bounds_n: AstropyBounds | None = field(default=None, init=False)
+    v_off_bounds_b: AstropyBounds | None = field(default=None, init=False)
+    fwhm_v_bounds_n: AstropyBounds | None = field(default=None, init=False)
+    fwhm_v_bounds_b: AstropyBounds | None = field(default=None, init=False)
+    strength_bounds_n: AstropyBounds | None = field(default=None, init=False)
+    strength_bounds_b: AstropyBounds | None = field(default=None, init=False)
     w: int | None = field(default=None, init=False)
     forced_splits: SortedFloatVector | None = field(default=None, init=False)
 

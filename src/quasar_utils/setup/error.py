@@ -2,7 +2,6 @@ from logging import getLogger
 from typing import Any, Literal, Self
 
 from astropy.units import Unit
-from numpy.random import RandomState
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.misc import (
@@ -15,7 +14,6 @@ from quasar_typing.misc import (
     Variant,
     VaryLines,
 )
-from quasar_typing.numpy import RandomState_
 from quasar_typing.pathlib import AbsoluteFilePath
 
 from ..decorators import validate_call
@@ -68,16 +66,6 @@ class ErrorInfo(_Info):
         dtype="int",
         parse_as="int",
     )
-    random_state: RandomState_ = field(
-        default_factory=lambda: RandomState(42),
-        dtype="int",
-        parse_as="random_state",
-    )
-    renew_rng: bool = field(
-        default=True,
-        dtype="bool",
-        parse_as="bool",
-    )
     n_sigmas: float = field(
         default=2.0,
         dtype="float",
@@ -103,7 +91,7 @@ class ErrorInfo(_Info):
         default=18_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_c",
         has_unit=True,
     )
     ipv_int: float = field(

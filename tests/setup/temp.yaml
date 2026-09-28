@@ -1,0 +1,1404 @@
+absorption:
+    fit:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    join:
+        default: 3
+        default_unit: null
+        dtype: int | float
+        parse_as: n_pixels
+        unit: null
+        update_to: n_pixels
+        value: 3
+    logspace:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    p:
+        default: 2
+        dtype: int
+        parse_as: int
+        value: 2
+    p_crit:
+        default: 0.01
+        dtype: float
+        parse_as: float
+        value: 0.01
+    refine:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    w:
+        default: 25
+        default_unit: null
+        dtype: int | float
+        parse_as: n_pixels
+        unit: null
+        update_to: n_pixels
+        value: 25
+    z_crit:
+        default: -2
+        dtype: float
+        parse_as: float
+        value: -2
+balmer:
+    dens:
+        default: 1000000000.0
+        default_unit: 1 / cm3
+        dtype: float
+        parse_as: density
+        unit: 1 / cm3
+        update_to: density
+        value: 1000000000.0
+    edge:
+        default: 3646.0
+        default_unit: Angstrom
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 3646.0
+    fine_tune:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fit:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fixed:
+        default: []
+        dtype: list[str]
+        parse_as: balmer_params
+        update_to: fixed
+        value: []
+    flux:
+        default: 1.0
+        default_unit: null
+        dtype: float
+        parse_as: flux
+        unit: null
+        update_to: flux
+        value: 1.0
+    flux_bounds:
+        default:
+        - 0.0
+        - 1000.0
+        default_unit: null
+        dtype: list[float]
+        parse_as: flux_bounds
+        unit: null
+        update_to: flux_bounds
+        value:
+        - 0.0
+        - 1000.0
+    fwhm:
+        default: 5000.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_kms
+        value: 5000.0
+    fwhm_bounds:
+        default:
+        - 1000.0
+        - 10000.0
+        default_unit: km / s
+        dtype: list[float]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - 1000.0
+        - 10000.0
+    fwhm_norm:
+        default: 5000.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_kms
+        value: 5000.0
+    min_fittable_ratio:
+        default: 0.6
+        dtype: float
+        parse_as: float
+        value: 0.6
+    min_fittable_total:
+        default: 100
+        dtype: int
+        parse_as: int
+        value: 100
+    n_u_max:
+        default: 50
+        dtype: int
+        parse_as: int
+        value: 50
+    n_u_min:
+        default: 7
+        dtype: int
+        parse_as: int
+        value: 7
+    raster:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    raster_n:
+        default: 20
+        dtype: int
+        parse_as: int
+        value: 20
+    ratio:
+        default: 0.3
+        dtype: float
+        parse_as: float
+        value: 0.3
+    ratio_bounds:
+        default:
+        - 0.0
+        - 2.0
+        dtype: list[float]
+        parse_as: float_bounds
+        value:
+        - 0.0
+        - 2.0
+    scale:
+        default: 3.0
+        dtype: float
+        parse_as: float
+        value: 3.0
+    source:
+        default: SH1995
+        dtype: str
+        parse_as: str
+        value: SH1995
+    tau:
+        default: 1.0
+        dtype: float
+        parse_as: float
+        value: 1.0
+    temp:
+        default: 15000.0
+        default_unit: K
+        dtype: float
+        parse_as: temperature
+        unit: K
+        update_to: temperature
+        value: 15000.0
+    windows:
+        default:
+        -   - 3000.0
+            - 4000.0
+        default_unit: Angstrom
+        dtype: list[list[float, float]]
+        parse_as: wavelength_windows
+        unit: Angstrom
+        update_to: wavelength_windows
+        value:
+        -   - 3000.0
+            - 4000.0
+    x_min:
+        default: 3000.0
+        default_unit: Angstrom
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 3000.0
+continuum:
+    alpha_bounds:
+        default:
+        - -3.0
+        - 0.0
+        desc: Lower and upper bounds for the power law index
+        dtype: list[float | None]
+        parse_as: float_bounds
+        value:
+        - -3.0
+        - 0.0
+    fit:
+        default: true
+        desc: Whether to fit the power law continuum
+        dtype: bool
+        parse_as: bool
+        value: true
+    flux_bounds:
+        default:
+        - 1.0
+        - 10000.0
+        default_unit: null
+        desc: Lower and upper bounds for the flux density at the reference wavelength
+        dtype: list[float | None]
+        parse_as: flux_bounds
+        unit: null
+        update_to: flux_bounds
+        value:
+        - 1.0
+        - 10000.0
+    min_fittable_total:
+        default: 10
+        desc: Minimum total number of fittable pixels
+        dtype: int
+        parse_as: int
+        value: 10
+    sigmas:
+        default:
+        - 3.0
+        - 2.75
+        - 2.5
+        desc: Sequence of sigma-clipping thresholds
+        dtype: list[float]
+        parse_as: float_list
+        value:
+        - 3.0
+        - 2.75
+        - 2.5
+    windows:
+        default:
+        -   - 1425.0
+            - 1475.0
+        -   - 1675.0
+            - 1690.0
+        -   - 1975.0
+            - 2050.0
+        -   - 2150.0
+            - 2250.0
+        -   - 5400.0
+            - 5750.0
+        -   - 7000.0
+            - 9000.0
+        default_unit: Angstrom
+        desc: List of wavelength windows used for continuum fitting
+        dtype: list[list[float, float]]
+        parse_as: wavelength_windows
+        unit: Angstrom
+        update_to: wavelength_windows
+        value:
+        -   - 1425.0
+            - 1475.0
+        -   - 1675.0
+            - 1690.0
+        -   - 1975.0
+            - 2050.0
+        -   - 2150.0
+            - 2250.0
+        -   - 5400.0
+            - 5750.0
+        -   - 7000.0
+            - 9000.0
+    x0:
+        default: 1450.0
+        default_unit: Angstrom
+        desc: Reference wavelength used for power law model
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 1450.0
+    y0:
+        default: 1.0
+        default_unit: null
+        desc: Reference flux density used for power law linear fitting
+        dtype: float
+        parse_as: flux
+        unit: null
+        update_to: flux
+        value: 1.0
+convolution:
+    allow_interp_fitting:
+        default: false
+        desc: Whether to use fitting by interpolation instead of convolution
+        dtype: bool
+        parse_as: bool
+        value: false
+    n_scales:
+        default: 3.0
+        desc: Half-width of convolution kernel in units of sigma
+        dtype: float
+        parse_as: float
+        value: 3.0
+error:
+    bootstrap_type:
+        default: spectrum
+        dtype: str
+        parse_as: str
+        value: spectrum
+    dx_int:
+        default: 50.0
+        default_unit: Angstrom
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 50.0
+    exact:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fwhm_strategy:
+        default: average
+        dtype: str
+        parse_as: str
+        value: average
+    ipv_int:
+        default: 0
+        dtype: float
+        parse_as: float
+        value: 0
+    iterations:
+        default: 100
+        dtype: int
+        parse_as: int
+        value: 100
+    method:
+        default: bootstrap
+        desc: Method used for error estimation
+        dtype: str
+        parse_as: str
+        value: bootstrap
+    n_sigmas:
+        default: 2.0
+        dtype: float
+        parse_as: float
+        value: 2.0
+    out_lines:
+        default:
+        - ba
+        - pl
+        - em
+        - hg
+        - fe
+        dtype: list[str]
+        parse_as: out_lines
+        value:
+        - ba
+        - pl
+        - em
+        - hg
+        - fe
+    out_measures:
+        default:
+        - all
+        dtype: list[str]
+        parse_as: out_measures
+        value:
+        - all
+    percentiles:
+        default:
+        - 50
+        - 5
+        - 95
+        dtype: list[float]
+        parse_as: float_set
+        value:
+        - 50
+        - 5
+        - 95
+    remodel:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    render_width:
+        default: 5
+        dtype: float
+        parse_as: float
+        value: 5
+    replace_missing:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    res:
+        default: 1000
+        dtype: int
+        parse_as: int
+        value: 1000
+    scale:
+        default: global
+        dtype: str
+        parse_as: str
+        value: global
+    tqdm_disable:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    tqdm_leave:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    v_int:
+        default: 18000.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_c
+        value: 18000.0
+    variant:
+        default: standard
+        dtype: str
+        parse_as: str
+        value: standard
+    vary_lines:
+        default:
+        - all
+        dtype: list[str]
+        parse_as: vary_lines
+        value:
+        - all
+host:
+    ages:
+        comment: Older ages are all quite similar in shape. It may be best to include
+            one young and one older template.
+        default:
+        - 2.5
+        - 4.5
+        - 12.0
+        desc: Ages of the host galaxy templates in Gyr.
+        dtype: list[float | int]
+        parse_as: gyr_list
+        value:
+        - 2.5
+        - 4.5
+        - 12.0
+    default_age:
+        default: 4.5
+        dtype: float | int
+        parse_as: gyr
+        value: 4.5
+    default_source:
+        default: bc2003
+        dtype: str
+        parse_as: str
+        value: bc2003
+    fine_tune:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fit:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fixed:
+        default:
+        - fwhm
+        dtype: list[str]
+        parse_as: host_galaxy_params
+        update_to: fixed
+        value:
+        - fwhm
+    flux:
+        default: 1.0
+        default_unit: null
+        dtype: float
+        parse_as: flux
+        unit: null
+        update_to: flux
+        value: 1.0
+    flux_bounds:
+        default:
+        - 0.0
+        - 1000.0
+        default_unit: null
+        dtype: list[float | None]
+        parse_as: flux_bounds
+        unit: null
+        update_to: flux_bounds
+        value:
+        - 0.0
+        - 1000.0
+    fwhm:
+        default: 0.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_kms
+        value: 0.0
+    fwhm_bounds:
+        default:
+        - 0.0
+        - 1000.0
+        default_unit: km / s
+        dtype: list[float | None]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - 0.0
+        - 1000.0
+    fwhm_norm:
+        default: 0.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_kms
+        value: 0.0
+    min_fittable_ratio:
+        comment: Not currently used
+        default: 0.6
+        dtype: float
+        parse_as: float
+        value: 0.6
+    min_fittable_total:
+        comment: Not currently used
+        default: 100
+        dtype: int
+        parse_as: int
+        value: 100
+    raster:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    sources:
+        default:
+        - bc2003
+        - bc2003
+        - bc2003
+        dtype: list[str]
+        parse_as: str_list
+        value:
+        - bc2003
+        - bc2003
+        - bc2003
+    windows:
+        default:
+        -   - 5400.0
+            - 5750.0
+        -   - 7000.0
+            - 9000.0
+        default_unit: Angstrom
+        dtype: list[list[float, float]]
+        parse_as: wavelength_windows
+        unit: Angstrom
+        update_to: wavelength_windows
+        value:
+        -   - 5400.0
+            - 5750.0
+        -   - 7000.0
+            - 9000.0
+    x_min:
+        default: 4000.0
+        default_unit: Angstrom
+        desc: If the spectrum's largest wavelength is below this value, host galaxy
+            emission will not be modelled.
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 4000.0
+    x_norm:
+        default: 6000.0
+        default_unit: Angstrom
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 6000.0
+iron:
+    bias:
+        default:
+        - right
+        - right
+        - right
+        - right
+        - right
+        dtype: list[str]
+        parse_as: bias
+        value:
+        - right
+        - right
+        - right
+        - right
+        - right
+    fine_tune:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fit:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    fixed:
+        default:
+        - true
+        - true
+        - true
+        - true
+        - true
+        dtype: list[bool]
+        parse_as: bool_list
+        value:
+        - true
+        - true
+        - true
+        - true
+        - true
+    flux_bounds:
+        default:
+        - 1.0
+        - 1000.0
+        default_unit: null
+        dtype: list[float | None]
+        parse_as: flux_bounds
+        unit: null
+        update_to: flux_bounds
+        value:
+        - 1.0
+        - 1000.0
+    fwhm:
+        default:
+        - 1000.0
+        - 1250.0
+        - 1500.0
+        - 1750.0
+        - 2000.0
+        - 2250.0
+        - 2500.0
+        - 2750.0
+        - 3000.0
+        - 3250.0
+        - 3500.0
+        - 3750.0
+        - 4000.0
+        - 4250.0
+        - 4500.0
+        - 4750.0
+        - 5000.0
+        - 5250.0
+        - 5500.0
+        - 5750.0
+        - 6000.0
+        - 6250.0
+        - 6500.0
+        - 6750.0
+        - 7000.0
+        - 7250.0
+        - 7500.0
+        - 7750.0
+        - 8000.0
+        - 8250.0
+        - 8500.0
+        - 8750.0
+        - 9000.0
+        - 9250.0
+        - 9500.0
+        - 9750.0
+        - 10000.0
+        - 10250.0
+        - 10500.0
+        - 10750.0
+        - 11000.0
+        - 11250.0
+        - 11500.0
+        - 11750.0
+        - 12000.0
+        - 12250.0
+        - 12500.0
+        - 12750.0
+        - 13000.0
+        - 13250.0
+        - 13500.0
+        - 13750.0
+        - 14000.0
+        - 14250.0
+        - 14500.0
+        - 14750.0
+        - 15000.0
+        - 15250.0
+        - 15500.0
+        - 15750.0
+        - 16000.0
+        - 16250.0
+        - 16500.0
+        - 16750.0
+        - 17000.0
+        - 17250.0
+        - 17500.0
+        - 17750.0
+        - 18000.0
+        - 18250.0
+        - 18500.0
+        - 18750.0
+        - 19000.0
+        - 19250.0
+        - 19500.0
+        - 19750.0
+        - 20000.0
+        default_unit: km / s
+        dtype: list[float]
+        parse_as: velocity_list
+        unit: km / s
+        update_to: sorted_velocity_kms_array
+        value:
+        - 1000.0
+        - 1250.0
+        - 1500.0
+        - 1750.0
+        - 2000.0
+        - 2250.0
+        - 2500.0
+        - 2750.0
+        - 3000.0
+        - 3250.0
+        - 3500.0
+        - 3750.0
+        - 4000.0
+        - 4250.0
+        - 4500.0
+        - 4750.0
+        - 5000.0
+        - 5250.0
+        - 5500.0
+        - 5750.0
+        - 6000.0
+        - 6250.0
+        - 6500.0
+        - 6750.0
+        - 7000.0
+        - 7250.0
+        - 7500.0
+        - 7750.0
+        - 8000.0
+        - 8250.0
+        - 8500.0
+        - 8750.0
+        - 9000.0
+        - 9250.0
+        - 9500.0
+        - 9750.0
+        - 10000.0
+        - 10250.0
+        - 10500.0
+        - 10750.0
+        - 11000.0
+        - 11250.0
+        - 11500.0
+        - 11750.0
+        - 12000.0
+        - 12250.0
+        - 12500.0
+        - 12750.0
+        - 13000.0
+        - 13250.0
+        - 13500.0
+        - 13750.0
+        - 14000.0
+        - 14250.0
+        - 14500.0
+        - 14750.0
+        - 15000.0
+        - 15250.0
+        - 15500.0
+        - 15750.0
+        - 16000.0
+        - 16250.0
+        - 16500.0
+        - 16750.0
+        - 17000.0
+        - 17250.0
+        - 17500.0
+        - 17750.0
+        - 18000.0
+        - 18250.0
+        - 18500.0
+        - 18750.0
+        - 19000.0
+        - 19250.0
+        - 19500.0
+        - 19750.0
+        - 20000.0
+    fwhm_bounds:
+        default:
+        - 1000.0
+        - 10000.0
+        default_unit: km / s
+        dtype: list[float | None]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - 1000.0
+        - 10000.0
+    fwhm_norm:
+        default: 5000.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_kms
+        value: 5000.0
+    raster:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    ratio:
+        default:
+        - 1.0
+        - 1.0
+        - 1.0
+        - 1.0
+        - 1.0
+        dtype: list[float]
+        parse_as: float_list
+        value:
+        - 1.0
+        - 1.0
+        - 1.0
+        - 1.0
+        - 1.0
+    resample:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    scale:
+        default: 140.0
+        default_unit: Angstrom
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 140.0
+    split:
+        default:
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+        default_unit: Angstrom
+        dtype: list[float]
+        parse_as: wavelength_list
+        unit: Angstrom
+        update_to: wavelength_array
+        value:
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+        - 0.0
+    template_files:
+        default:
+        - vw2001_blue
+        - vw2001_red
+        - bw
+        - v2003_blue
+        - v2003_red
+        dtype: list[str]
+        parse_as: str_list
+        value:
+        - vw2001_blue
+        - vw2001_red
+        - bw
+        - v2003_blue
+        - v2003_red
+    tie_similar:
+        default: true
+        desc: If true, `IronModel` instances whose templates share the same prefix
+            have their FWHM tied.
+        dtype: bool
+        parse_as: bool
+        value: true
+    windows:
+        default:
+        -   - 2050.0
+            - 2700.0
+        -   - 3000.0
+            - 3500.0
+        -   - 4500.0
+            - 4700.0
+        -   - 5100.0
+            - 5400.0
+        default_unit: Angstrom
+        dtype: list[list[float, float]]
+        parse_as: wavelength_windows
+        unit: Angstrom
+        update_to: wavelength_windows
+        value:
+        -   - 2050.0
+            - 2700.0
+        -   - 3000.0
+            - 3500.0
+        -   - 4500.0
+            - 4700.0
+        -   - 5100.0
+            - 5400.0
+lines:
+    adapt_scale:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    aggressive:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    crop:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    evaluate_initial:
+        default: 3.0
+        dtype: float
+        parse_as: float
+        value: 3.0
+    fit:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    forced_splits:
+        default:
+        - 1450.0
+        - 1680.0
+        - 2000.0
+        default_unit: Angstrom
+        dtype: list[float]
+        parse_as: wavelength_list
+        unit: Angstrom
+        update_to: sorted_wavelength_array
+        value:
+        - 1450.0
+        - 1680.0
+        - 2000.0
+    fwhm_v_bounds_b:
+        default:
+        - 1000.0
+        - 10000.0
+        default_unit: km / s
+        desc: FWHM velocity bounds for broad components
+        dtype: list[float | None]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - 1000.0
+        - 10000.0
+    fwhm_v_bounds_n:
+        default:
+        - 100.0
+        - 1000.0
+        default_unit: km / s
+        desc: FWHM velocity bounds for narrow components
+        dtype: list[float | None]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - 100.0
+        - 1000.0
+    make_copies:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    measure:
+        default: getFluxSNR
+        dtype: str
+        parse_as: str
+        value: getFluxSNR
+    min_fittable_ratio:
+        default: 0.6
+        dtype: float
+        parse_as: float
+        value: 0.6
+    min_fittable_total:
+        default: 50
+        dtype: int
+        parse_as: int
+        value: 50
+    reverse:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    scale_bounds:
+        default:
+        - 0.0
+        - 10.0
+        dtype: list[float | None]
+        parse_as: float_bounds
+        value:
+        - 0.0
+        - 10.0
+    scale_fixed:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    scale_init:
+        default: 1.0
+        dtype: float
+        parse_as: float
+        value: 1.0
+    snr:
+        default: 10
+        dtype: float
+        parse_as: float
+        value: 10
+    strength_bounds_b:
+        default:
+        - 0.0
+        - 100000.0
+        default_unit: null
+        desc: Strength bounds for broad components
+        dtype: list[float | None]
+        parse_as: flux_bounds
+        unit: null
+        update_to: flux_bounds
+        value:
+        - 0.0
+        - 100000.0
+    strength_bounds_n:
+        default:
+        - 0.0
+        - 100000.0
+        default_unit: null
+        desc: Strength bounds for narrow components
+        dtype: list[float | None]
+        parse_as: flux_bounds
+        unit: null
+        update_to: flux_bounds
+        value:
+        - 0.0
+        - 100000.0
+    v_off_bounds_b:
+        default:
+        - -1000.0
+        - 1000.0
+        default_unit: km / s
+        desc: Velocity offset bounds for broad components
+        dtype: list[float | None]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - -1000.0
+        - 1000.0
+    v_off_bounds_n:
+        default:
+        - -500.0
+        - 500.0
+        default_unit: km / s
+        desc: Velocity offset bounds for narrow components
+        dtype: list[float | None]
+        parse_as: velocity_bounds
+        unit: km / s
+        update_to: velocity_kms_bounds
+        value:
+        - -500.0
+        - 500.0
+    v_sep:
+        default: 10000.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_c
+        value: 10000.0
+    w:
+        default: 25
+        default_unit: null
+        dtype: int
+        parse_as: n_pixels
+        unit: null
+        update_to: n_pixels
+        value: 25
+    x_limit:
+        default: 1220.0
+        default_unit: Angstrom
+        dtype: float
+        parse_as: wavelength
+        unit: Angstrom
+        update_to: wavelength
+        value: 1220.0
+loading:
+    conserve:
+        comment: Do not touch this unless you know what you are doing
+        default: true
+        desc: If True, conserves the integrated flux density during rebinning
+        dtype: bool
+        parse_as: bool
+        value: true
+    covariance:
+        default: false
+        dtype: bool
+        parse_as: bool
+        value: false
+    deredden:
+        default:
+        - true
+        - sfd
+        - ccm89
+        - 3.1
+        dtype: list[bool, str, str, float]
+        parse_as: deredden
+        value:
+        - true
+        - sfd
+        - ccm89
+        - 3.1
+    load:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    loader:
+        default: fits
+        dtype: str
+        parse_as: loader
+        value: fits
+    naming:
+        default: IGR
+        dtype: str
+        parse_as: naming
+        value: IGR
+    rebin:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    sigma_res:
+        default: 69.0
+        default_unit: km / s
+        dtype: float
+        parse_as: velocity
+        unit: km / s
+        update_to: velocity_c
+        value: 69.0
+    x_bounds:
+        default:
+        - 1200.0
+        - 10000.0
+        default_unit: Angstrom
+        dtype: list[float, float]
+        parse_as: wavelength_bounds
+        unit: Angstrom
+        update_to: wavelength_bounds
+        value:
+        - 1200.0
+        - 10000.0
+mcmc:
+    batch_size:
+        default: 100
+        desc: Batch size for MCMC sampling
+        dtype: int
+        parse_as: int
+        value: 100
+    ftol:
+        default: 0.0001
+        desc: Loss function tolerance for early termination of MCMC sampling
+        dtype: float | None
+        parse_as: optional_float
+        value: 0.0001
+    max_attempts:
+        default: 1000
+        desc: Maximum no. of attempts for finding valid initial states
+        dtype: int
+        parse_as: int
+        value: 1000
+    max_nfev:
+        default: 1000
+        desc: Maximum number of function evaluations for MCMC (per walker)
+        dtype: int
+        parse_as: int
+        value: 1000
+    n_walkers:
+        default: 100
+        desc: Default number of walkers for MCMC sampling
+        dtype: int
+        parse_as: int
+        value: 100
+    n_walkers_per_dim:
+        default: 10
+        desc: Number of walkers per dimension for MCMC sampling
+        dtype: int
+        parse_as: int
+        value: 10
+    renew_rng:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    sampling_method:
+        default: fisher
+        desc: Method used to initialise MCMC walkers
+        dtype: Literal['fisher', 'uniform']
+        parse_as: str
+        value: fisher
+    xtol:
+        default: 0.0001
+        desc: Parameter tolerance for early termination of MCMC sampling
+        dtype: float | None
+        parse_as: optional_float
+        value: 0.0001
+nonlinear:
+    calc_jac:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: true
+        desc: If true, the Jacobian is calculated analytically. Otherwise a '2-point'
+            scheme is used.
+        dtype: bool
+        parse_as: bool
+        value: true
+    f_scale:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: 1.0
+        desc: Scaling for residuals. This parameter has no effect when the loss function
+            is 'linear'.
+        dtype: float
+        parse_as: float
+        value: 1.0
+    ftol:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: 1.0e-08
+        desc: Tolerance for termination by the change of the cost function. If None,
+            termination by 'ftol' is disabled.
+        dtype: float | None
+        parse_as: optional_float
+        value: 1.0e-08
+    gtol:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: null
+        desc: Tolerance for termination by the norm of the gradient. If None, termination
+            by 'gtol' is disabled.
+        dtype: float | None
+        parse_as: optional_float
+        value: null
+    loss:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: linear
+        desc: Specifies the the loss function. The default of 'linear' corresponds
+            to a standard least-squares loss.
+        dtype: str
+        parse_as: str
+        value: linear
+    max_nfev:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: 100
+        desc: Maximum number of function evaluations allowed during the optimization.
+        dtype: int
+        parse_as: int
+        value: 100
+    method:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: trf
+        desc: 'Choice of optimization algorithm: ''trf'' (Trust Region Reflective),
+            ''dogbox'' (Dogleg), or ''lm'' (Levenberg-Marquardt).'
+        dtype: str
+        parse_as: algo
+        value: trf
+    xtol:
+        comment: 'See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares'
+        default: null
+        desc: Tolerance for termination by the change of the solution vector. If None,
+            termination by 'xtol' is disabled.
+        dtype: float | None
+        parse_as: optional_float
+        value: null
+random:
+    renew_rng:
+        default: true
+        dtype: bool
+        parse_as: bool
+        value: true
+    seed:
+        default: 42
+        dtype: int
+        parse_as: int
+        value: 42
+units:
+    area_unit:
+        default: 1 cm2
+        desc: Choice of area unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1 cm2
+    dens_unit:
+        default: 1 / cm3
+        desc: Choice of density unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1 / cm3
+    energy_unit:
+        default: 1e-17 erg
+        desc: Choice of energy unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1e-17 erg
+    flux_format:
+        default: .1f
+        desc: How to format flux density values
+        dtype: str
+        parse_as: str
+        value: .1f
+    other_format:
+        default: .1f
+        desc: How to format other values
+        dtype: str
+        parse_as: str
+        value: .1f
+    strength_format:
+        default: .1f
+        desc: How to format strength (integrated flux density) values
+        dtype: str
+        parse_as: str
+        value: .1f
+    temp_unit:
+        default: 1 K
+        desc: Choice of temperature unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1 K
+    time_unit:
+        default: 1 s
+        desc: Choice of time unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1 s
+    velocity_format:
+        default: .1f
+        desc: How to format velocity values
+        dtype: str
+        parse_as: str
+        value: .1f
+    velocity_unit:
+        default: 1 km / s
+        desc: Choice of velocity unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1 km / s
+    wavelength_format:
+        default: .1f
+        desc: How to format wavelength values
+        dtype: str
+        parse_as: str
+        value: .1f
+    wavelength_unit:
+        default: 1 Angstrom
+        desc: Choice of wavelength unit
+        dtype: str
+        parse_as: composite_unit
+        value: 1 Angstrom

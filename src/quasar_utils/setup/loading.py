@@ -44,9 +44,11 @@ class LoadingInfo(_Info):
         parse_as="bool",
     )
     conserve: bool = field(
-        default=False,
+        desc="If True, conserves the integrated flux density during rebinning",
+        default=True,
         dtype="bool",
         parse_as="bool",
+        comment="Do not touch this unless you know what you are doing",
     )
     covariance: bool = field(
         default=False,
@@ -57,11 +59,11 @@ class LoadingInfo(_Info):
         default=69 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
-        update_to="velocity",
+        update_to="velocity_c",
         has_unit=True,
     )
     _x_bounds: CoordBounds | Quantity_ = field(
-        default=(1000, 10_000) * Unit("angstrom"),
+        default=(1200, 10_000) * Unit("angstrom"),
         dtype="list[float, float]",
         parse_as="wavelength_bounds",
         update_to="wavelength_bounds",

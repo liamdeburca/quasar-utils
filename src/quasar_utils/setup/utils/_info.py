@@ -106,7 +106,11 @@ class _Info(ABC):
         """
         Whether all parameters have been updated.
         """
-        return all(getattr(self, key) is not None for key in self._keys)
+        return all(
+            getattr(self, key) is not None
+            for key in self._keys
+            if key in self._values_to_update
+        )
 
     def update(self, info: object, logger: Logger) -> None:
         """

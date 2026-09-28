@@ -15,8 +15,11 @@ from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
+_c_unit: CompositeUnit_ = Unit(c)
+_kms_unit: CompositeUnit_ = Unit("1 km/s")
 
-@finalise_dataclass(additional_keys=["strength_unit", "flux_unit"])
+
+@finalise_dataclass(additional_keys=["strength_unit", "flux_unit", "c_unit"])
 @dataclass
 class UnitsInfo(_Info):
     wavelength_unit: CompositeUnit_ = field(
@@ -52,12 +55,6 @@ class UnitsInfo(_Info):
     dens_unit: CompositeUnit_ = field(
         default=Unit("1 cm^-3"),
         desc="Choice of density unit",
-        dtype="str",
-        parse_as="composite_unit",
-    )
-    c_unit: CompositeUnit_ = field(
-        default=Unit(c),
-        desc="Choice of speed-of-light unit",
         dtype="str",
         parse_as="composite_unit",
     )
@@ -98,6 +95,13 @@ class UnitsInfo(_Info):
         parse_as="str",
     )
 
+    def __getstate__(self) -> dict[str, Any]:
+        state = super().__getstate__()
+        state.pop("strength_unit")
+        state.pop("flux_unit")
+        state.pop("c_unit")
+        return state
+
     def __hash__(self) -> int:
         return super().__hash__()
 
@@ -112,13 +116,21 @@ class UnitsInfo(_Info):
     def flux_unit(self) -> CompositeUnit_:
         return self.strength_unit / self.wavelength_unit
 
+    @property
+    def c_unit(self) -> CompositeUnit_:
+        return _c_unit
+
+    @property
+    def kms_unit(self) -> CompositeUnit_:
+        return _kms_unit
+
     def to_dict(
         self,
         jsonify: bool = False,
     ) -> dict[Literal["units"], dict[str, Any]]:
         return super().to_dict(
             "units", 
-            blacklist=["strength_unit", "flux_unit"], 
+            blacklist=["strength_unit", "flux_unit", "c_unit"], 
             jsonify=jsonify,
         )
 
@@ -340,7 +352,54 @@ class UnitsInfo(_Info):
         with_unit: bool = True,
     ) -> str:
         if not isinstance(val, Quantity):
-            val *= c ** power
+            val *= self.c_unit ** power
+        return self.formatVelocity(val, power=power, with_unit=with_unit)
+
+    ###
+
+    def getKMS(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_ | float | Iterable[float]:
+        """
+        ...
+        """
+        return self._get_transformed_value(self.kms_unit, val, power=power
+    )
+
+    def getDimensionedKMS(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> Quantity_:
+        return self._get_dimensioned_value(self.kms_unit, val, power=power)
+
+    def getUnitlessKMS(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self._get_unitless_value(self.kms_unit, val, power=power)
+
+    def getUnitlessKMSFromVelocity(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1,
+    ) -> float | Iterable[float]:
+        return self.getUnitlessKMS(
+            self.getDimensionedVelocity(val, power=power), 
+            power=power,
+        )
+
+    def formatKMS(
+        self,
+        val: Quantity_ | float | Iterable[float],
+        power: float = 1.0,
+        with_unit: bool = True,
+    ) -> str:
+        if not isinstance(val, Quantity):
+            val *= self.kms_unit ** power
         return self.formatVelocity(val, power=power, with_unit=with_unit)
 
     ###
@@ -598,11 +657,6 @@ class UnitsInfo(_Info):
             val = self.getVelocity(val, power=power)
             dimension = "velocity"
 
-        unit = (
-            self[f"{dimension}_unit"]
-            if dimension in ["wavelength", "velocity"]
-            else getattr(self, f"get{dimension.capitalize()}Unit")()
-        )
-        unit **= power
+        unit = getattr(self, f"{dimension}_unit") ** power
 
         return val, unit

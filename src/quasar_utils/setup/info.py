@@ -27,7 +27,9 @@ from .host import HostInfo
 from .iron import IronInfo
 from .lines import LinesInfo
 from .loading import LoadingInfo
+from .mcmc import MCMCInfo
 from .nonlinear import NonLinearInfo
+from .random import RandomInfo
 from .units import UnitsInfo
 
 logger = getLogger(__name__)
@@ -71,13 +73,21 @@ class Info:
         default_factory=LoadingInfo,
         kw_only=True, 
     )
+    mcmc: MCMCInfo = field(
+        default_factory=MCMCInfo,
+        kw_only=True,
+    )
     nonlinear: NonLinearInfo = field(
         default_factory=NonLinearInfo,
         kw_only=True, 
     )
+    random: RandomInfo = field(
+        default_factory=RandomInfo,
+        kw_only=True,
+    )
     units: UnitsInfo = field(
-        kw_only=True, 
         default_factory=UnitsInfo,
+        kw_only=True, 
     )
 
     _keys: ClassVar[frozenset[str]] = frozenset([
@@ -90,7 +100,9 @@ class Info:
         "iron",
         "lines",
         "loading",
+        "mcmc", 
         "nonlinear",
+        "random",
         "units",
     ])
 
@@ -141,7 +153,9 @@ class Info:
             iron=func(cls=IronInfo),
             lines=func(cls=LinesInfo),
             loading=func(cls=LoadingInfo),
+            mcmc=func(cls=MCMCInfo),
             nonlinear=func(cls=NonLinearInfo),
+            random=func(cls=RandomInfo),
             units=func(cls=UnitsInfo),
         )
 
@@ -177,7 +191,9 @@ class Info:
             iron=func(cls=IronInfo),
             lines=func(cls=LinesInfo),
             loading=func(cls=LoadingInfo),
+            mcmc=func(cls=MCMCInfo),
             nonlinear=func(cls=NonLinearInfo),
+            random=func(cls=RandomInfo),
             units=func(cls=UnitsInfo),
         )
 
@@ -233,9 +249,10 @@ class Info:
             "iron",
             "lines",
             "loading",
+            "mcmc",
             "nonlinear",
+            "random",
             "units",
-            # 'plotting',
         ],
     ) -> Any:
         result = None

@@ -60,7 +60,8 @@ def field(
     kw_only: bool, optional
         Whether the field should be keyword-only in the generated __init__ method.
     """
-    assert default is not MISSING or default_factory is not MISSING
+    if (default is MISSING) and (default_factory is MISSING):
+        raise ValueError("Either 'default' or 'default_factory' must be specified.")
 
     if (parse_as != "<No parse_as>") and (parse_as not in PARSER_KEYS):
         raise ValueError(f"Invalid parse_as value '{parse_as}'.")

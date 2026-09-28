@@ -8,13 +8,13 @@ _this_file: Path = Path(__file__).resolve()
 def json_path():
     path = _this_file.parent / "temp.json" 
     yield path
-    path.unlink()
+    # path.unlink()
 
 @pytest.fixture(scope="function")
 def yaml_path():
     path = _this_file.parent / "temp.yaml" 
     yield path
-    path.unlink()
+    # path.unlink()
 
 def test_json_dump(json_path: Path):
     from quasar_utils.setup import Info

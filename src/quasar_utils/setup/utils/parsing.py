@@ -78,6 +78,22 @@ class Parser:
         }
 
     @classmethod
+    def as_gyr(cls, field: JSONField) -> int:
+        return int(1e9 * cls.as_float(field))
+
+    @classmethod
+    def undo_as_gyr(cls, value: int) -> JSONField:
+        return cls.undo_as_float(round(value / 1e9, 3))
+
+    @classmethod
+    def as_gyr_list(cls, field: JSONField) -> list[int]:
+        return [int(1e9 * val) for val in cls.as_float_list(field)]
+
+    @classmethod
+    def undo_as_gyr_list(cls, value: list[int]) -> JSONField:
+        return cls.undo_as_float_list([round(val / 1e9, 3) for val in value])
+
+    @classmethod
     def as_float(cls, field: JSONField) -> float:
         return float(field["value"])
 
@@ -292,13 +308,13 @@ class Parser:
 
     @classmethod
     def as_wavelength_bounds(cls, field: JSONField) -> Quantity | tuple[float, float]:
-        val = cls.as_float_list(field)
+        val = tuple(cls.as_float_list(field))
         assert len(val) == 2 and val[0] < val[1]
         if unit := field.get("unit", None):
             unit = Unit(unit)
             assert is_wavelength_unit(unit)
             val *= unit
-        return tuple(val)
+        return val
 
     @classmethod
     def undo_as_wavelength_bounds(cls, value: Quantity | tuple[float, float]) -> JSONField:

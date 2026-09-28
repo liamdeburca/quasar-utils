@@ -23,10 +23,16 @@ class Updater:
         return value
 
     @classmethod
-    def to_velocity(cls, info: object, value: float | Quantity) -> float:
+    def to_velocity_c(cls, info: object, value: float | Quantity) -> float:
         if not isinstance(value, Quantity):
             value *= info.units.velocity_unit
         return info.units.getC(value)
+
+    @classmethod
+    def to_velocity_kms(cls, info: object, value: float | Quantity) -> float:
+        if not isinstance(value, Quantity):
+            value *= info.units.velocity_unit
+        return info.units.getKMS(value)
 
     @classmethod
     def to_temperature(cls, info: object, value: float | Quantity) -> float:
@@ -47,11 +53,22 @@ class Updater:
         return value
 
     @classmethod
-    def to_velocity_bounds(cls, info: object, value: AstropyBounds | Iterable[Quantity | None]) -> AstropyBounds:
+    def to_velocity_c_bounds(cls, info: object, value: AstropyBounds | Iterable[Quantity | None]) -> AstropyBounds:
         tup = tuple(
             None 
                 if b is None 
-                else cls.to_velocity(info, b) 
+                else cls.to_velocity_c(info, b) 
+            for b in value
+        )
+        assert len(tup) == 2
+        return tup
+
+    @classmethod
+    def to_velocity_kms_bounds(cls, info: object, value: AstropyBounds | Iterable[Quantity | None]) -> AstropyBounds:
+        tup = tuple(
+            None 
+                if b is None 
+                else cls.to_velocity_kms(info, b) 
             for b in value
         )
         assert len(tup) == 2
@@ -73,12 +90,20 @@ class Updater:
         return value.to_fixed()
 
     @classmethod
-    def to_velocity_list(cls, info: object, value: Iterable[float | Quantity]) -> list[float]:
-        return [cls.to_velocity(info, v) for v in value]
+    def to_velocity_c_list(cls, info: object, value: Iterable[float | Quantity]) -> list[float]:
+        return [cls.to_velocity_c(info, v) for v in value]
 
     @classmethod
-    def to_sorted_velocity_array(cls, info: object, value: Iterable[float | Quantity]) -> SortedFloatVector:
-        return sort(cls.to_velocity_list(info, value)).astype(float64, order='C')
+    def to_velocity_kms_list(cls, info: object, value: Iterable[float | Quantity]) -> list[float]:
+        return [cls.to_velocity_kms(info, v) for v in value]
+
+    @classmethod
+    def to_sorted_velocity_c_array(cls, info: object, value: Iterable[float | Quantity]) -> SortedFloatVector:
+        return sort(cls.to_velocity_c_list(info, value)).astype(float64, order='C')
+
+    @classmethod
+    def to_sorted_velocity_kms_array(cls, info: object, value: Iterable[float | Quantity]) -> SortedFloatVector:
+        return sort(cls.to_velocity_kms_list(info, value)).astype(float64, order='C')
 
     @classmethod
     def to_wavelength_list(cls, info: object, value: Iterable[float | Quantity]) -> list[float]:

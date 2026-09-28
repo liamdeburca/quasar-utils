@@ -16,49 +16,71 @@ class FitterKwargs(TypedDict):
     method: Literal["trf", "dogbox", "lm"]
     loss: str
     max_nfev: int
-    ftol: float
-    xtol: float
-    gtol: float
+    ftol: float | None
+    xtol: float | None
+    gtol: float | None
     f_scale: float
+    calc_jac: bool
 
 
 @finalise_dataclass(additional_keys=["fitter_kwargs"])
 @dataclass
 class NonLinearInfo(_Info):
     method: Literal["trf", "dogbox", "lm"] = field(
+        desc="Choice of optimization algorithm: 'trf' (Trust Region Reflective), 'dogbox' (Dogleg), or 'lm' (Levenberg-Marquardt).",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
         default="trf",
         dtype="str",
         parse_as="algo",
     )
     loss: str = field(
+        desc="Specifies the the loss function. The default of 'linear' corresponds to a standard least-squares loss.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
         default="linear",
         dtype="str",
         parse_as="str",
     )
     max_nfev: int = field(
+        desc="Maximum number of function evaluations allowed during the optimization.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
         default=100,
         dtype="int",
         parse_as="int",
     )
-    ftol: float = field(
+    ftol: float | None = field(
+        desc="Tolerance for termination by the change of the cost function. If None, termination by 'ftol' is disabled.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
         default=1e-8,
-        dtype="float",
-        parse_as="float",
+        dtype="float | None",
+        parse_as="optional_float",
     )
-    xtol: float = field(
-        default_factory=lambda: float(finfo(float).eps),
-        dtype="float",
-        parse_as="float",
+    xtol: float | None= field(
+        desc="Tolerance for termination by the change of the solution vector. If None, termination by 'xtol' is disabled.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
+        default=None,
+        dtype="float | None",
+        parse_as="optional_float",
     )
-    gtol: float = field(
-        default_factory=lambda: float(finfo(float).eps),
-        dtype="float",
-        parse_as="float",
+    gtol: float | None = field(
+        desc="Tolerance for termination by the norm of the gradient. If None, termination by 'gtol' is disabled.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
+        default=None,
+        dtype="float | None",
+        parse_as="optional_float",
     )
     f_scale: float = field(
+        desc="Scaling for residuals. This parameter has no effect when the loss function is 'linear'.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
         default=1.0,
         dtype="float",
         parse_as="float",
+    )
+    calc_jac: bool = field(
+        desc="If true, the Jacobian is calculated analytically. Otherwise a '2-point' scheme is used.",
+        comment="See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares",
+        default=True,
+        dtype="bool",
+        parse_as="bool",
     )
 
     def __hash__(self) -> int:
@@ -91,6 +113,7 @@ class NonLinearInfo(_Info):
             'xtol': self.xtol,
             'gtol': self.gtol,
             'f_scale': self.f_scale,
+            'calc_jac': self.calc_jac,
         }
 
     def to_dict(

@@ -44,7 +44,7 @@ class ContinuumInfo(_Info):
             [1675.0, 1690.0],
             [1975.0, 2050.0],
             [2150.0, 2250.0],
-            [5400.0, 5800.0],
+            [5400.0, 5750.0],
             [7000.0, 9000.0],
         ] * Unit("angstrom"),
         desc="List of wavelength windows used for continuum fitting",
