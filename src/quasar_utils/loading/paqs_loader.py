@@ -1,19 +1,26 @@
 from logging import getLogger
-
-logger = getLogger(__name__)
-
+from typing import TypedDict
 
 from astropy.io import fits
 from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import float64, full, ones
-from quasar_typing.numpy import FloatMatrix
+from numpy import float64, full
+from quasar_typing.numpy import FloatVector
 
 from ..naming import IGR, J2000
 from .loader import _Loader
 
+logger = getLogger(__name__)
 
-def _get_data(hdul: HDUList) -> dict[str, Quantity | FloatMatrix]:
+
+class _PAQSDataDict(TypedDict):
+    x: Quantity
+    y: Quantity
+    dy: Quantity
+    dx: Quantity
+    R: FloatVector
+
+def _get_data(hdul: HDUList) -> _PAQSDataDict:
     """
     Loads PAQS data from a fits HDU list assuming: 
 
@@ -34,15 +41,15 @@ def _get_data(hdul: HDUList) -> dict[str, Quantity | FloatMatrix]:
     dy = data["ERR_FLUX"].flatten().astype(float64)
     dx = full(x.size, 0.25, dtype=float64)
 
-    # No correction for instrumental resolution
-    res_kernels = ones((1, x.size), dtype=float64)
+    # 4MOST: R=4000 @ 3700 angstrom, R=7700 @ 9500 angstrom
+    R = 3700.0 * (x - 3700.0) / (9500.0 - 3700.0)+ 4000.0
 
     return {
         "x": x * wave_unit,
         "y": y * flux_unit,
         "dy": dy * flux_unit,
         "dx": dx * wave_unit,
-        "res_kernels": res_kernels,
+        "R": R,
     }
 
 
@@ -122,7 +129,7 @@ class PAQSLoader(_Loader):
             self.y_original = data["y"]
             self.dy_original = data["dy"]
             self.dx_original = data["dx"]
-            self.res_kernels_original = data["res_kernels"]
+            self.R_original = data["R"]
 
         logger.debug(msg)
         super().__post_init__()

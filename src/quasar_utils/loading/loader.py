@@ -4,11 +4,11 @@ from dataclasses import field
 from logging import getLogger
 from typing import Literal
 
-from numpy import diff, float64, full, interp, log, ones, stack
+from numpy import diff, float64, full, interp, log
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import CoordBounds
-from quasar_typing.numpy import CoordsTuple, FloatMatrix, FloatVector
+from quasar_typing.numpy import CoordsTuple, FloatVector
 from quasar_typing.pathlib import AbsoluteFilePath
 
 from ..decorators import validated_apply_info_to_method
@@ -43,13 +43,13 @@ class _Loader:
     y_original: FloatVector | Quantity_ = field(init=False)
     dy_original: FloatVector | Quantity_ = field(init=False)
     dx_original: float | FloatVector | Quantity_ = field(init=False)
-    res_kernels_original: FloatMatrix = field(init=False)
+    R_original: FloatVector | None = field(init=False)
 
     x: FloatVector = field(init=False)
     y: FloatVector = field(init=False)
     dy: FloatVector = field(init=False)
     dx: FloatVector = field(init=False)
-    res_kernels: FloatMatrix = field(init=False)
+    R: FloatVector | None = field(init=False)
 
     x_bounds: CoordBounds = field(init=False)
 
@@ -65,7 +65,7 @@ class _Loader:
         assert hasattr(self, "y_original")
         assert hasattr(self, "dy_original")
         assert hasattr(self, "dx_original")
-        assert hasattr(self, "res_kernels_original")
+        assert hasattr(self, "R_original")
 
         if isinstance(self.dx_original, float):
             self.dx_original = full(
@@ -79,7 +79,8 @@ class _Loader:
         self.y_original.setflags(write=False)
         self.dy_original.setflags(write=False)
         self.dx_original.setflags(write=False)
-        self.res_kernels_original.setflags(write=False)
+        if self.R_original is not None:
+            self.R_original.setflags(write=False)
 
     @validated_apply_info_to_method(subjects=("loading",))
     def __call__(
@@ -195,12 +196,12 @@ class _Loader:
             "y": self.y,
             "dy": self.dy,
             "dx": self.dx,
-            "res_kernels": self.res_kernels,
+            "R": self.R,
             "x_original": self.x_original,
             "y_original": self.y_original,
             "dy_original": self.dy_original,
             "dx_original": self.dx_original,
-            "res_kernels_original": self.res_kernels_original,
+            "R_original": self.R_original,
             "info": self.info,
             "x_bounds": self.x_bounds,
         }
@@ -312,17 +313,11 @@ class _Loader:
         self.dx = out[1]
 
         # Interpolate new 'res_kernels'
-        if self.res_kernels.shape[0] == 1:
-            self.res_kernels = ones((1, self.x.size), dtype=float64)
+        if self.R_original is None:
+            self.R = None
         else:
-            self.res_kernels = stack(
-                [
-                    interp(self.x, self.x_original, ks) 
-                    for ks in self.res_kernels_original
-                ],
-                axis=0,
-            )
-        self.res_kernels.setflags(write=False)
+            self.R = interp(self.x, self.x_original, self.R_original)
+            self.R.setflags(write=False)
 
     def finalize_coords(self) -> None:
         coords = [

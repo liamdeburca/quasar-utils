@@ -3,6 +3,7 @@ __all__ = [
     "FITSLoader",
     "PAQSLoader",
     "SDSSLoader",
+    "interpolate_resolution_kernels",
 ]
 
 from .ascii_loader import ASCIILoader

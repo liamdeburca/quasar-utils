@@ -1,14 +1,14 @@
 __all__ = ["SDSSLoader"]
 
 from logging import getLogger
+from typing import TypedDict
 
 from astropy.constants import c
 from astropy.io import fits
 from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import float64, full_like, nan, ones
+from numpy import float64, full_like, nan
 from pydantic.dataclasses import dataclass
-from quasar_typing.numpy import FloatMatrix
 
 from quasar_utils.loading.loader import _Loader
 from quasar_utils.naming import IGR, J2000
@@ -17,7 +17,15 @@ logger = getLogger(__name__)
 SIGMA_RES: float = 69.0 / c.to("km/s").value
 
 
-def _get_data(hdul: HDUList) -> dict[str, Quantity | FloatMatrix]:
+class _SDSSDataDict(TypedDict):
+    x: Quantity
+    y: Quantity
+    dy: Quantity
+    dx: Quantity
+    R: None
+
+
+def _get_data(hdul: HDUList) -> _SDSSDataDict:
     """Return spectral arrays extracted from an SDSS HDUList.
 
     Parameters
@@ -47,15 +55,12 @@ def _get_data(hdul: HDUList) -> dict[str, Quantity | FloatMatrix]:
     y[invalid_mask] = nan
     dy[invalid_mask] = nan
 
-    # No correction for instrumental resolution
-    res_kernels = ones((1, x.size), dtype=float64)
-
     return {
         "x": x * x_unit,
         "y": y * flux_unit,
         "dy": dy * flux_unit,
         "dx": dx * x_unit,
-        "res_kernels": res_kernels,
+        "R": None, # No instrumental correction
     }
 
 
@@ -154,7 +159,7 @@ class SDSSLoader(_Loader):
             self.y_original = data["y"]
             self.dy_original = data["dy"]
             self.dx_original = data["dx"]
-            self.res_kernels_original = data["res_kernels"]
+            self.R_original = data["R"]
 
         logger.debug(msg)
         super().__post_init__()

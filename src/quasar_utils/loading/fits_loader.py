@@ -108,10 +108,7 @@ class FITSLoader(_Loader):
             self.y_original = from_data("y")
             self.dy_original = from_data("dy")
             self.dx_original = from_data("dx")
-            self.res_kernels_original = ones(
-                (1, self.x_original.size), 
-                dtype=float64,
-            )
+            self.R_original = None
 
         logger.debug(msg)
         super().__post_init__()
