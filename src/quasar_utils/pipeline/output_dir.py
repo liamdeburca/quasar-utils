@@ -1,11 +1,13 @@
 from collections.abc import Iterator
 from dataclasses import field
 from logging import FileHandler
+from os import symlink
 from shutil import rmtree
 from typing import Self
 
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import (
+    AbsoluteDirPath,
     AbsoluteFilePath,
     AbsoluteLogPath,
     AnyAbsoluteDirPath,
@@ -21,6 +23,7 @@ class OutputDir:
     input_dir: InputDir
 
     path: AnyAbsoluteDirPath | None = None
+    input_link: AbsoluteFilePath | AbsoluteDirPath | None = None
     dangerous: bool = False
 
     subdirs: set[SubDir] = field(default_factory=set)
@@ -35,6 +38,29 @@ class OutputDir:
             self.create_subdirs()
 
         self.dangerous = False
+
+        # Create symbolic link to input file/directory
+        self.input_link = self.path / "input"
+        if not self.input_link.exists():
+            symlink(
+                self.input_dir.path, 
+                self.input_link,
+                target_is_directory=self.input_dir.path.is_dir(),
+            )
+
+    @classmethod
+    def resume(cls, path: AbsoluteDirPath) -> Self:
+        """
+        Re-instantiate an OutputDir object from an existing output directory 
+        path.
+        """
+        input_link = path / "input"
+        return OutputDir(
+            InputDir(input_link.resolve()),
+            path=path,
+            input_link=input_link,
+            dangerous=False,
+        )
 
     def batched(
         self,
@@ -70,6 +96,7 @@ class OutputDir:
         return {
             "input_dir": self.input_dir,
             "path": self.path,
+            "input_link": self.input_link,
             "dangerous": False,
             "subdirs": self.subdirs,
         }
@@ -78,6 +105,7 @@ class OutputDir:
         self.__init__(
             input_dir=state["input_dir"],
             path=state["path"],
+            input_link=state["input_link"],
             dangerous=False,
             subdirs=state["subdirs"],
         )
@@ -126,7 +154,11 @@ class OutputDir:
         self,
         path: AbsoluteFilePath,
     ) -> SubDir:
-        """Creates a 'SubDir' object for the given input file path.
+        """
+        Create a 'SubDir' object for the given input file path.
+
+        If the subdirectory already exists and is not empty, it can be deleted 
+        by setting `dangerous` to True.
 
         Parameters
         ----------
@@ -137,29 +169,22 @@ class OutputDir:
         -------
         SubDir
             The created 'SubDir' object.
-
-        Raises
-        ------
-        FileExistsError
-            If the non-empty output directory already exists and 'dangerous' is 
-            set to False.
         """
         out_dir = self.path / f"{path.stem}_out"
 
-        msg = f"Output directory @ {out_dir} "
+        msg = f"Output directory @ {out_dir!s} "
         if not out_dir.exists():
             msg += "does not exist."
         else:
             is_empty = next(out_dir.iterdir(), None) is None
             if is_empty:
-                msg += "exists but is empty -> using directory."
+                msg += "exists and empty -> using directory."
             elif self.dangerous:
                 msg += "exists and is not empty -> deleting contents."
                 rmtree(out_dir, ignore_errors=True)
             else:
-                msg += "exists and is not empty! "
+                msg += "exists and NOT empty! "
                 msg += "Use 'dangerous=True' to automatically delete contents."
-                raise FileExistsError(msg)
 
         subdir = SubDir(path, out_dir)
         subdir.current_log.append(msg)
