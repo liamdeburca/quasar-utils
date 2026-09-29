@@ -5,7 +5,7 @@ from logging import getLogger
 from typing import Any
 
 from astropy.units import Quantity, Unit
-from numpy import diff, float64, full_like, median, ones, stack
+from numpy import diff, float64, full_like, median, stack
 from pandas import DataFrame
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import AbsoluteFilePath

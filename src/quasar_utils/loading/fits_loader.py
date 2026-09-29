@@ -5,7 +5,7 @@ from typing import Any
 from astropy.io import fits
 from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import diff, float64, full_like, median, ones
+from numpy import diff, float64, full_like, median
 from pydantic.dataclasses import dataclass
 
 from ..naming import IGR, J2000

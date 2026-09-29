@@ -1,16 +1,22 @@
+from functools import lru_cache
 from logging import getLogger
+from pathlib import Path
 from typing import TypedDict
 
 from astropy.io import fits
 from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import float64, full
+from numpy import float64, full, interp
+from pandas import read_csv
 from quasar_typing.numpy import FloatVector
 
 from ..naming import IGR, J2000
 from .loader import _Loader
 
 logger = getLogger(__name__)
+
+_this_file: Path = Path(__file__).resolve()
+PATH_TO_DATA: Path = _this_file.parent / "data/4most_low.csv"
 
 
 class _PAQSDataDict(TypedDict):
@@ -42,7 +48,7 @@ def _get_data(hdul: HDUList) -> _PAQSDataDict:
     dx = full(x.size, 0.25, dtype=float64)
 
     # 4MOST: R=4000 @ 3700 angstrom, R=7700 @ 9500 angstrom
-    R = 3700.0 * (x - 3700.0) / (9500.0 - 3700.0)+ 4000.0
+    R = interp(x, _get_Rs())
 
     return {
         "x": x * wave_unit,
@@ -51,6 +57,28 @@ def _get_data(hdul: HDUList) -> _PAQSDataDict:
         "dx": dx * wave_unit,
         "R": R,
     }
+
+@lru_cache(maxsize=1)
+def _get_Rs() -> tuple[FloatVector, FloatVector]:
+    """
+    Return a tuple of wavelength-R pairs retrieved from the 'lambda' and 'R' 
+    columns of the CSV file located at PATH_TO_DATA.
+
+    Returns
+    -------
+    xs : FloatVector
+        A read-only 1d array of wavelength values (angstrom)
+    Rs : FloatVector
+        A read_only 1d array of resolving power (R) values.
+    """
+    df = read_csv(PATH_TO_DATA, usecols=["lambda", "R"])
+    xs = df["lambda"].to_numpy(dtype=float64)
+    Rs = df["R"].to_numpy(dtype=float64)
+
+    xs.setflags(write=False)
+    Rs.setflags(write=False)
+
+    return xs, Rs
 
 
 class PAQSLoader(_Loader):
