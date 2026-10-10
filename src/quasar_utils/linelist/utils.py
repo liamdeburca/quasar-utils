@@ -243,7 +243,7 @@ def df_to_dict(
         name = row["name"]
         output_dict[name] = field = {}
 
-        field["type"] = row["type"]
+        field["linetype"] = row["linetype"]
 
         if row["complex"]:
             field["complex"] = row["complex"]
@@ -255,17 +255,17 @@ def df_to_dict(
             field["needs_line"] = row["needs_line"]
 
         field["strength_lower"] = Converter.strength_reverser(
-            info, row["strength_lower"]
+            row["strength_lower"], info,
         )
         field["strength_upper"] = Converter.strength_reverser(
-            info, row["strength_upper"]
+            row["strength_upper"], info
         )
 
-        field["v_off_lower"] = Converter.v_reverser(info, row["v_off_lower"])
-        field["v_off_upper"] = Converter.v_reverser(info, row["v_off_upper"])
+        field["v_off_lower"] = Converter.v_reverser(row["v_off_lower"], info)
+        field["v_off_upper"] = Converter.v_reverser(row["v_off_upper"], info)
 
-        field["fwhm_v_lower"] = Converter.v_reverser(info, row["fwhm_v_lower"])
-        field["fwhm_v_upper"] = Converter.v_reverser(info, row["fwhm_v_upper"])
+        field["fwhm_v_lower"] = Converter.v_reverser(row["fwhm_v_lower"], info)
+        field["fwhm_v_upper"] = Converter.v_reverser(row["fwhm_v_upper"], info)
 
         if row["is_copy_of"]:
             field["is_copy_of"] = row["is_copy_of"]

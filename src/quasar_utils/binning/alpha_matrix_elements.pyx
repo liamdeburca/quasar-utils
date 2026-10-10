@@ -1,7 +1,7 @@
 cdef inline int _alpha_matrix_elements_c(
-    double[::1] x,
-    double[::1] xr,
-    double[::1] dx,
+    const double[::1] x,
+    const double[::1] xr,
+    const double[::1] dx,
     int[::1] i_indices,
     int[::1] j_indices,
     double[::1] vals,
@@ -41,9 +41,9 @@ cdef inline int _alpha_matrix_elements_c(
     return count
 
 cdef inline int _alpha_matrix_elements_conserved_c(
-    double[::1] x,
-    double[::1] xr,
-    double[::1] dxr,
+    const double[::1] x,
+    const double[::1] xr,
+    const double[::1] dxr,
     int[::1] i_indices,
     int[::1] j_indices,
     double[::1] vals,

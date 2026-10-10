@@ -1,7 +1,8 @@
+import hashlib
+import json as json_pkg
 from abc import ABC
 from collections.abc import Callable
-from dataclasses import Field, fields
-from json import load as load_json
+from dataclasses import fields
 from logging import Logger, getLogger
 from pathlib import Path
 from typing import Any, ClassVar, Self
@@ -42,14 +43,8 @@ class _Info(ABC):
     _cache: ClassVar[dict[str, Self]]
     _values_to_update: ClassVar[dict[str, str]]
 
-    def __str__(self, simple: bool = False) -> str:
-        s = f"'{self.__class__.__name__}' class"
-        if not simple:
-            s += "w/ "
-            for key in self._keys:
-                s += f"({key}) {self[key]}, "
-
-        return s.removesuffix(", ") + "."
+    def __str__(self) -> str:
+        return object.__str__(self)
 
     def __getitem__(self, key: str) -> Any:
         try:
@@ -65,14 +60,26 @@ class _Info(ABC):
     def __bool__(self) -> bool:
         return self.is_updated
 
-    def __hash__(self) -> int:
-        return hash(
-            tuple(
-                (key, _make_hashable(self[key]))
-                for key in self._keys
-                if not key.startswith("_")
-            )
+    def _hash_helper(self) -> str:
+        d = {
+            k2: {k1: v1["value"] for k1, v1 in v2.items()}
+            for k2, v2 in self.to_dict(jsonify=True).items()
+        }
+        return json_pkg.dumps(
+            d, 
+            sort_keys=True, 
+            separators=(",", ":"),
+            indent=None,
         )
+
+    def create_hash(self, algo: str = "sha256") -> str:
+        return hashlib.new(
+            algo, 
+            self._hash_helper().encode("utf-8"),
+        ).hexdigest()
+
+    def __hash__(self) -> int:
+        return hash(self._hash_helper())
 
     def __getstate__(self) -> dict:
         return {key: getattr(self, key) for key in self._keys}
@@ -147,13 +154,15 @@ class _Info(ABC):
 
         This function is designed for writing JSON/YAML config files.
         """
-        def func(field: Field) -> bool:
-            return field.name not in self._values_to_update \
-                and (blacklist is None or field.name not in blacklist)
-
+        blacklist = blacklist or []
         out = {}
-        for field in filter(func, fields(self)):
+        for field in fields(self):
+            if field.name in self._values_to_update:
+                continue
+            if field.name in blacklist:
+                continue
             out.update(field_to_dict(self, field, jsonify=jsonify))
+
         return {parent_field: out}
 
     @classmethod
@@ -178,7 +187,7 @@ class _Info(ABC):
         if add_to_cache := isinstance(json, (str, Path)):
             cache_key = str(json)
             with open(json, "r") as f:
-                json = load_json(f)
+                json = json_pkg.load(f)
 
         json = json.get(parent_field, json)
 

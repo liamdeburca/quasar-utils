@@ -15,54 +15,70 @@ class PatternBuilder:
     def __repr__(self) -> str:
         return f"PatternBuilder(pattern={self.pattern!r})"
 
+    def prefix(self, prefix: str) -> Self:
+        self.pattern = prefix + self.pattern
+        return self
+
+    def suffix(self, suffix: str) -> Self:
+        self.pattern += suffix
+        return self
+
     def suffixAny(self) -> Self:
         """
         Add a suffix that matches any character.
         """
-        self.pattern += "."
-        return self
+        return self.suffix(".")
 
     def suffixAnyInt(self) -> Self:
         """
         Add a suffix that matches any single digit integer.
         """
-        self.pattern += r"\d"
-        return self
+        return self.suffix("[0-9]")
 
     def prefixAny(self) -> Self:
         """
         Add a prefix that matches any character.
         """
-        self.pattern = "." + self.pattern
-        return self
+        return self.prefix(".")
 
     def suffixChars(self, *chars: str) -> Self:
         """
         Add a suffix that matches any character in the provided selection.
         """
-        self.pattern += f"[{''.join(chars)}]"
-        return self
+        return self.suffix(f"[{''.join(chars)}]")
 
     def prefixChars(self, *chars: str) -> Self:
         """
         Add a prefix that matches any character in the provided selection.
         """
-        self.pattern = f"[{''.join(chars)}]" + self.pattern
-        return self
+        return self.prefix(f"[{''.join(chars)}]")
 
     def suffixDigitRange(self, start: int, end: int) -> Self:
         """
         Add a suffix that matches digits in the specified range.
         """
-        self.pattern += f"[{start}-{end}]"
-        return self
+        return self.suffix(f"[{start}-{end}]")
 
     def prefixDigitRange(self, start: int, end: int) -> Self:
         """
         Add a prefix that matches digits in the specified range.
         """
-        self.pattern = f"[{start}-{end}]" + self.pattern
+        return self.prefix(f"[{start}-{end}]")
+
+    def suffixNonCapturingStart(self) -> Self:
+        return self.suffix("(?:")
+
+    def suffixNonCapturingEnd(self, optional: bool = False) -> Self:
+        self.pattern += ")"
+        if optional:
+            self.pattern += "?"
         return self
+
+    def suffixContinuing(self) -> Self:
+        """
+        Add a suffix that allows for continuation of the pattern.
+        """
+        return self.suffix(r"+")
 
     def compile(self) -> Pattern:
         """

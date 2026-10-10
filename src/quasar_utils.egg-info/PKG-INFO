@@ -12,4 +12,5 @@ Requires-Dist: astropy>=7.0
 Requires-Dist: pydantic>=2.12
 Requires-Dist: numba
 Requires-Dist: quasar-typing
+Requires-Dist: cython==3.0.12
 Dynamic: license-file

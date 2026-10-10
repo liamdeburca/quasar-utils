@@ -1,0 +1,109 @@
+name        , linetype, complex     , n_max, wave            , needs_line, strength_lower, strength_upper, v_off_lower, v_off_upper, fwhm_v_lower, fwhm_v_upper, is_copy_of  , scale_init, scale_lower, scale_upper, scale_fixed, comment
+
+nLyman-a    , n       , Lyman-a     ,     1, 1216.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bLyman-a    , b       , Lyman-a     ,     2, 1216.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nNV-1240a   , n       , NV-1240     ,     1, 1238.82 angstrom,           ,               ,               ,            ,            ,             ,             , nNV-1240b   ,      1.0  ,            ,            , True       ,         
+nNV-1240b   , n       , NV-1240     ,     1, 1242.80 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bNV-1240a   , b       , NV-1240     ,     1, 1238.82 angstrom,           ,               ,               ,            ,            ,             ,             , bNV-1240b   ,      1.0  ,            ,            , True       ,         
+bNV-1240b   , b       , NV-1240     ,     1, 1242.80 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nSiII-1263a , n       , SiII-1263   ,     0, 1260.42 angstrom,           ,               ,               ,            ,            ,             ,             , nSiII-1263c ,      1.0  ,            ,            , True       ,         
+nSiII-1263b , n       , SiII-1263   ,     0, 1264.64 angstrom,           ,               ,               ,            ,            ,             ,             , nSiII-1263c ,      1.0  ,            ,            , True       ,         
+nSiII-1263c , n       , SiII-1263   ,     0, 1265.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bSiII-1263a , b       , SiII-1263   ,     1, 1260.42 angstrom,           ,               ,               ,            ,            ,             ,             , bSiII-1263c ,      1.0  ,            ,            , True       ,         
+bSiII-1263b , b       , SiII-1263   ,     1, 1264.64 angstrom,           ,               ,               ,            ,            ,             ,             , bSiII-1263c ,      1.0  ,            ,            , True       ,        
+bSiII-1263c , b       , SiII-1263   ,     1, 1265.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+
+nOI-1303a   , n       , OI-1303     ,     0, 1302.17 angstrom,           ,               ,               ,            ,            ,             ,             , nOI-1303c   ,      1.0  ,            ,            , True       ,         
+nOI-1303b   , n       , OI-1303     ,     0, 1304.86 angstrom,           ,               ,               ,            ,            ,             ,             , nOI-1303c   ,      1.0  ,            ,            , True       ,         
+nOI-1303c   , n       , OI-1303     ,     0, 1306.03 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bOI-1303a   , b       , OI-1303     ,     1, 1302.17 angstrom,           ,               ,               ,            ,            ,             ,             , bOI-1303c   ,      1.0  ,            ,            , True       ,         
+bOI-1303b   , b       , OI-1303     ,     1, 1304.86 angstrom,           ,               ,               ,            ,            ,             ,             , bOI-1303c   ,      1.0  ,            ,            , True       ,         
+bOI-1303c   , b       , OI-1303     ,     1, 1306.03 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nCII-1335   , n       , CII-1335    ,     0, 1335.31 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bCII-1335   , b       , CII-1335    ,     1, 1335.31 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nSiIV/OIV]  , n       , SiIV/OIV]   ,     0, 1400.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+bSiIV/OIV]  , b       , SiIV/OIV]   ,     2, 1400.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+
+NIV]-1487   , n       , NIV]        ,     1, 1486.50 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+
+nCIV-1549a  , n       , CIV-1549    ,     1, 1548.20 angstrom,           ,               ,               ,            ,            ,             ,             , nCIV-1549b  ,      1.0  ,            ,            , True       ,         
+nCIV-1549b  , n       , CIV-1549    ,     1, 1550.77 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bCIV-1549a  , b       , CIV-1549    ,     3, 1548.20 angstrom,           ,               ,               ,            ,            ,             ,             , bCIV-1549b  ,      1.0  ,            ,            , True       ,         
+bCIV-1549b  , b       , CIV-1549    ,     3, 1550.77 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nHeII-1640  , n       , HeII-1640   ,     1, 1640.42 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bHeII-1640  , b       , HeII-1640   ,     1, 1640.42 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+NIII]-1750  , b       , NIII]-1750  ,     1, 1750.46 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+FeIII-1786  , b       , FeIII/SiII  ,     1, 1786.00 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+SiII-1814   , b       , FeIII/SiII  ,     1, 1813.97 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+AlIII-1857a , b       , AlIII-1857  ,     1, 1854.72 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+AlIII-1857b , b       , AlIII-1857  ,     1, 1862.79 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+SiIII]      , b       , SiIII]/CIII],     1, 1892.03 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nCIII]-1909 , n       , SiIII]/CIII],     1, 1908.73 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bCIII]-1909 , b       , SiIII]/CIII],     2, 1908.73 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+CII]-2327   , b       , CII]-2327   ,     1, 2326.58 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+[NeIV]-2418 , b       , [NeIV]-2418 ,     1, 2418.70 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nMgII-2798a , n       , MgII        ,     1, 2795.53 angstrom,           ,               ,               ,            ,            ,             ,             , nMgII-2798b ,      1.0  ,            ,            , True       ,         
+nMgII-2798b , n       , MgII        ,     1, 2802.71 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+bMgII-2798a , b       , MgII        ,     1, 2795.53 angstrom,           ,               ,               ,            ,            ,             ,             , bMgII-2798b ,      1.0  ,            ,            , True       ,         
+bMgII-2798b , b       , MgII        ,     1, 2802.71 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+[NeV]-3346  , n       , [NeV]-3346  ,     1, 3345.83 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+[NeV]-3426  , n       , [NeV]-3426  ,     1, 3426.87 angstrom,           ,               ,               ,            ,            ,             ,             , [NeV]-3346  ,      2.0  ,            ,            , True       ,         
+
+[OII]-3727a , n       , [OII]-3727  ,     1, 3726.03 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+[OII]-3727b , n       , [OII]-3727  ,     1, 3728.82 angstrom,           ,               ,               ,            ,            ,             ,             , [OII]-3727a ,      1.0  ,            ,            , True       ,         
+
+[NeIII]-3869, n       , [NeIII]-3869,     1, 3868.75 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+[NeIII]-3967, n       , Balmer-e    ,     1, 3967.47 angstrom,           ,               ,               ,            ,            ,             ,             , [NeIII]-3869,      0.33 ,            ,            , True       ,         
+
+nBalmer-e   , n       , Balmer-e    ,      , 3970.07 angstrom,           ,               ,               ,            ,            ,             ,             , nBalmer-d   ,           ,            ,            ,            ,         
+bBalmer-e   , b       , Balmer-e    ,      , 3970.07 angstrom,           ,               ,               ,            ,            ,             ,             , bBalmer-d   ,           ,            ,            ,            ,         
+
+[SII]-4069  , n       , [SII]-4070  ,     1, 4068.60 angstrom,           ,               ,               ,            ,            ,             ,             , [SII]-4076  ,      1.0  ,            ,            , True       ,         
+[SII]-4076  , n       , [SII]-4070  ,     1, 4076.35 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nBalmer-d   , n       , Balmer-d    ,      , 4101.73 angstrom,           ,               ,               ,            ,            ,             ,             , nBalmer-c   ,           ,            ,            ,            ,          
+bBalmer-d   , b       , Balmer-d    ,      , 4101.73 angstrom,           ,               ,               ,            ,            ,             ,             , bBalmer-c   ,           ,            ,            ,            ,          
+
+nBalmer-c   , n       , Balmer-c    ,      , 4340.46 angstrom,           ,               ,               ,            ,            ,             ,             , nBalmer-b   ,           ,            ,            ,            ,          
+bBalmer-c   , b       , Balmer-c    ,      , 4340.46 angstrom,           ,               ,               ,            ,            ,             ,             , bBalmer-b   ,           ,            ,            ,            ,          
+
+n[OIII]-4363, n       , [OIII]-4363 ,     1, 4363.21 angstrom,           ,               ,               ,            ,            ,             ,             , n[OIII]-4959,           ,            ,            ,            ,         
+b[OIII]-4363, b       , [OIII]-4363 ,     1, 4363.21 angstrom,           ,               ,               ,            ,            ,             ,             , b[OIII]-4959,           ,            ,            ,            ,         
+
+HeII-4686   , b       , HeII-4686   ,     1, 4685.65 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+nBalmer-b   , n       , Balmer-b    ,      , 4861.32 angstrom,           ,               ,               ,            ,            ,             ,             , nBalmer-a   ,           ,            ,            ,            ,         
+bBalmer-b   , b       , Balmer-b    ,      , 4861.32 angstrom,           ,               ,               ,            ,            ,             ,             , bBalmer-a   ,           ,            ,            ,            ,         
+
+n[OIII]-4959, n       , Balmer-b    ,     1, 4958.91 angstrom,           ,               ,               ,            ,            ,             ,             , n[OIII]-5007,      0.336,        0.1 ,         0.5,            ,         
+b[OIII]-4959, b       , Balmer-b    ,     1, 4958.91 angstrom,           ,               ,               ,            ,            ,             ,             , b[OIII]-5007,      0.336,        0.1 ,         0.5,            ,         
+n[OIII]-5007, n       , Balmer-b    ,     1, 5006.84 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+b[OIII]-5007, b       , Balmer-b    ,     1, 5006.84 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+[FeVII]-5721, n       , [FeVII]-5721,     1, 5721.11 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+HeI-5876    , b       , HeI-5876    ,     1, 5875.70 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+[FeVII]-6086, n       , [FeVII]-6086,     1, 6086.92 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+[OI]-6300   , n       , [OI]/[FeX]  ,     1, 6300.30 angstrom,           ,               ,               ,            ,            ,             ,             , [OI]-6364   ,      1.0  ,            ,            , True       ,        
+[OI]-6364   , n       , [OI]/[FeX]  ,     1, 6363.78 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+[FeX]-6374  , n       , [OI]/[FeX]  ,     1, 6374.53 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+
+nBalmer-a   , n       , Balmer-a    ,     1, 6562.80 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,        
+bBalmer-a   , b       , Balmer-a    ,     2, 6562.80 angstrom,           ,               ,               , -10000 km/s, 10000 km/s ,             , 15000 km/s  ,             ,           ,            ,            ,            ,         
+
+[NII]-6548  , n       , Balmer-a    ,     1, 6548.06 angstrom,           ,               ,               ,            ,            ,             ,             , [NII]-6583  ,      0.33 ,        0.25,         0.5,            ,        
+[NII]-6583  , n       , Balmer-a    ,     1, 6583.39 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,         
+
+[SII]-6716  , n       , [SII]       ,     1, 6716.47 angstrom,           ,               ,               ,            ,            ,             ,             , [SII]-6731  ,      1.0  ,        0.7 ,         2.5,            ,         
+[SII]-6731  , n       , [SII]       ,     1, 6730.85 angstrom,           ,               ,               ,            ,            ,             ,             ,             ,           ,            ,            ,            ,          

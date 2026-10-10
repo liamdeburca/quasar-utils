@@ -6,7 +6,7 @@ from typing import TypedDict
 from astropy.io import fits
 from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import float64, full, interp
+from numpy import float64, full, interp, nan
 from pandas import read_csv
 from quasar_typing.numpy import FloatVector
 
@@ -41,22 +41,27 @@ def _get_data(hdul: HDUList) -> _PAQSDataDict:
     flux_unit = Unit("erg/(s.cm2.angstrom)")
 
     data = hdul[1].data
+    wave = data["WAVE"].flatten().astype(float64)
+    flux = data["FLUX"].flatten().astype(float64)
+    err = data["ERR"].flatten().astype(float64)
+    qual = data["QUAL"].flatten().astype(float64)
+    bin_size = full(wave.size, 0.25, dtype=float64)
 
-    x = data["WAVE"].flatten().astype(float64)
-    y = data["FLUX"].flatten().astype(float64)
-    dy = data["ERR_FLUX"].flatten().astype(float64)
-    dx = full(x.size, 0.25, dtype=float64)
+    bad_pixels = (qual != 0.0)
+    flux[bad_pixels] = nan
+    err[bad_pixels] = nan
 
     # 4MOST: R=4000 @ 3700 angstrom, R=7700 @ 9500 angstrom
-    R = interp(x, _get_Rs())
+    R = interp(wave, *_get_Rs())
 
     return {
-        "x": x * wave_unit,
-        "y": y * flux_unit,
-        "dy": dy * flux_unit,
-        "dx": dx * wave_unit,
+        "x": wave * wave_unit,
+        "y": flux * flux_unit,
+        "dy": err * flux_unit,
+        "dx": bin_size * wave_unit,
         "R": R,
     }
+
 
 @lru_cache(maxsize=1)
 def _get_Rs() -> tuple[FloatVector, FloatVector]:
@@ -79,7 +84,7 @@ def _get_Rs() -> tuple[FloatVector, FloatVector]:
     Rs.setflags(write=False)
 
     return xs, Rs
-
+    
 
 class PAQSLoader(_Loader):
     """
@@ -91,7 +96,7 @@ class PAQSLoader(_Loader):
         msg += f"(1) reading data from {self.path}, "
         with fits.open(self.path) as hdul:
             if self.ra is None:
-                ra = hdul[0].header.get("RADEG", None)
+                ra = hdul[0].header.get("RA", None)
                 if ra is None:
                     ra = 0.0
                     msg += "(2) could not extract RA from header / "
@@ -103,7 +108,7 @@ class PAQSLoader(_Loader):
                 msg += f"(2) got RA from argument ({ra:.1f}) / "
 
             if self.dec is None:
-                dec = hdul[0].header.get("DECDEG", None)
+                dec = hdul[0].header.get("DEC", None)
                 if dec is None:
                     dec = 0.0
                     msg += "could not extract DEC from header, "
@@ -117,7 +122,7 @@ class PAQSLoader(_Loader):
             msg += f"proceeding with coordinates: (ra={ra:.3f}, "\
                 f"(dec={dec:.3f}), "
 
-            name = hdul[0].header.get("OBJ_NAME", None)
+            name = hdul[0].header.get("OBJECT", None)
             if name is None:
                 name = "missing_name"
                 msg += "(3) no name in header, "

@@ -77,7 +77,7 @@ class ErrorInfo(_Info):
         parse_as="int",
     )
     render_width: float = field(
-        default=5,
+        default=5.0,
         dtype="float",
         parse_as="float",
     )
@@ -95,7 +95,7 @@ class ErrorInfo(_Info):
         has_unit=True,
     )
     ipv_int: float = field(
-        default=0,
+        default=0.0,
         dtype="float",
         parse_as="float",
     )
@@ -122,7 +122,7 @@ class ErrorInfo(_Info):
         parse_as="out_measures",
     )
     percentiles: set[float] = field(
-        default_factory=lambda: {5, 50, 95},
+        default_factory=lambda: {5.0, 50.0, 95.0},
         dtype="list[float]",
         parse_as="float_set",
     )

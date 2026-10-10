@@ -134,8 +134,8 @@ class LinesInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    snr: float | int = field(
-        default=10,
+    snr: float = field(
+        default=1.0,
         dtype="float",
         parse_as="float",
     )

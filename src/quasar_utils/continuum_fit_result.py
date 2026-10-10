@@ -17,12 +17,19 @@ from scipy.stats._multivariate import (
 from .decorators import validate_call
 
 
+def _cov_from_jac(jac: FloatMatrix) -> FloatMatrix:
+    """
+    Calculate the covariance matrix from the Jacobian matrix.
+    """
+    return jac @ jac.T
+
+
 class ContinuumFitResult:
     @validate_call
     def __init__(
         self,
         mean: FloatVector,
-        cov: FloatMatrix,
+        jac: FloatMatrix,
         x0: float | None = None,
         y0: float | None = None,
     ):
@@ -31,22 +38,23 @@ class ContinuumFitResult:
         """
         assert mean.ndim == 1, "Mean vector must be 1D."
         assert mean.size == 2, "Mean vector must have size 2."
-        assert cov.ndim == 2, "Covariance matrix must be 2D."
-        assert cov.shape == (2, 2), "Covariance matrix must be 2x2."
+        assert jac.ndim == 2, "Jacobian matrix must be 2D."
+        assert jac.shape == (2, 2), "Jacobian matrix must be 2x2."
 
-        self.mean: FloatVector = mean
-        self.cov: FloatMatrix = cov
-        self.std: FloatVector = diag(cov) ** 0.5
+        self.mean: FloatVector[2] = mean
+        self.jac: FloatMatrix[(2, 2)] = jac
+        self.cov: FloatMatrix[(2, 2)] = _cov_from_jac(jac)
+        self.std: FloatVector[2] = diag(jac) ** 0.5
 
         _var = self.std[:, None] * self.std[None, :]
         is_valid = ~isclose(_var, 0)
 
-        self.corr = zeros_like(cov)
+        self.corr = zeros_like(self.cov)
         self.corr[is_valid] = self.cov[is_valid] / _var[is_valid]
 
-        _det = det(cov)
+        _det = det(self.cov)
         if isclose(_det, 0):
-            cov = diag(diag(cov))
+            cov = diag(diag(self.cov))
 
         self.dist: multivariate_normal_frozen = multivariate_normal(mean, cov)
 

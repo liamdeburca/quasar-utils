@@ -167,7 +167,7 @@ def to_csv(
     output_dict = defaultdict(list)
 
     for name, field in _output_dict.items():
-        output_dict[name] = field
+        output_dict["name"].append(name)
         for cname in REQUIRED_COLUMNS:
             if cname == "name":
                 continue

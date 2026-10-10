@@ -1,12 +1,13 @@
 __all__ = ["Info"]
 
+import hashlib
+import json as json_pkg
 from collections.abc import Iterable
 from dataclasses import field
-from json import dump as dump_json
-from json import load as load_json
 from logging import getLogger
 from typing import Any, ClassVar, Self
 
+import yaml as yaml_pkg
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import (
     AbsoluteJSONPath,
@@ -14,8 +15,6 @@ from quasar_typing.pathlib import (
     AnyAbsoluteJSONPath,
     AnyAbsoluteYAMLPath,
 )
-from yaml import dump as dump_yaml
-from yaml import safe_load as load_yaml
 
 from ..decorators import validate_call
 from .absorption import AbsorptionInfo
@@ -109,8 +108,26 @@ class Info:
     def __post_init__(self) -> None:
         self.update()
 
+    def _hash_helper(self) -> str:
+        d = {
+            k2: {k1: v1["value"] for k1, v1 in v2.items()}
+            for k2, v2 in self.to_dict(jsonify=True).items()
+        }
+        return json_pkg.dumps(
+            d, 
+            sort_keys=True, 
+            separators=(",", ":"),
+            indent=None,
+        )
+
+    def create_hash(self, algo: str = "sha256") -> str:
+        return hashlib.new(
+            algo, 
+            self._hash_helper().encode("utf-8"),
+        ).hexdigest()
+
     def __hash__(self) -> int:
-        return hash(tuple((key, getattr(self, key)) for key in self._keys))
+        return hash(self._hash_helper())
 
     def to_dict(
         self,
@@ -128,13 +145,13 @@ class Info:
         json: dict[str, dict] | AbsoluteJSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
-
+    
         if json is None:
             return Info()
 
         if not isinstance(json, dict):
             with open(json, "r") as f:
-                json = load_json(f)
+                json = json_pkg.load(f)
 
         def func(cls):
             return cls.from_json.__wrapped__(
@@ -172,7 +189,7 @@ class Info:
 
         if not isinstance(yaml, dict):
             with open(yaml, "r") as f:
-                yaml = load_yaml(f, )
+                yaml = yaml_pkg.load(f, yaml_pkg.Loader)
 
         def func(cls):
             return cls.from_json.__wrapped__(
@@ -200,12 +217,12 @@ class Info:
     @validate_call
     def to_json(self, path: AnyAbsoluteJSONPath) -> None:
         with open(path, "w") as f:
-            dump_json(self.to_dict(jsonify=True), f, indent=4)
+            json_pkg.dump(self.to_dict(jsonify=True), f, indent=4)
 
     @validate_call
     def to_yaml(self, path: AnyAbsoluteYAMLPath) -> None:
         with open(path, "w") as f:
-            dump_yaml(self.to_dict(jsonify=True), f, indent=4)
+            yaml_pkg.dump(self.to_dict(jsonify=True), f, indent=4)
 
     def __getstate__(self) -> dict:
         state: dict = {"_keys": self._keys}

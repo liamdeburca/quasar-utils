@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from pathlib import Path
 
 from quasar_typing.pathlib import AnyAbsoluteJSONPath, AnyAbsoluteYAMLPath
 
@@ -21,12 +22,23 @@ if __name__ == "__main__":
         required=True, 
         help="Path to the output file (info.json or info.yaml)."
     )
+    parser.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Force overwrite if the file already exists."
+    )
     args = parser.parse_args()
 
-    output_path = args.path
-    if output_path.endswith(".json"):
+    output_path = Path(args.path).resolve()
+
+    if output_path.exists() and not args.force:
+        raise FileExistsError(
+            f"The file {output_path} already exists. Use --force to overwrite."
+        )
+    
+    if output_path.suffix == ".json":
         info_to_json(output_path)
-    elif output_path.endswith(".yaml"):
+    elif output_path.suffix == ".yaml":
         info_to_yaml(output_path)
     else:
         raise ValueError("Output path must end with .json or .yaml")

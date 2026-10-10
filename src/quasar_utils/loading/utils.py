@@ -1,17 +1,14 @@
-__all__ = [
-    "LoaderOutput",
-]
-
 from typing import Literal, TypedDict, TypeVar
 
 from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
-from numpy import ascontiguousarray, interp, stack
+from numpy import ascontiguousarray
 from quasar_typing.astropy import CompositeUnit_, Quantity_, Unit_
 from quasar_typing.numpy import CoordsTuple, FloatMatrix, FloatVector
 from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.scipy import csr_matrix_
 
-from ..binning import log_resample
+from ..binning.binning import log_resample
 from ..dereddening import deredden_spectrum
 from ..setup import Info
 
@@ -28,13 +25,13 @@ class LoaderOutput(TypedDict):
     y_original: FloatVector
     dy_original: FloatVector
     dx_original: FloatVector
-    R_original: FloatVector | None
+    kernels_original: FloatMatrix | csr_matrix_
 
     x: FloatVector
     y: FloatVector
     dy: FloatVector
     dx: FloatVector
-    R: FloatVector | None
+    kernels: FloatMatrix | csr_matrix_
 
     info: Info
 
@@ -141,16 +138,3 @@ def _finalize_coords(*arr: FloatVector) -> FloatVector:
         return v
     
     return tuple(inner(v) for v in arr)
-
-###
-
-def interpolate_resolution_kernels[K, N, O](
-    x: FloatVector[N],
-    x_original: FloatVector[O],
-    kernels_original: FloatMatrix[O, K]
-) -> FloatMatrix[N, K]:
-    kernels =  stack(
-        [interp(x, x_original, ks) for ks in kernels_original],
-        axis=1
-    )
-    return kernels / kernels.sum(axis=1, keepdims=True)

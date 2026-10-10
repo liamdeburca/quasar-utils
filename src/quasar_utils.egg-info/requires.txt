@@ -4,3 +4,4 @@ astropy>=7.0
 pydantic>=2.12
 numba
 quasar-typing
+cython==3.0.12

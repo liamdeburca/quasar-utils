@@ -11,14 +11,12 @@ class Applied(Protocol[M]):
     """
     Use '__wrapped__' to access the original method.
     """
-
+    __call__: M
     __wrapped__: M
-
-    def __call__(self, *args, **kwargs): ...
 
 
 @overload
-def apply_info_to_method(
+def apply_info_to_method[M](
     method: None = None,
     *,
     subjects: tuple[str, ...] = (),
@@ -29,7 +27,7 @@ def apply_info_to_method(
 
 
 @overload
-def apply_info_to_method(
+def apply_info_to_method[M](
     method: M,
     *,
     subjects: tuple[str, ...] = (),
@@ -39,7 +37,7 @@ def apply_info_to_method(
 ) -> Applied[M]: ...
 
 
-def apply_info_to_method(
+def apply_info_to_method[M](
     method: M | None = None,
     *,
     subjects: tuple[str, ...] = (),

@@ -2,41 +2,32 @@ __all__ = ["lru_cache"]
 
 from collections.abc import Callable
 from functools import lru_cache as _lru_cache
-from typing import Protocol, TypeVar, overload
+from typing import TypeVar, final, overload
 
 F = TypeVar("F", bound=Callable)
 
-
-class LRUCached(Protocol[F]):
-    """
-    Use '__wrapped__' to access the original (uncached) function.
-    """
-
-    __wrapped__: F
-
-    def __call__(self, *args, **kwargs): ...
-
-
 @overload
-def lru_cache(
+def lru_cache[F](
     func: F,
     *,
     maxsize: int | None = None,
-) -> LRUCached[F]: ...
-
+) -> F: ...
 
 @overload
-def lru_cache(
+def lru_cache[F](
     func: None = None,
     *,
     maxsize: int | None = None,
-) -> Callable[[F], LRUCached[F]]: ...
+) -> Callable[[F], F]: ...
 
-
-def lru_cache(
+@final
+def lru_cache[F](
     func: F | None = None,
     *,
     maxsize: int | None = None,
-) -> LRUCached[F] | Callable[[F], LRUCached[F]]:
+) -> F | Callable[[F], F]:
+    """
+    Simple wrapper for `functools.lru_cache` that preserves type annotations.
+    """
     decorator = _lru_cache(maxsize=maxsize)
     return decorator if func is None else decorator(func)

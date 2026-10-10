@@ -7,56 +7,86 @@ __all__ = [
     "remove_single",
 ]
 
+from functools import wraps
 from logging import getLogger
 from math import log as math_log
-from typing import Literal
+from typing import Literal, TypeVar, final, overload
 
 from numpy import (
     bool_,
-    complex128,
     exp,
     float64,
+    full_like,
     invert,
+    isfinite,
     maximum,
     ones_like,
 )
 from numpy.lib.stride_tricks import sliding_window_view
-from numpy.typing import NDArray
-from pydantic import NonNegativeInt, PositiveFloat, PositiveInt
+from pydantic import NonNegativeInt, PositiveFloat, PositiveInt, validate_call
 from quasar_typing.numpy import (
     BoolArray,
     BoolVector,
-    FittableFloatArray,
-    FloatArray,
+    FittableFloatMatrix,
+    FittableFloatVector,
+    FloatMatrix,
     FloatVector,
 )
 from scipy.fft import fft as scipy_fft
 from scipy.ndimage import binary_dilation, binary_erosion
 from scipy.stats import gamma
 
-from ..decorators import validate_call
-from .smoothing import interpolate_missing
-from .utils import nan_residuals
+from .smoothing import _interpolate_missing
 
 logger = getLogger(__name__)
 
-@validate_call
-def remove_single(mask: BoolArray) -> BoolArray:
-    left: NDArray[bool_] = ones_like(mask, dtype=bool_)
-    right: NDArray[bool_] = left.copy()
+Mask = TypeVar("Mask", bound=BoolArray)
 
-    left[..., :-1] = invert(mask[..., 1:])
-    right[..., 1:] = invert(mask[..., :-1])
-
-    return mask & ~(left & mask & right)
-
+### Public functions (w/ validation)
 
 @validate_call
+def remove_single[Mask](mask: Mask) -> Mask:
+    """Remove isolated True pixels from the mask.
+    
+    A pixel is considered isolated if it is surrounded by False values
+    on both sides.
+    
+    Parameters
+    ----------
+    mask : numpy.array
+        Boolean array to process.
+    
+    Returns
+    -------
+    mask : numpy.array
+        Modified mask with isolated True pixels removed.
+    """
+    return _remove_single(mask)
+
+
+@overload
 def log_fft_test(
-    z: FittableFloatArray,
+    z: FittableFloatVector,
     k: NonNegativeInt | None = None,
     base: PositiveFloat | None = None,
-) -> tuple[float | FloatArray, float | FloatArray]:
+) -> tuple[float, float]:
+    ...
+
+@overload
+def log_fft_test(
+    z: FittableFloatMatrix,
+    k: NonNegativeInt | None = None,
+    base: PositiveFloat | None = None,
+) -> tuple[FloatVector, FloatVector]:
+    ...
+
+@final
+@validate_call
+def log_fft_test(
+    z: FittableFloatVector | FittableFloatMatrix,
+    k: NonNegativeInt | None = None,
+    base: PositiveFloat | None = None,
+) -> tuple[float | FloatVector, float | FloatVector]:
     """Perform the FFT-based normality test on the residuals.
 
     Parameters
@@ -87,38 +117,30 @@ def log_fft_test(
         - If the frequency index `k` is out of range for the input array: `k>=N`
         - If the logarithm base is less than or equal to 1.
     """
-    N: int = z.shape[-1]
-    x: NDArray[complex128] = scipy_fft(z, axis=-1)
+    return _log_fft_test(z, k=k, base=base)
 
-    # Validate small-N cases for aggregate statistic
-    if k is None and N < 6:
-        raise ValueError(f"fft: insufficient input length N={N} for aggregate-frequency statistic; require N>=6")
 
-    if k is None:
-        stat: float = (abs(x[..., 1 : N // 2]) ** 2).sum(axis=-1) / N
-        m: int = int(N // 2 - 2)
-        log_p: float = gamma(m, 1).logsf(stat)
-    else:
-        # validate provided frequency index
-        if k >= N:
-            raise ValueError(f"fft: frequency index k={k} out of range for length N={N}")
-        stat: float = abs(x[..., k]) ** 2 / N
-        log_p: float = -stat
 
-    if base is not None:
-        if base <= 1:
-            msg = f"The logarithm base must be greater than 1: {base=}"
-            logger.critical(msg)
-            raise ValueError(msg)
-        log_p /= math_log(base)
+@overload
+def fft_test(
+    z: FloatVector,
+    k: NonNegativeInt | None = None,
+) -> tuple[float, float]:
+    ...
 
-    return stat, log_p
+@overload
+def fft_test(
+    z: FloatMatrix,
+    k: NonNegativeInt | None = None,
+) -> tuple[FloatVector, FloatVector]:
+    ...
 
+@final
 @validate_call
 def fft_test(
-    z: FittableFloatArray,
+    z: FloatVector | FloatMatrix,
     k: NonNegativeInt | None = None,
-) -> tuple[float | FloatArray, float | FloatArray]:
+) -> tuple[float | FloatVector, float | FloatVector]:
     """Perform the FFT-based normality test on the residuals.
 
     See `log_fft_test` for details.
@@ -144,16 +166,16 @@ def fft_test(
     ValueError
         See `log_fft_test` for details.
     """
-    stat, log_p = log_fft_test.__wrapped__(z, k=k, base=None)
-    return stat, exp(log_p)
+    return _fft_test(z, k=k)
+
 
 @validate_call
 def fft_approach(
-    z: FittableFloatArray, 
+    z: FittableFloatVector, 
     p_crit: PositiveFloat,
     z_crit: float, 
     w: PositiveInt,
-) -> tuple[FloatArray, BoolArray]:
+) -> tuple[FloatVector, BoolVector]:
     """
     Applies an absorption-identification approach based on a normality test
     based on the discrete Fourier transform. Residuals are assumed to be sampled
@@ -183,27 +205,7 @@ def fft_approach(
     >   z_crit = -2
     >   w = 25
     """
-    l: int = int(w // 2)
-
-    z_slices: NDArray[float64] = sliding_window_view(
-        z, w, axis=-1
-    )  # (N-w+1, w)
-
-    ps: NDArray[float64] = ones_like(z, dtype=float64, order="C")
-    # Request actual p-values (not logarithms) from fft for the sliding windows.
-    ps[..., l:-l] = fft_test.__wrapped__(z_slices)[1]
-
-    not_edge: NDArray[bool_] = ones_like(z, dtype=bool_, order="C")
-    not_edge[:w] = False
-    not_edge[-w:] = False
-
-    mask: NDArray[bool_] = binary_dilation(
-        remove_single.__wrapped__((ps < p_crit) & (z < z_crit)),
-        iterations=(w // 4),
-        mask=not_edge,
-    )
-
-    return ps, mask
+    return _fft_approach(z, p_crit=p_crit, z_crit=z_crit, w=w)
 
 
 @validate_call
@@ -226,11 +228,7 @@ def join_regions(
     mask : numpy.array
         Modification of the input mask with True pixels potentially joined.
     """
-    new_mask: NDArray[bool_] = binary_erosion(
-        binary_dilation(mask, iterations=iterations),
-        iterations=iterations,
-    )
-    return mask | new_mask
+    return _join_regions(mask, iterations=iterations)
 
 
 @validate_call
@@ -267,9 +265,143 @@ def refine_regions(
         Refined smoothed flux density array, with rejected pixels' values
         replaced using a linear interpolator.
     """
-    y_smooth = interpolate_missing.__wrapped__(x, y_smooth, invert(mask))
-    z = nan_residuals(y, maximum(y_smooth, y_bg), dy, z_fill=0, mask=valid_pixels)
+    return _refine_regions(
+        mask,
+        x,
+        y,
+        dy,
+        y_smooth,
+        y_bg,
+        valid_pixels=valid_pixels,
+    )
+
+
+### Private functions (w/o validation, use functools.wraps to inherit docstrings)
+
+@wraps(remove_single)
+def _remove_single[Mask](mask: Mask) -> Mask:
+    left = ones_like(mask, dtype=bool_)
+    right = left.copy()
+
+    left[..., :-1] = invert(mask[..., 1:])
+    right[..., 1:] = invert(mask[..., :-1])
+
+    return mask & ~(left & mask & right)
+
+
+@wraps(log_fft_test)
+def _log_fft_test(
+    z: FittableFloatVector | FittableFloatMatrix,
+    k: NonNegativeInt | None = None,
+    base: PositiveFloat | None = None,
+) -> tuple[float | FloatVector, float | FloatVector]:
+    N = z.shape[-1]
+    x = scipy_fft(z, axis=-1)
+
+    if k is None and N < 6:
+        raise ValueError(f"fft: insufficient input length N={N} for aggregate-frequency statistic; require N>=6")
+
+    if k is None:
+        stat: float = (abs(x[..., 1 : N // 2]) ** 2).sum(axis=-1) / N
+        m: int = int(N // 2 - 2)
+        log_p: float = gamma(m, 1).logsf(stat)
+    else:
+        if k >= N:
+            raise ValueError(f"fft: frequency index k={k} out of range for length N={N}")
+        stat: float = abs(x[..., k]) ** 2 / N
+        log_p: float = -stat
+
+    if base is not None:
+        if base <= 1:
+            msg = f"The logarithm base must be greater than 1: {base=}"
+            logger.critical(msg)
+            raise ValueError(msg)
+        log_p /= math_log(base)
+
+    return stat, log_p
+
+
+@wraps(fft_test)
+def _fft_test(
+    z: FloatVector | FloatMatrix,
+    k: NonNegativeInt | None = None,
+) -> tuple[float | FloatVector, float | FloatVector]:
+    stat, log_p = _log_fft_test(z, k=k, base=None)
+    return stat, exp(log_p)
+
+
+@wraps(fft_approach)
+def _fft_approach(
+    z: FittableFloatVector, 
+    p_crit: PositiveFloat,
+    z_crit: float, 
+    w: PositiveInt,
+) -> tuple[FloatVector, BoolVector]:
+    l: int = int(w // 2)
+
+    z_slices: FloatMatrix = sliding_window_view(
+        z, w, axis=-1
+    )
+
+    ps: FloatMatrix = ones_like(z, dtype=float64, order="C")
+    ps[:,l:-l] = _fft_test(z_slices)[1]
+
+    not_edge = ones_like(z, dtype=bool_, order="C")
+    not_edge[:w] = False
+    not_edge[-w:] = False
+
+    mask = binary_dilation(
+        _remove_single((ps < p_crit) & (z < z_crit)),
+        iterations=(w // 4),
+        mask=not_edge,
+    )
+
+    return ps, mask
+
+
+@wraps(join_regions)
+def _join_regions(
+    mask: BoolVector,
+    iterations: PositiveInt | Literal[0],
+) -> BoolVector:
+    new_mask = binary_erosion(
+        binary_dilation(mask, iterations=iterations),
+        iterations=iterations,
+    )
+    return mask | new_mask
+
+
+@wraps(refine_regions)
+def _refine_regions(
+    mask: BoolVector,
+    x: FloatVector,
+    y: FloatVector,
+    dy: FloatVector,
+    y_smooth: FloatVector,
+    y_bg: FloatVector,
+    valid_pixels: BoolVector | None = None,
+) -> tuple[BoolVector, FloatVector]:
+    y_smooth = _interpolate_missing(x, y_smooth, invert(mask))
+    z = _nan_residuals(y, maximum(y_smooth, y_bg), dy, z_fill=0, mask=valid_pixels)
     new_mask = binary_erosion(mask, iterations=0, mask=(z > 0))
     binary_dilation(new_mask, iterations=0, mask=(z < 0), output=new_mask)
 
     return new_mask, y_smooth
+
+### Utility functions
+
+def _nan_residuals(
+    y: FloatVector,
+    f: FloatVector,
+    dy: FloatVector,
+    z_fill: float = 0,
+    mask: BoolVector | None = None,
+) -> FloatVector:
+
+    if mask is None:
+        mask = isfinite(y) & isfinite(f) & (dy > 0)
+
+    z = full_like(y, z_fill)
+    z[mask] = (y[mask] - f[mask]) / dy[mask]
+
+    return z

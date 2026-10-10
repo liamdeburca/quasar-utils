@@ -18,13 +18,12 @@ class ValidatedAndLRUCached(Protocol[F]):
     - '__uncached__': validated but uncached function.
     - '__wrapped__': original (unvalidated and uncached) function.
     """
-
     _cache: LRUCache
+
+    __call__: F
     __wrapped__: F
     __unvalidated__: F
     __uncached__: F
-
-    def __call__(self, *args, **kwargs): ...
 
 
 @overload

@@ -6,11 +6,19 @@ These functions assume that the resolving power is defined as: R = l / dl,
 where l is the (observed wavelength) and dl is the FWHM of a delta function 
 response.
 """
-from math import inf, log, sqrt
+from math import inf, log, pi, sqrt
+from typing import Literal, final, overload
 
-from numpy import einsum, empty, float64, pad
+from numpy import einsum, exp, float64, pad, prod, where, zeros_like
 from numpy.lib.stride_tricks import sliding_window_view
-from quasar_typing.numpy import FloatArray, FloatMatrix, FloatVector
+from quasar_typing.numpy import (
+    BoolVector,
+    FloatArray,
+    FloatMatrix,
+    FloatVector,
+)
+from quasar_typing.scipy import csr_matrix_
+from scipy.sparse import csr_matrix
 from scipy.stats import norm
 
 SIGMA_TO_FWHM: float = sqrt(8 * log(2))
@@ -33,6 +41,7 @@ def create_kernel(
     dx: FloatVector, 
     *,
     n_sigma: float,
+    normalize: bool,
 ) -> FloatVector:
     """
     Generate a Gaussian kernel for a given resolving power, R. The kernel is 
@@ -50,17 +59,48 @@ def create_kernel(
     kernel[x < mu - n_sigma * sigma] = 0
     kernel[x > mu + n_sigma * sigma] = 0
 
+    if normalize:
+        kernel /= kernel.sum()
     return kernel
 
 
+@overload
 def create_kernels(
     R: FloatVector,
     x: FloatVector,
     dx: FloatVector,
     *,
-    w: float,
+    w: int,
     n_sigma: float,
+    normalize: bool,
+    sparse: Literal[False] = False,
 ) -> FloatMatrix:
+    ...
+
+@overload
+def create_kernels(
+    R: FloatVector,
+    x: FloatVector,
+    dx: FloatVector,
+    *,
+    w: int,
+    n_sigma: float,
+    normalize: bool,
+    sparse: Literal[True],
+) -> csr_matrix_:
+    ...
+
+@final
+def create_kernels(
+    R: FloatVector,
+    x: FloatVector,
+    dx: FloatVector,
+    *,
+    w: int,
+    n_sigma: float,
+    normalize: bool,
+    sparse: bool = False,
+) -> FloatMatrix | csr_matrix_:
     """
     Create a matrix of Gaussian kernels. 
 
@@ -79,23 +119,98 @@ def create_kernels(
         mode="constant",
         constant_values=0,
     )
-    windows = sliding_window_view([_x, _dx], window_shape=w, axis=1)
+    xs, dxs = sliding_window_view([_x, _dx], window_shape=w, axis=1)
 
-    kernels = empty((x.size, w), dtype=float64)
-    for i, mu in enumerate(x):
-        kernels[i,:] = create_kernel(
-            R[i], 
-            mu, 
-            *windows[:,i],
-            n_sigma=n_sigma,
-        )
+    sigmas = x / R * FWHM_TO_SIGMA
+    zs = (xs - x[:,None]) / sigmas[:,None]
+    zs[zs < -n_sigma] = -inf
+    zs[zs >  n_sigma] = inf
 
-    return kernels
+    z2s = zs ** 2
+    kernels = exp(-0.5 * z2s) / sigmas[:,None] / sqrt(2 * pi)
+    kernels *= dxs    
+
+    if normalize:
+        kernels /= kernels.sum(axis=1, keepdims=True)
+    return csr_matrix(kernels) if sparse else kernels
+
+
+@overload
+def mask_kernels(
+    kernels: FloatMatrix,
+    mask: BoolVector,
+) -> FloatMatrix:
+    ...
+
+@overload
+def mask_kernels(
+    kernels: csr_matrix_,
+    mask: BoolVector,
+) -> csr_matrix_:
+    ...
+
+@final
+def mask_kernels(
+    kernels: FloatMatrix | csr_matrix_,
+    mask: BoolVector,
+) -> FloatMatrix | csr_matrix_:
+    """
+    Apply a boolean mask to an array of kernels.
+
+    Parameters
+    ----------
+    kernels : FloatMatrix
+        The matrix of kernels. Shape (n, w)
+    mask : BoolVector
+        The boolean mask to apply. Shape (n,). 
+
+    Returns
+    -------
+    FloatMatrix
+        The masked array of kernels.
+    """
+    if mask.all():
+        return kernels.copy()
+    
+    w = kernels.shape[1]
+    if w == 1:
+        return kernels[mask]
+    
+    local_masks = sliding_window_view(
+        pad(mask, (w // 2, w // 2), mode="constant", constant_values=True), 
+        window_shape=w, 
+        axis=0,
+    )
+    if (is_sparse := isinstance(kernels, csr_matrix)):
+        kernels = kernels.toarray()
+    
+    new_kernels = where(local_masks[mask], kernels[mask], 0)
+    return csr_matrix(new_kernels) if is_sparse else new_kernels
+
+
+def limit_loss(
+    kernels: FloatMatrix | csr_matrix_,
+    mask: BoolVector,
+    shrink: bool,
+) -> BoolVector:
+    """
+    Limit loss at the edges of the spectral windows selected by the mask by 
+    constructing a new mask.
+
+    If shrink is True, the mask is shrunk -- only pixels with negligible loss 
+    are selected. Otherwise, the mask is expanded -- include pixels outside the 
+    mask to compensate for loss inside the original mask.
+    """
+    signal = mask.astype(float64)
+    if shrink:
+        signal = 1.0 - signal
+    apply_resolution(signal, kernels, out=signal)
+    return (signal == 0) if shrink else (signal > 0)
 
 
 def apply_resolution(
     y: FloatArray, 
-    kernels: FloatMatrix,
+    kernels: FloatMatrix | csr_matrix_,
     out: FloatArray | None = None,
 ) -> FloatArray:
     """
@@ -122,11 +237,31 @@ def apply_resolution(
         raise ValueError(msg)
 
     w = kernels.shape[1]
-    # Only expand along last axis
+    
     pad_width = [(0, 0)] * (y.ndim - 1) + [(w // 2, w // 2)]
     windows = sliding_window_view(
         pad(y, pad_width, mode="constant", constant_values=0),
         window_shape=w,
         axis=-1,
     )
-    return einsum("...ij,ij->...i", windows, kernels, out=out)
+    if not isinstance(kernels, csr_matrix):
+        return einsum("...ij,ij->...i", windows, kernels, out=out)
+
+    if out is None:
+        out = zeros_like(y, float64)
+    
+    batch_prod = int(prod(y.shape[:-1]))
+    win_reshaped = windows.reshape(
+        batch_prod, 
+        kernels.shape[0], 
+        kernels.shape[1],
+    )
+    out_reshaped = out.reshape(
+        batch_prod, 
+        kernels.shape[0],
+    )    
+    for i in range(kernels.shape[0]):
+        out_reshaped[:, i] = (win_reshaped[:, i, :] @ kernels[i].T).ravel()
+    
+    return out
+

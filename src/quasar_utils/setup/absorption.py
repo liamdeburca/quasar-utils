@@ -37,7 +37,7 @@ class AbsorptionInfo(_Info):
         parse_as="float",
     )
     z_crit: float = field(
-        default=-2,
+        default=-2.0,
         dtype="float",
         parse_as="float",
     )

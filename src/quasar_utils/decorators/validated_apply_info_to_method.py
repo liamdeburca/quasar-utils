@@ -2,7 +2,7 @@ __all__ = ["validated_apply_info_to_method"]
 
 from collections.abc import Callable
 from functools import wraps
-from typing import Protocol, TypeVar, overload
+from typing import Protocol, TypeVar, final, overload
 
 from pydantic import validate_call as pydantic_validate_call
 
@@ -12,15 +12,14 @@ M = TypeVar("M", bound=Callable)
 
 
 class ValidatedAndApplied(Protocol[M]):
+    __call__: M
     __wrapped__: M
     __unapplied__: M
     __unvalidated__: M
 
-    def __call__(self, *args, **kwargs): ...
-
 
 @overload
-def validated_apply_info_to_method(
+def validated_apply_info_to_method[M](
     func: M,
     *,
     subjects: tuple[str, ...],
@@ -32,7 +31,7 @@ def validated_apply_info_to_method(
 
 
 @overload
-def validated_apply_info_to_method(
+def validated_apply_info_to_method[M](
     func: None = None,
     *,
     subjects: tuple[str, ...],
@@ -43,7 +42,8 @@ def validated_apply_info_to_method(
 ) -> Callable[[M], ValidatedAndApplied[M]]: ...
 
 
-def validated_apply_info_to_method(
+@final
+def validated_apply_info_to_method[M](
     func: M | None = None,
     *,
     subjects: tuple[str, ...],

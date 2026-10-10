@@ -30,10 +30,34 @@ def test_create_kernels(
     w: int,
     n_sigma: float,
 ):
-    kernels = resolving.create_kernels(R, x, dx, w=w, n_sigma=n_sigma)
+    kernels = resolving.create_kernels(
+        R, x, dx, 
+        w=w, 
+        n_sigma=n_sigma, 
+        normalize=True,
+        sparse=False,
+    )
     assert kernels.shape[0] == x.size
     assert kernels.shape[1] == w
-    assert (kernels.sum(axis=-1) <= 1).all()
+    assert np.allclose(kernels.sum(axis=1), 1)
+
+def test_create_kernels_sparse(
+    R: FloatVector,
+    x: FloatVector,
+    dx: FloatVector,
+    w: int,
+    n_sigma: float,
+):
+    kernels = resolving.create_kernels(
+        R, x, dx, 
+        w=w, 
+        n_sigma=n_sigma, 
+        normalize=True,
+        sparse=True,
+    )
+    assert kernels.shape[0] == x.size
+    assert kernels.shape[1] == w
+    assert np.allclose(kernels.sum(axis=1), 1)
 
 def test_application(
     subtests: pytest.Subtests,
@@ -44,12 +68,44 @@ def test_application(
     n_sigma: float,
     rng: np.random.Generator,
 ):
-    kernels = resolving.create_kernels(R, x, dx, w=w, n_sigma=n_sigma)
+    kernels = resolving.create_kernels(
+        R, x, dx, 
+        w=w, 
+        n_sigma=n_sigma, 
+        normalize=True,
+        sparse=False,
+    )
 
     for i in range(100):
         y = rng.normal(size=x.size)
         with subtests.test(i):
             test = resolving.apply_resolution(y, kernels)
             control = _explicit_method(y, kernels)
-            np.testing.assert_allclose(test, control)
+            assert np.allclose(test, control)
+            assert np.isclose(np.dot(test, dx), np.dot(control, dx))
+
+def test_application_sparse(
+    subtests: pytest.Subtests,
+    R: FloatVector,
+    x: FloatVector,
+    dx: FloatVector,
+    w: int,
+    n_sigma: float,
+    rng: np.random.Generator,
+):
+    kernels = resolving.create_kernels(
+        R, x, dx, 
+        w=w, 
+        n_sigma=n_sigma, 
+        normalize=True,
+        sparse=True,
+    )
+
+    for i in range(100):
+        y = rng.normal(size=x.size)
+        with subtests.test(i):
+            test = resolving.apply_resolution(y, kernels)
+            control = _explicit_method(y, kernels.toarray())
+            assert np.allclose(test, control)
+            assert np.isclose(np.dot(test, dx), np.dot(control, dx))
             

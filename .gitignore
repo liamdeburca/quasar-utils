@@ -1,19 +1,17 @@
-# Ignore compiled Python files
 __pycache__/
 .DS_Store
 .vscode/
 src/quasar_utils.egg-info
 build/
-
 notebooks/
-*.ipynb
+.ipynb_checkpoints/
 
-*.fits
-*.c
-*.o
-*.so
+src/quasar_utils/convolution.py
+
+.ipynb
+.fits
+.c
+.so
+.pyx
 
 vito_loader.py
-
-# Deprecated files
-src/quasar_utils/convolution.py

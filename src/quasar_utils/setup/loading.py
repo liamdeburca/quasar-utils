@@ -22,12 +22,15 @@ class LoadingInfo(_Info):
         parse_as="loader",
     )
     naming: str = field(
-        default="IGR",
+        default="igr",
         dtype="str",
         parse_as="naming",
     )
     deredden: tuple[
-        bool, Literal["sfd", "csfd"], Literal["ccm89", "o94"], float
+        bool, 
+        Literal["sfd", "csfd"], 
+        Literal["ccm89", "o94"], 
+        float,
     ] = field(
         default=(True, "sfd", "ccm89", 3.1),
         dtype="list[bool, str, str, float]",
@@ -68,6 +71,25 @@ class LoadingInfo(_Info):
         parse_as="wavelength_bounds",
         update_to="wavelength_bounds",
         has_unit=True,
+    )
+
+    kernel_w: int = field(
+        desc="Maximum size (pix) of the kernels used to correct for instrumental resolution.",
+        default=15,
+        dtype="int",
+        parse_as="int",
+    )
+    kernel_n_sigma: float = field(
+        desc="Number of standard deviations to include when constructing the resolution kernels.",
+        default=3.0,
+        dtype="float",
+        parse_as="float",
+    )
+    kernel_normalize: bool = field(
+        desc="Whether to normalize the resolution kernels s.t. they sum to 1.",
+        default=True,
+        dtype="bool",
+        parse_as="bool",
     )
 
     sigma_res: float | None = field(default=None, init=False)

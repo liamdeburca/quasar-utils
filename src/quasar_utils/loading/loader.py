@@ -4,12 +4,15 @@ from dataclasses import field
 from logging import getLogger
 from typing import Literal
 
-from numpy import diff, float64, full, interp, log
+from numpy import diff, float64, full, interp, log, ones
 from pydantic.dataclasses import dataclass
 from quasar_typing.astropy import Quantity_
 from quasar_typing.bounds import CoordBounds
-from quasar_typing.numpy import CoordsTuple, FloatVector
+from quasar_typing.numpy import CoordsTuple, FloatMatrix, FloatVector
 from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.scipy import csr_matrix_
+
+from quasar_utils.resolving import create_kernels
 
 from ..decorators import validated_apply_info_to_method
 from ..setup import Info
@@ -44,12 +47,14 @@ class _Loader:
     dy_original: FloatVector | Quantity_ = field(init=False)
     dx_original: float | FloatVector | Quantity_ = field(init=False)
     R_original: FloatVector | None = field(init=False)
+    kernels_original: FloatMatrix | csr_matrix_ = field(init=False)
 
     x: FloatVector = field(init=False)
     y: FloatVector = field(init=False)
     dy: FloatVector = field(init=False)
     dx: FloatVector = field(init=False)
     R: FloatVector | None = field(init=False)
+    kernels: FloatMatrix | csr_matrix_ = field(init=False)
 
     x_bounds: CoordBounds = field(init=False)
 
@@ -65,7 +70,6 @@ class _Loader:
         assert hasattr(self, "y_original")
         assert hasattr(self, "dy_original")
         assert hasattr(self, "dx_original")
-        assert hasattr(self, "R_original")
 
         if isinstance(self.dx_original, float):
             self.dx_original = full(
@@ -79,8 +83,7 @@ class _Loader:
         self.y_original.setflags(write=False)
         self.dy_original.setflags(write=False)
         self.dx_original.setflags(write=False)
-        if self.R_original is not None:
-            self.R_original.setflags(write=False)
+
 
     @validated_apply_info_to_method(subjects=("loading",))
     def __call__(
@@ -180,11 +183,13 @@ class _Loader:
                 f"[assuming 'sigma_res'={theo}, actual "\
                 f"'sigma_res'={obs_mean}±{obs_std}]"
 
+        msg += "(5) creating resolution kernels, "
+        self.create_kernels()
 
-        msg += "(5) ensuring coordinates are C-contiguous and read-only, "
+        msg += "(6) ensuring coordinates are C-contiguous and read-only, "
         self.finalize_coords()
 
-        msg += f"(6) setting x bounds using {self.info.loading.x_bounds}."
+        msg += f"(7) setting x bounds using {self.info.loading.x_bounds}."
         self.set_x_bounds()
 
         logger.debug(msg)
@@ -196,12 +201,12 @@ class _Loader:
             "y": self.y,
             "dy": self.dy,
             "dx": self.dx,
-            "R": self.R,
+            "kernels": self.kernels,
             "x_original": self.x_original,
             "y_original": self.y_original,
             "dy_original": self.dy_original,
             "dx_original": self.dx_original,
-            "R_original": self.R_original,
+            "kernels_original": self.kernels_original,
             "info": self.info,
             "x_bounds": self.x_bounds,
         }
@@ -319,6 +324,35 @@ class _Loader:
             self.R = interp(self.x, self.x_original, self.R_original)
             self.R.setflags(write=False)
 
+    def create_kernels(self) -> None:
+        if self.R_original is None:
+            self.kernels_original = ones((self.x_original.size, 1), float64)
+        else:
+            self.kernels_original = create_kernels(
+                self.R_original, self.x_original, self.dx_original,
+                w=self.info.loading.kernel_w,
+                n_sigma=self.info.loading.kernel_n_sigma,
+                normalize=self.info.loading.kernel_normalize,
+                sparse=False,
+            )
+
+        if hasattr(self, "x"):
+            if self.R is None:
+                self.kernels = ones((self.x.size, 1), float64)
+            else:
+                self.kernels = create_kernels(
+                    self.R, self.x, self.dx,
+                    w=self.info.loading.kernel_w,
+                    n_sigma=self.info.loading.kernel_n_sigma,
+                    normalize=self.info.loading.kernel_normalize,
+                    sparse=False,
+                )
+        else:
+            self.kernels = self.kernels_original
+
+        self.kernels_original.setflags(write=False)
+        self.kernels.setflags(write=False)
+        
     def finalize_coords(self) -> None:
         coords = [
             self.x_original,

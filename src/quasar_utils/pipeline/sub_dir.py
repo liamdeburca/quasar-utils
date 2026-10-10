@@ -19,7 +19,7 @@ from quasar_typing.pathlib import (
 from ..logging import (
     CONFIG_KWARGS,
     FlagFilter,
-    FlagFormatter,
+    # FlagFormatter,
     QuasarFilter,
     QuasarFormatter,
 )
@@ -86,7 +86,7 @@ class SubDir:
 
         h_flags = FileHandler_(self._flags_log, mode="a", encoding="utf-8")
         h_flags.setLevel(INFO)
-        h_flags.setFormatter(FlagFormatter())
+        # h_flags.setFormatter(FlagFormatter())
         h_flags.addFilter(FlagFilter())
         handlers["flag"] = h_flags
 
