@@ -10,7 +10,7 @@ def lin_dx_old(x: np.ndarray) -> np.ndarray:
     dx = 0.5 * (np.roll(x, -1) - np.roll(x, 1))
     dx[0] = x[1] - x[0]
     dx[-1] = x[-1] - x[-2]
-    return dx
+    return dx   
 
 
 def test_gradient_equivalence_random():

@@ -10,22 +10,18 @@ This module exposes a small, validated public API for setup and lookup and
 keeps the implementation details in private functions defined below. Low-level
 helpers are placed at the end of the file.
 """
+__all__ = ["PATH_TO_CACHE", "get_dust_map", "reset_cache", "setup_dustmaps"]
 
 from functools import wraps
 from pathlib import Path
 from shutil import rmtree
 from typing import Literal
 
-from pydantic import validate_call
-
 from dustmaps.config import config
 from dustmaps.csfd import CSFDQuery
 from dustmaps.sfd import SFDQuery
+from pydantic import validate_call
 
-__all__ = ["PATH_TO_CACHE", "get_dust_map", "reset_cache", "setup_dustmaps"]
-
-
-# Module-level constants
 _this_file: Path = Path(__file__).resolve()
 PATH_TO_CACHE: Path = _this_file.parent / "__cache__"
 
