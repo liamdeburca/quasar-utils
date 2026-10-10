@@ -53,6 +53,32 @@ def log_resample(
     return _log_resample(x, y, dy, v_res, dx=dx, conserve=conserve, covariance=covariance)
 
 
+@validate_call
+def lin_dx(x: NDArray[float64]) -> NDArray[float64]:
+    """Compute pixel widths for a 1D coordinate array.
+
+    Public validated wrapper. See `_lin_dx` for the unvalidated
+    implementation.
+    """
+    return _lin_dx(x)
+
+
+@validate_call
+def log_edges(
+    x: NDArray[float64],
+    v_res: float,
+    *,
+    dx: NDArray[float64] | None = None,
+    x_edges: NDArray[float64] | None = None,
+) -> tuple[NDArray[float64], NDArray[float64], NDArray[float64]]:
+    """Construct logarithmically-spaced resampling edges.
+
+    Public validated wrapper. See `_log_edges` for the unvalidated
+    implementation.
+    """
+    return _log_edges(x, v_res, dx=dx, x_edges=x_edges)
+
+
 # Private implementations (no pydantic validation)
 @wraps(alpha_matrix_sparse)
 def _alpha_matrix_sparse(
@@ -65,10 +91,10 @@ def _alpha_matrix_sparse(
 ) -> csr_matrix_:
     if conserve:
         assert dxr is not None
-        i, j, data = alpha_matrix_elements_conserved(x_edges, xr_edges, dxr)
+        i, j, data = _alpha_matrix_elements_conserved(x_edges, xr_edges, dxr)
     else:
         assert dx is not None
-        i, j, data = alpha_matrix_elements(x_edges, xr_edges, dx)
+        i, j, data = _alpha_matrix_elements(x_edges, xr_edges, dx)
 
     ij = stack([i, j], axis=0, dtype=int32)
     return csr_matrix((data, ij), shape=(xr_edges.size - 1, x_edges.size - 1))
@@ -154,3 +180,66 @@ def alpha_matrix_elements_conserved(
     )
 
     return i_indices[:count], j_indices[:count], vals[:count]
+
+
+def _alpha_matrix_elements(
+    x: NDArray[float64],
+    xr: NDArray[float64],
+    dx: NDArray[float64],
+) -> tuple[NDArray[int32], NDArray[int32], NDArray[float64]]:
+    """Backward-compatible wrapper name used internally by the module.
+
+    This small shim calls the public `alpha_matrix_elements` helper. It
+    exists to provide a stable internal name while avoiding exporting
+    the helper at package level.
+    """
+    return alpha_matrix_elements(x, xr, dx)
+
+
+def _alpha_matrix_elements_conserved(
+    x: NDArray[float64],
+    xr: NDArray[float64],
+    dxr: NDArray[float64],
+) -> tuple[NDArray[int32], NDArray[int32], NDArray[float64]]:
+    """Backward-compatible wrapper name used internally by the module.
+
+    See `_alpha_matrix_elements` for details.
+    """
+    return alpha_matrix_elements_conserved(x, xr, dxr)
+
+
+### Private helpers (no validation) - low-level helpers kept last
+@wraps(lin_dx)
+def _lin_dx(x: NDArray[float64]) -> NDArray[float64]:
+    dx = 0.5 * (roll(x, -1) - roll(x, 1))
+    dx[0] = x[1] - x[0]
+    dx[-1] = x[-1] - x[-2]
+    return dx
+
+
+@wraps(log_edges)
+def _log_edges(
+    x: NDArray[float64],
+    v_res: float,
+    *,
+    dx: NDArray[float64] | None = None,
+    x_edges: NDArray[float64] | None = None,
+) -> tuple[NDArray[float64], NDArray[float64], NDArray[float64]]:
+
+    if dx is None:
+        dx = _lin_dx(x)
+    else:
+        assert dx.size == x.size
+    if x_edges is None:
+        x_edges = empty(x.size + 1, dtype=float64)
+        x_edges[:-1] = x - dx / 2
+        x_edges[-1] = x[-1] + dx[-1] / 2
+    else:
+        assert x_edges.size == x.size + 1
+
+    n_xr: int = floor(log(x_edges[-1] / x_edges[0]) / log(1 + v_res))
+    log_xr_edges = log(x_edges[0]) + log(1 + v_res) * arange(n_xr + 1)
+    xr_edges = exp(log_xr_edges)
+    xr = exp(0.5 * (log_xr_edges[:-1] + log_xr_edges[1:]))
+
+    return x_edges, xr_edges, xr
