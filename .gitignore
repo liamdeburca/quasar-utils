@@ -4,6 +4,7 @@ __pycache__/
 src/quasar_utils.egg-info
 build/
 notebooks/
+dereddening/__cache__/
 .ipynb_checkpoints/
 
 src/quasar_utils/convolution.py
