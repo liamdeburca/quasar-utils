@@ -1,16 +1,16 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from quasar_typing.pathlib import AnyAbsoluteJSONPath, AnyAbsoluteYAMLPath
+from quasar_typing.pathlib import AnyJSONPath, AnyYAMLPath
 
 from quasar_utils.setup import Info
 
 
-def info_to_json(path: AnyAbsoluteJSONPath) -> None:
+def info_to_json(path: AnyJSONPath) -> None:
     info = Info()
     info.to_json(path)
 
-def info_to_yaml(path: AnyAbsoluteYAMLPath) -> None:
+def info_to_yaml(path: AnyYAMLPath) -> None:
     info = Info()
     info.to_yaml(path)
 
