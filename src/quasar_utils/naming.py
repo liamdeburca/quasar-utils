@@ -1,57 +1,67 @@
-from math import floor
+import math
 
 from astropy.units import Unit
-from quasar_typing.astropy import Quantity_
+from quasar_typing.astropy import QuantityType
 
 
 class J2000:
     template: str = "RA = {ra}, DEC = {dec}"
 
     @classmethod
-    def get_name(cls, ra: Quantity_, dec: Quantity_) -> str:
+    def get_name(cls, ra: QuantityType, dec: QuantityType) -> str:
         return cls.template.format(
             ra=cls.right_ascension(ra),
             dec=cls.declination(dec),
         )
 
     @classmethod
-    def right_ascension(cls, ra: Quantity_) -> str:
+    def right_ascension(cls, ra: QuantityType) -> str:
         if ra < 0:
             ra += 360 * Unit("degree")
 
         val = ra.to("hourangle").value
-        return f"{(hours := floor(val)):0>2d}h{(minutes := floor(60 * (val - hours))):0>2d}m{3600 * (val - hours - minutes / 60):0>6.3f}s"
+        hours = math.floor(val)
+        minutes = math.floor(60 * (val - hours))
+        seconds = 3600 * (val - hours - minutes / 60)
+        return f"{hours:0>2d}h{minutes:0>2d}m{seconds:0>6.3f}s"
 
     @classmethod
-    def declination(cls, dec: Quantity_) -> str:
+    def declination(cls, dec: QuantityType) -> str:
         sign = "+" if dec >= 0 else "-"
         val = abs(dec.to("degree").value)
-        return f"{sign}{(hours := floor(val)):0>2d}°{(minutes := floor(60 * (val - hours))):0>2d}'{floor(3600 * (val - hours - minutes / 60)):0>6.3f}\""
+        hours = math.floor(val)
+        minutes = math.floor(60 * (val - hours))
+        seconds = 3600 * (val - hours - minutes / 60)
+        return f"{sign}{hours:0>2d}°{minutes:0>2d}'{seconds:0>6.3f}\""
 
 
 class IGR:
     template: str = "IGR J{ra}{dec}"
 
     @classmethod
-    def get_name(cls, ra: Quantity_, dec: Quantity_) -> str:
+    def get_name(cls, ra: QuantityType, dec: QuantityType) -> str:
         return cls.template.format(
             ra=cls.right_ascension(ra),
             dec=cls.declination(dec),
         )
 
     @classmethod
-    def right_ascension(cls, ra: Quantity_) -> str:
+    def right_ascension(cls, ra: QuantityType) -> str:
         if ra < 0:
             ra += 360 * Unit("degree")
 
         val = ra.to("hourangle").value
-        return f"{(hours := floor(val)):0>2d}{floor(60 * (val - hours)):.1f}"
+        hours = math.floor(val)
+        minutes = math.floor(60 * (val - hours))
+        return f"{hours:0>2d}{minutes:.1f}"
 
     @classmethod
-    def declination(cls, dec: Quantity_) -> str:
+    def declination(cls, dec: QuantityType) -> str:
         sign = "+" if dec >= 0 else "-"
         val = abs(dec.to("degree").value)
-        return f"{sign}{(hours := floor(val)):0>2d}{floor(60 * (val - hours)):0>2d}"
+        hours = math.floor(val)
+        minutes = math.floor(60 * (val - hours))
+        return f"{sign}{hours:0>2d}{minutes:0>2d}"
 
 
 class SDSS:

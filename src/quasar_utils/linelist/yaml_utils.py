@@ -2,11 +2,11 @@ __all__ = ["read_yaml", "to_yaml"]
 
 from collections import defaultdict
 
-from pandas import DataFrame
-from quasar_typing.pathlib import AbsoluteYAMLPath, NewAbsoluteYAMLPath
-from yaml import safe_dump, safe_load
+import pandas
+import yaml
+from quasar_typing.pathlib import AnyYAMLPath, YAMLPath
 
-from quasar_utils.setup.info import Info
+from quasar_utils.setup import Info
 
 from .utils import (
     BroadConverter,
@@ -17,11 +17,11 @@ from .utils import (
 
 
 def read_yaml(
-    path: AbsoluteYAMLPath,
+    path: YAMLPath,
     info: Info,
-) -> DataFrame:
+) -> pandas.DataFrame:
     with open(path, "r") as f:
-        raw_data = safe_load(f)
+        raw_data = yaml.safe_load(f)
 
     # Dictionary of lists to hold the processed data
     processed_data = defaultdict(list)
@@ -85,16 +85,16 @@ def read_yaml(
             Converter.scale_fixed_converter(info, f.get("scale_fixed", ""))
         )
 
-    df = DataFrame.from_dict(processed_data)
+    df = pandas.DataFrame.from_dict(processed_data)
     df.sort_values("wave", inplace=True)
     return df
 
 
 def to_yaml(
-    df: DataFrame,
-    path: NewAbsoluteYAMLPath,
+    df: pandas.DataFrame,
+    path: AnyYAMLPath,
     info: Info,
 ) -> None:
     output_dict = df_to_dict(df=df, info=info)
     with open(path, "w") as f:
-        safe_dump(output_dict, f, sort_keys=False)
+        yaml.safe_dump(output_dict, f, sort_keys=False)

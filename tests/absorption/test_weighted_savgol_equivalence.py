@@ -58,11 +58,11 @@ def test_weighted_savgol_equivalence_random():
     mask = np.ones_like(x, dtype=bool)
 
     # Old implementation result
-    y_old = smoothing.weighted_savgol_filter.__wrapped__(x, y, dy, w=w, p=p, mask=mask, interpolate=False)
+    y_old = smoothing.weighted_savgol_filter(x, y, dy, w=w, p=p, mask=mask, interpolate=False)
 
     # Recompute valid indices, slides and solve with lstsq-based solver
-    valid_indices = smoothing.get_valid_indices.__wrapped__(mask, w, p, mode="standard") & np.isfinite(x)
-    slides = smoothing.create_slides.__wrapped__(np.where(np.isfinite(x), x, np.nan), np.where(mask, y, np.nan), np.where(mask, dy, np.nan), w, mask=valid_indices)
+    valid_indices = smoothing.get_valid_indices(mask, w, p, mode="standard") & np.isfinite(x)
+    slides = smoothing.create_slides(np.where(np.isfinite(x), x, np.nan), np.where(mask, y, np.nan), np.where(mask, dy, np.nan), w, mask=valid_indices)
     # slides are (x_slides, y_slides, dy_slides)
     x_slides, y_slides, dy_slides = slides
 

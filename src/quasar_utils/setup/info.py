@@ -7,20 +7,19 @@ from dataclasses import field
 from logging import getLogger
 from typing import Any, ClassVar, Self
 
-import yaml as yaml_pkg
-from pydantic.dataclasses import dataclass
+import pydantic
 from quasar_typing.pathlib import (
-    AbsoluteJSONPath,
-    AbsoluteYAMLPath,
-    AnyAbsoluteJSONPath,
-    AnyAbsoluteYAMLPath,
+    AnyJSONPath,
+    AnyYAMLPath,
+    JSONPath,
+    YAMLPath,
 )
 
-from ..decorators import validate_call
 from .absorption import AbsorptionInfo
 from .balmer import BalmerInfo
 from .continuum import ContinuumInfo
 from .convolution import ConvolutionInfo
+from .cosmology import CosmologyInfo
 from .error import ErrorInfo
 from .host import HostInfo
 from .iron import IronInfo
@@ -34,7 +33,7 @@ from .units import UnitsInfo
 logger = getLogger(__name__)
 
 
-@dataclass
+@pydantic.dataclasses.dataclass
 class Info:
     absorption: AbsorptionInfo = field(
         default_factory=AbsorptionInfo,
@@ -51,6 +50,10 @@ class Info:
     convolution: ConvolutionInfo = field(
         default_factory=ConvolutionInfo,
         kw_only=True, 
+    )
+    cosmology: CosmologyInfo = field(
+        default_factory=CosmologyInfo,
+        kw_only=True,
     )
     error: ErrorInfo = field(
         default_factory=ErrorInfo,
@@ -139,10 +142,10 @@ class Info:
         return out
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteJSONPath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
     
@@ -154,8 +157,7 @@ class Info:
                 json = json_pkg.load(f)
 
         def func(cls):
-            return cls.from_json.__wrapped__(
-                cls, 
+            return cls.from_json(
                 json=json, 
                 create_copy=create_copy,
             )
@@ -165,6 +167,7 @@ class Info:
             balmer=func(BalmerInfo),
             continuum=func(cls=ContinuumInfo),
             convolution=func(cls=ConvolutionInfo),
+            cosmology=func(cls=CosmologyInfo),
             error=func(cls=ErrorInfo),
             host=func(cls=HostInfo),
             iron=func(cls=IronInfo),
@@ -177,12 +180,13 @@ class Info:
         )
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_yaml(
         cls,
-        yaml: dict[str, dict] | AbsoluteYAMLPath | None = None,
+        yaml: dict[str, dict] | YAMLPath | None = None,
         create_copy: bool = True,
     ) -> Self:
+        import yaml as yaml_pkg
 
         if yaml is None:
             return Info()
@@ -192,8 +196,7 @@ class Info:
                 yaml = yaml_pkg.load(f, yaml_pkg.Loader)
 
         def func(cls):
-            return cls.from_json.__wrapped__(
-                cls, 
+            return cls.from_json(
                 json=yaml, 
                 create_copy=create_copy,
             )
@@ -203,6 +206,7 @@ class Info:
             balmer=func(BalmerInfo),
             continuum=func(cls=ContinuumInfo),
             convolution=func(cls=ConvolutionInfo),
+            cosmology=func(cls=CosmologyInfo),
             error=func(cls=ErrorInfo),
             host=func(cls=HostInfo),
             iron=func(cls=IronInfo),
@@ -214,13 +218,14 @@ class Info:
             units=func(cls=UnitsInfo),
         )
 
-    @validate_call
-    def to_json(self, path: AnyAbsoluteJSONPath) -> None:
+    @pydantic.validate_call
+    def to_json(self, path: AnyJSONPath) -> None:
         with open(path, "w") as f:
             json_pkg.dump(self.to_dict(jsonify=True), f, indent=4)
 
-    @validate_call
-    def to_yaml(self, path: AnyAbsoluteYAMLPath) -> None:
+    @pydantic.validate_call
+    def to_yaml(self, path: AnyYAMLPath) -> None:
+        import yaml as yaml_pkg
         with open(path, "w") as f:
             yaml_pkg.dump(self.to_dict(jsonify=True), f, indent=4)
 
@@ -261,6 +266,7 @@ class Info:
             "balmer",
             "continuum",
             "convolution",
+            "cosmology",
             "error",
             "host",
             "iron",

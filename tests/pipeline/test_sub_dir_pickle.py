@@ -46,6 +46,11 @@ class TestSubDirPickle:
         debug_log = out_dir / "custom_debug.log"
         main_log = out_dir / "custom_main.log"
         profile = out_dir / "custom_profile.csv"
+        
+        # Create the log files so samefile() can work
+        debug_log.touch()
+        main_log.touch()
+        profile.touch()
 
         subdir = SubDir(
             in_file,
@@ -59,10 +64,10 @@ class TestSubDirPickle:
         pickled = pickle.dumps(subdir)
         unpickled = pickle.loads(pickled)
 
-        # Verify custom paths are preserved
-        assert unpickled._debug_log == debug_log
-        assert unpickled._main_log == main_log
-        assert unpickled._profile == profile
+        # Verify custom paths are preserved (use samefile to handle symlinks)
+        assert unpickled._debug_log.samefile(debug_log)
+        assert unpickled._main_log.samefile(main_log)
+        assert unpickled._profile.samefile(profile)
 
     def test_pickle_equality(self, temp_dirs):
         """Test that unpickled SubDir is equal to original."""

@@ -15,16 +15,15 @@ __all__ = ["PATH_TO_CACHE", "get_dust_map", "reset_cache", "setup_dustmaps"]
 from functools import wraps
 from pathlib import Path
 from shutil import rmtree
-from typing import Literal
 
 from dustmaps.config import config
 from dustmaps.csfd import CSFDQuery
 from dustmaps.sfd import SFDQuery
 from pydantic import validate_call
+from quasar_typing.literals import MapName
 
 _this_file: Path = Path(__file__).resolve()
 PATH_TO_CACHE: Path = _this_file.parent / "__cache__"
-
 
 ### Public functions
 
@@ -49,7 +48,7 @@ def reset_cache() -> None:
 
 
 @validate_call
-def get_dust_map(map_name: Literal["sfd", "csfd"]) -> SFDQuery | CSFDQuery:
+def get_dust_map(map_name: MapName) -> SFDQuery | CSFDQuery:
     """Return a query object for a supported dust map.
 
     Parameters
@@ -99,18 +98,12 @@ def _reset_cache() -> None:
 
 
 @wraps(get_dust_map)
-def _get_dust_map(map_name: Literal["sfd", "csfd"]) -> SFDQuery | CSFDQuery:
-    match map_name.strip().lower():
+def _get_dust_map(map_name: MapName) -> SFDQuery | CSFDQuery:
+    match map_name:
         case "sfd":
             return SFDQuery()
         case "csfd":
             return CSFDQuery()
-        case _:
-            pass
-
-    raise NotImplementedError(
-        f"Dust map '{map_name}' is not supported. Supported maps are: 'sfd', 'csfd'."
-    )
 
 
 if __name__ == "__main__":

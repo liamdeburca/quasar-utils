@@ -4,17 +4,16 @@ from pathlib import Path
 from typing import ClassVar, Self
 
 from pandas import DataFrame
+from pydantic import validate_call
 from pydantic_core import PydanticCustomError
 from pydantic_core.core_schema import no_info_plain_validator_function
-from quasar_typing.pathlib import AbsoluteCSVPath, AbsoluteYAMLPath
+from quasar_typing.pathlib import CSVPath, YAMLPath
+from quasar_typing.utils import isinstance_func
 
-from ..decorators import validate_call
-from ..setup import Info
-from .csv_utils import read_csv
-from .yaml_utils import read_yaml
+from quasar_utils.setup import Info
 
 _this_file: Path = Path(__file__).resolve()
-DEFAULT_LINE_LIST_PATH: AbsoluteCSVPath = (
+DEFAULT_LINE_LIST_PATH: CSVPath = (
     _this_file.parent / "defaults/line_list.csv"
 )
 
@@ -23,7 +22,6 @@ class LineList(DataFrame):
     """
     pandas.DataFrame
     """
-
     REQUIRED_COLUMNS: ClassVar[list[str]] = [
         "name",
         "linetype",
@@ -49,26 +47,26 @@ class LineList(DataFrame):
     def read_csv(
         cls,
         *,
-        path: AbsoluteCSVPath = DEFAULT_LINE_LIST_PATH,
+        path: CSVPath = DEFAULT_LINE_LIST_PATH,
         info: Info = None,
     ) -> Self:
-        return cls(read_csv(path, info))
+        from .csv_utils import read_csv
+        return cls(DataFrame(read_csv(path, info)))
 
     @classmethod
     @validate_call
     def read_yaml(
         cls,
         *,
-        path: AbsoluteYAMLPath,
+        path: YAMLPath,
         info: Info = None,
     ) -> Self:
-        return read_yaml(path, info)
+        from .yaml_utils import read_yaml
+        return cls(DataFrame(read_yaml(path, info)))
 
     @classmethod
     def _validate(cls, value: object) -> Self:
-        if not isinstance(value, DataFrame):
-            msg = f"Expected a 'pandas.DataFrame', got {type(value).__name__}"
-            raise PydanticCustomError("validation_error", msg)
+        value = isinstance_func(DataFrame)(value)
 
         missing_columns = [
             col for col in cls.REQUIRED_COLUMNS if col not in value.columns

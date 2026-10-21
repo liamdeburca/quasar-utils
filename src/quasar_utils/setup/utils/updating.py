@@ -2,11 +2,11 @@ from collections.abc import Callable, Iterable
 from inspect import getmembers, ismethod
 from typing import Any
 
+import numpy as np
 from astropy.units import Quantity
-from numpy import array, float64, sort
 from quasar_typing.bounds import AstropyBounds, CoordBounds
-from quasar_typing.misc import StringSelection
 from quasar_typing.numpy import FloatVector, SortedFloatVector
+from quasar_typing.string_selections import StringSelection
 
 
 class Updater:
@@ -99,11 +99,13 @@ class Updater:
 
     @classmethod
     def to_sorted_velocity_c_array(cls, info: object, value: Iterable[float | Quantity]) -> SortedFloatVector:
-        return sort(cls.to_velocity_c_list(info, value)).astype(float64, order='C')
+        return np.sort(cls.to_velocity_c_list(info, value))\
+            .astype(np.float64, order='C')
 
     @classmethod
     def to_sorted_velocity_kms_array(cls, info: object, value: Iterable[float | Quantity]) -> SortedFloatVector:
-        return sort(cls.to_velocity_kms_list(info, value)).astype(float64, order='C')
+        return np.sort(cls.to_velocity_kms_list(info, value))\
+            .astype(np.float64, order='C')
 
     @classmethod
     def to_wavelength_list(cls, info: object, value: Iterable[float | Quantity]) -> list[float]:
@@ -122,11 +124,13 @@ class Updater:
 
     @classmethod
     def to_wavelength_array(cls, info: object, value: Iterable[float | Quantity]) -> FloatVector:
-        return array(cls.to_wavelength_list(info, value)).astype(float64, order='C')
+        return np.array(cls.to_wavelength_list(info, value))\
+            .astype(np.float64, order='C')
 
     @classmethod
     def to_sorted_wavelength_array(cls, info: object, value: Iterable[float | Quantity]) -> SortedFloatVector:
-        return sort(cls.to_wavelength_list(info, value)).astype(float64, order='C')
+        return np.sort(cls.to_wavelength_list(info, value))\
+            .astype(np.float64, order='C')
 
     @classmethod
     def to_wavelength_windows(cls, info: object, value: Iterable[CoordBounds] | Quantity) -> list[CoordBounds]:

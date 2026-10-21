@@ -1,22 +1,21 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import pydantic
 from astropy.units import Unit
-from pydantic.dataclasses import dataclass
 from pydantic_core import PydanticCustomError
-from quasar_typing.astropy import Quantity_
+from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import AstropyBounds, CoordBounds
-from quasar_typing.misc import HostGalaxyModelParams
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import JSONPath
+from quasar_typing.string_selections import HostGalaxyModelParams
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class HostInfo(_Info):
     fit: bool = field(
         default=True,
@@ -24,7 +23,7 @@ class HostInfo(_Info):
         parse_as="bool",
     )
 
-    _x_min: float | Quantity_ = field(
+    _x_min: float | QuantityType = field(
         desc="If the spectrum's largest wavelength is below this value, host galaxy emission will not be modelled.",
         default=4000 * Unit("angstrom"),
         dtype="float",
@@ -32,7 +31,7 @@ class HostInfo(_Info):
         update_to="wavelength",
         has_unit=True,
     )
-    _windows: list[CoordBounds] | Quantity_ = field(
+    _windows: list[CoordBounds] | QuantityType = field(
         default=[
             [5400.0, 5750.0],
             [7000.0, 9000.0],
@@ -42,42 +41,42 @@ class HostInfo(_Info):
         update_to="wavelength_windows",
         has_unit=True,
     )
-    _x_norm: float | Quantity_ = field(
+    _x_norm: float | QuantityType = field(
         default=6000 * Unit("angstrom"),
         dtype="float",
         parse_as="wavelength",
         update_to="wavelength",
         has_unit=True,
     )
-    _fwhm_norm: float | Quantity_ = field(
+    _fwhm_norm: float | QuantityType = field(
         default=0 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
         update_to="velocity_kms",
         has_unit=True,
     )
-    _flux: float | Quantity_ = field(
+    _flux: float | QuantityType = field(
         default=1.0,
         dtype="float",
         parse_as="flux",
         update_to="flux",
         has_unit=True,
     )
-    _fwhm: float | Quantity_ = field(
+    _fwhm: float | QuantityType = field(
         default=0 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
         update_to="velocity_kms",
         has_unit=True,
     )
-    _flux_bounds: AstropyBounds | Quantity_ = field(
+    _flux_bounds: AstropyBounds | QuantityType = field(
         default=(0.0, 1000.0),
         dtype="list[float | None]",
         parse_as="flux_bounds",
         update_to="flux_bounds",
         has_unit=True,
     )
-    _fwhm_bounds: AstropyBounds | Quantity_ = field(
+    _fwhm_bounds: AstropyBounds | QuantityType = field(
         default=[0, 1000] * Unit("km/s"),
         dtype="list[float | None]",
         parse_as="velocity_bounds",
@@ -174,10 +173,10 @@ class HostInfo(_Info):
         return super().to_dict("host", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         out = cls._from_json(json, create_copy, "host", logger)

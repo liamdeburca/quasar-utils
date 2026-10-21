@@ -1,19 +1,18 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import pydantic
 from numpy.random import RandomState
-from pydantic.dataclasses import dataclass
-from quasar_typing.numpy import RandomState_
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.numpy import RandomStateType
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
-
+    
 
 @finalise_dataclass(additional_keys=["random_state"])
-@dataclass
+@pydantic.dataclasses.dataclass
 class RandomInfo(_Info):
     seed: int = field(
         default=42,
@@ -27,7 +26,7 @@ class RandomInfo(_Info):
     )
 
     @property
-    def random_state(self) -> RandomState_:
+    def random_state(self) -> RandomStateType:
         if self.renew_rng:
             return RandomState(self.seed)
 
@@ -62,10 +61,10 @@ class RandomInfo(_Info):
         return super().to_dict("random", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "random", logger)

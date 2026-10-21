@@ -7,12 +7,11 @@ name = "quasar-utils"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "quasar-typing",
     "numpy>=1.26",
     "scipy>=1.16",
     "astropy>=7.0",
     "pydantic>=2.12",
-    "numba",
-    "quasar-typing",
     "cython==3.0.12",
 ]
 
@@ -26,6 +25,12 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 79
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
 
 [lint.pyupgrade]
 keep-runtime-typing = true

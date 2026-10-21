@@ -93,8 +93,8 @@ class TestInputDirPickle:
         pickled = pickle.dumps(input_dir)
         unpickled = pickle.loads(pickled)
 
-        # Verify path is preserved
-        assert unpickled.path == fits_file
+        # Verify path is preserved (use samefile to handle symlinks on macOS)
+        assert unpickled.path.samefile(fits_file)
 
     def test_pickle_preserves_directory(self, temp_dir_with_fits):
         """Test that the directory attribute is preserved after pickling."""
@@ -105,8 +105,8 @@ class TestInputDirPickle:
         pickled = pickle.dumps(input_dir)
         unpickled = pickle.loads(pickled)
 
-        # Verify directory is preserved
-        assert unpickled.directory == tmpdir
+        # Verify directory is preserved (use samefile to handle symlinks on macOS)
+        assert unpickled.directory.samefile(tmpdir)
 
     def test_pickle_preserves_files_list(self, temp_dir_with_multiple_files):
         """Test that the files list is preserved after pickling."""
@@ -147,7 +147,7 @@ class TestInputDirPickle:
         # Verify structure
         assert isinstance(state, dict)
         assert "path" in state
-        assert state["path"] == fits_file
+        assert state["path"].samefile(fits_file)
 
     def test_pickle_asc_file(self, temp_dir_with_asc):
         """Test pickling InputDir with an ASCII file."""
@@ -158,9 +158,10 @@ class TestInputDirPickle:
         pickled = pickle.dumps(input_dir)
         unpickled = pickle.loads(pickled)
 
-        # Verify attributes
-        assert unpickled.path == asc_file
-        assert unpickled.files == [asc_file]
+        # Verify attributes (use samefile to handle symlinks on macOS)
+        assert unpickled.path.samefile(asc_file)
+        assert len(unpickled.files) == 1
+        assert unpickled.files[0].samefile(asc_file)
 
     def test_pickle_directory_with_fits_file(
         self, temp_dir_with_multiple_files
@@ -174,8 +175,12 @@ class TestInputDirPickle:
         unpickled = pickle.loads(pickled)
 
         # Verify that unpickled object points to the same directory
-        assert unpickled.directory == tmpdir
-        assert set(unpickled.files) == set(files)
+        # Use samefile to handle symlinks on macOS
+        assert unpickled.directory.samefile(tmpdir)
+        # Verify files by comparing sets using samefile
+        assert len(unpickled.files) == len(files)
+        for f in unpickled.files:
+            assert any(f.samefile(orig) for orig in files)
 
     def test_pickle_preserves_iteration_behavior(
         self, temp_dir_with_multiple_files
@@ -215,7 +220,10 @@ class TestInputDirPickle:
         # Verify 10 files are found
         assert len(input_dir) == 10
         assert len(input_dir.files) == 10
-        assert set(input_dir.files) == set(asc_files)
+        # Use samefile to handle symlinks on macOS
+        assert len(input_dir.files) == len(asc_files)
+        for f in input_dir.files:
+            assert any(f.samefile(orig) for orig in asc_files)
 
     def test_ten_asc_files_iteration(self, temp_dir_with_ten_asc_files):
         """Test that all 10 ASC files can be iterated over."""
@@ -227,7 +235,10 @@ class TestInputDirPickle:
 
         # Verify iteration includes all 10 files
         assert len(iterated_files) == 10
-        assert set(iterated_files) == set(asc_files)
+        # Use samefile to handle symlinks on macOS
+        assert len(iterated_files) == len(asc_files)
+        for f in iterated_files:
+            assert any(f.samefile(orig) for orig in asc_files)
 
     def test_ten_asc_files_pickle_and_unpickle(
         self, temp_dir_with_ten_asc_files
@@ -242,8 +253,11 @@ class TestInputDirPickle:
 
         # Verify all 10 files are preserved
         assert len(unpickled) == 10
-        assert set(unpickled.files) == set(asc_files)
-        assert unpickled.directory == tmpdir
+        # Use samefile to handle symlinks on macOS
+        assert len(unpickled.files) == len(asc_files)
+        for f in unpickled.files:
+            assert any(f.samefile(orig) for orig in asc_files)
+        assert unpickled.directory.samefile(tmpdir)
 
     def test_ten_asc_files_pickle_multiple_times(
         self, temp_dir_with_ten_asc_files
@@ -260,7 +274,10 @@ class TestInputDirPickle:
 
         # Verify all 10 files are still preserved
         assert len(obj) == 10
-        assert set(obj.files) == set(asc_files)
+        # Use samefile to handle symlinks on macOS
+        assert len(obj.files) == len(asc_files)
+        for f in obj.files:
+            assert any(f.samefile(orig) for orig in asc_files)
 
 
 class TestInputDirBatched:
@@ -387,4 +404,4 @@ class TestInputDirBatched:
         # Verify each batch has correct file
         for batch in batches:
             assert len(batch) == 1
-            assert batch.directory == tmpdir
+            assert batch.directory.samefile(tmpdir)

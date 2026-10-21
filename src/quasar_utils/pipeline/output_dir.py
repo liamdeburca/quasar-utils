@@ -7,11 +7,11 @@ from typing import Self
 
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import (
-    AbsoluteDirPath,
-    AbsoluteFilePath,
-    AbsoluteLogPath,
-    AnyAbsoluteDirPath,
-    AnyAbsoluteLogPath,
+    AnyDirPath,
+    AnyLogPath,
+    DirPath,
+    FilePath,
+    LogPath,
 )
 
 from .input_dir import InputDir
@@ -22,8 +22,8 @@ from .sub_dir import SubDir
 class OutputDir:
     input_dir: InputDir
 
-    path: AnyAbsoluteDirPath | None = None
-    input_link: AbsoluteFilePath | AbsoluteDirPath | None = None
+    path: AnyDirPath | None = None
+    input_link: FilePath | DirPath | None = None
     dangerous: bool = False
 
     subdirs: set[SubDir] = field(default_factory=set)
@@ -49,7 +49,7 @@ class OutputDir:
             )
 
     @classmethod
-    def resume(cls, path: AbsoluteDirPath) -> Self:
+    def resume(cls, path: DirPath) -> Self:
         """
         Re-instantiate an OutputDir object from an existing output directory 
         path.
@@ -67,7 +67,7 @@ class OutputDir:
         batch_size: int,
         *,
         input_dir: InputDir | None = None,
-        path: AnyAbsoluteDirPath | None = None,
+        path: AnyDirPath | None = None,
     ) -> Iterator[Self]:
         if path is None:
             path = self.path
@@ -111,28 +111,28 @@ class OutputDir:
         )
 
     @property
-    def _debug_logs(self) -> set[AnyAbsoluteLogPath]:
+    def _debug_logs(self) -> set[AnyLogPath]:
         """
         Returns the set of debug log paths for all subdirectories.
         """
         return {subdir._debug_log for subdir in self}
 
     @property
-    def debug_logs(self) -> set[AbsoluteLogPath]:
+    def debug_logs(self) -> set[LogPath]:
         """
         Returns the set of (existing) debug log paths for all subdirectories.
         """
         return {subdir.debug_log for subdir in self}
 
     @property
-    def _main_logs(self) -> set[AnyAbsoluteLogPath]:
+    def _main_logs(self) -> set[AnyLogPath]:
         """
         Returns the set of main log paths for all subdirectories.
         """
         return {subdir._main_log for subdir in self}
 
     @property
-    def main_logs(self) -> set[AbsoluteLogPath]:
+    def main_logs(self) -> set[LogPath]:
         """
         Returns the set of (existing) main log paths for all subdirectories.
         """
@@ -152,7 +152,7 @@ class OutputDir:
 
     def create_subdir(
         self,
-        path: AbsoluteFilePath,
+        path: FilePath,
     ) -> SubDir:
         """
         Create a 'SubDir' object for the given input file path.
@@ -162,7 +162,7 @@ class OutputDir:
 
         Parameters
         ----------
-        path : AbsoluteFilePath
+        path : FilePath
             The input file path for which to create the subdirectory.
 
         Returns

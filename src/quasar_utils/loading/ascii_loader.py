@@ -8,7 +8,7 @@ from astropy.units import Quantity, Unit
 from numpy import diff, float64, full_like, median, stack
 from pandas import DataFrame
 from pydantic.dataclasses import dataclass
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import FilePath
 
 from ..naming import SDSS
 from .loader import _Loader
@@ -16,7 +16,7 @@ from .loader import _Loader
 logger = getLogger(__name__)
 
 
-def _read_ascii(path: AbsoluteFilePath, skip: int = 0) -> DataFrame:
+def _read_ascii(path: FilePath, skip: int = 0) -> DataFrame:
     with open(path, "r") as f:
         all_lines = [line.strip().split() for line in f.readlines()[skip:]]
 

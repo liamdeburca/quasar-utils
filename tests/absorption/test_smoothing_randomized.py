@@ -18,7 +18,7 @@ def test_randomized_equivalence_with_uniform_dy(seed):
     w = 31
     p = 2
 
-    y_custom = smoothing.weighted_savgol_filter.__wrapped__(x, y, dy, w=w, p=p, mask=None, interpolate=False)
+    y_custom = smoothing.weighted_savgol_filter(x, y, dy, w=w, p=p, mask=None, interpolate=False)
     y_scipy = sps.savgol_filter(y, window_length=w, polyorder=p, mode='interp')
 
     left = w // 2
@@ -39,8 +39,8 @@ def test_stability_under_small_perturbations():
     w = 31
     p = 2
 
-    out0 = smoothing.weighted_savgol_filter.__wrapped__(x, y0, dy, w=w, p=p, mask=None, interpolate=False)
-    out1 = smoothing.weighted_savgol_filter.__wrapped__(x, y1, dy, w=w, p=p, mask=None, interpolate=False)
+    out0 = smoothing.weighted_savgol_filter(x, y0, dy, w=w, p=p, mask=None, interpolate=False)
+    out1 = smoothing.weighted_savgol_filter(x, y1, dy, w=w, p=p, mask=None, interpolate=False)
 
     # Small perturbations should only cause small changes in smoothed output
     diff = np.max(np.abs(out0 - out1))

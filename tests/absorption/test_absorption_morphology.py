@@ -5,11 +5,11 @@ from quasar_utils.absorption import absorption
 
 def test_remove_single_behaviour():
     mask = np.array([False, True, False], dtype=bool)
-    out = absorption.remove_single.__wrapped__(mask)
+    out = absorption.remove_single(mask)
     assert not out.any()
 
     mask = np.array([True, True, True], dtype=bool)
-    out = absorption.remove_single.__wrapped__(mask)
+    out = absorption.remove_single(mask)
     assert np.array_equal(out, mask)
 
 
@@ -18,7 +18,7 @@ def test_join_regions_merges_close_regions():
     mask = np.zeros(N, dtype=bool)
     mask[10:12] = True
     mask[14:16] = True
-    joined = absorption.join_regions.__wrapped__(mask, iterations=1)
+    joined = absorption.join_regions(mask, iterations=1)
     # with iterations=1, separation of 2 F pixels should be joined
     assert joined[10:16].all()
 
@@ -35,7 +35,7 @@ def test_refine_regions_shapes_and_types():
     # inject an anomaly region
     mask[50:55] = True
 
-    new_mask, new_y_smooth = absorption.refine_regions.__wrapped__(mask, x, y, dy, y_smooth, y_bg, valid_pixels=None)
+    new_mask, new_y_smooth = absorption.refine_regions(mask, x, y, dy, y_smooth, y_bg, valid_pixels=None)
     assert new_mask.dtype == bool
     assert new_mask.shape == mask.shape
     assert new_y_smooth.shape == y_smooth.shape

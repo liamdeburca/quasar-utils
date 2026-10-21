@@ -108,8 +108,8 @@ class TestOutputDirPickle:
         pickled = pickle.dumps(output_dir)
         unpickled = pickle.loads(pickled)
 
-        # Verify output path is preserved
-        assert unpickled.path == temp_output_dir
+        # Verify output path is preserved (use samefile to handle symlinks)
+        assert unpickled.path.samefile(temp_output_dir)
 
     def test_pickle_preserves_subdirs(
         self, input_dir_fixture, temp_output_dir
@@ -238,8 +238,8 @@ class TestOutputDirPickle:
             pickled = pickle.dumps(output_dir)
             unpickled = pickle.loads(pickled)
 
-            # Verify path is preserved correctly
-            assert unpickled.path == output_path
+            # Verify path is preserved correctly (use samefile to handle symlinks)
+            assert unpickled.path.samefile(output_path)
 
 
 class TestOutputDirWithTenAscFiles:
@@ -469,9 +469,9 @@ class TestOutputDirBatched:
             # Batch with custom path
             batches = list(output_dir.batched(batch_size=2, path=custom_path))
 
-            # Verify custom path is used
+            # Verify custom path is used (use samefile to handle symlinks)
             for batch in batches:
-                assert batch.path == custom_path
+                assert batch.path.samefile(custom_path)
                 assert batch.path.exists()
 
     def test_batched_with_custom_input_dir(
@@ -501,11 +501,12 @@ class TestOutputDirBatched:
             # Verify custom input_dir files are used (batched versions have subsets)
             for batch in batches:
                 # Each batched input_dir is a subset, verify all files come from custom_input_dir
+                # Use samefile to handle symlinks on macOS
                 for file in batch.input_dir.files:
-                    assert file in custom_files
+                    assert any(file.samefile(cf) for cf in custom_files)
                 # Verify subdirs are created from custom input
                 for subdir in batch:
-                    assert subdir.in_file in custom_files
+                    assert any(subdir.in_file.samefile(cf) for cf in custom_files)
 
     def test_batched_covers_all_subdirs(
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files

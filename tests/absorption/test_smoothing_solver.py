@@ -34,7 +34,7 @@ def test_solve_weighted_poly_matches_lstsq_for_random_slides():
     x_slides, y_slides, dy_slides = make_random_slides(n_slides=20, w=9)
     p = 2
     # call the implementation
-    coeffs = smoothing.solve_weighted_poly.__wrapped__(x_slides, y_slides, dy_slides, p, full=True)
+    coeffs = smoothing.solve_weighted_poly(x_slides, y_slides, dy_slides, p, full=True)
 
     for i in range(x_slides.shape[0]):
         ref = reference_lstsq(x_slides[i], y_slides[i], dy_slides[i], p)
@@ -51,6 +51,6 @@ def test_solve_weighted_poly_handles_underdetermined():
     y_slides = np.array([[1.0, 2.0, np.nan]])
     dy_slides = np.array([[0.1, 0.1, np.nan]])
     p = 3
-    coeffs = smoothing.solve_weighted_poly.__wrapped__(x_slides, y_slides, dy_slides, p, full=True)
+    coeffs = smoothing.solve_weighted_poly(x_slides, y_slides, dy_slides, p, full=True)
     # behavior: lstsq returns least-norm solution; ensure it returns finite values or nan
     assert coeffs.shape == (1, p + 1)

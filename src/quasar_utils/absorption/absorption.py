@@ -7,36 +7,24 @@ __all__ = [
     "remove_single",
 ]
 
+import math
 from functools import wraps
 from logging import getLogger
-from math import log as math_log
 from typing import Literal, TypeVar, final, overload
 
-from numpy import (
-    bool_,
-    exp,
-    float64,
-    full_like,
-    invert,
-    isfinite,
-    maximum,
-    ones_like,
-)
-from numpy.lib.stride_tricks import sliding_window_view
+import numpy as np
 from pydantic import NonNegativeInt, PositiveFloat, PositiveInt, validate_call
+from quasar_typing.misc import WindowSize
 from quasar_typing.numpy import (
     BoolArray,
     BoolVector,
     FittableFloatMatrix,
     FittableFloatVector,
-    FloatMatrix,
     FloatVector,
 )
 from scipy.fft import fft as scipy_fft
 from scipy.ndimage import binary_dilation, binary_erosion
 from scipy.stats import gamma
-
-from .smoothing import _interpolate_missing
 
 logger = getLogger(__name__)
 
@@ -123,14 +111,14 @@ def log_fft_test(
 
 @overload
 def fft_test(
-    z: FloatVector,
+    z: FittableFloatVector,
     k: NonNegativeInt | None = None,
 ) -> tuple[float, float]:
     ...
 
 @overload
 def fft_test(
-    z: FloatMatrix,
+    z: FittableFloatMatrix,
     k: NonNegativeInt | None = None,
 ) -> tuple[FloatVector, FloatVector]:
     ...
@@ -138,7 +126,7 @@ def fft_test(
 @final
 @validate_call
 def fft_test(
-    z: FloatVector | FloatMatrix,
+    z: FittableFloatVector | FittableFloatMatrix,
     k: NonNegativeInt | None = None,
 ) -> tuple[float | FloatVector, float | FloatVector]:
     """Perform the FFT-based normality test on the residuals.
@@ -174,7 +162,7 @@ def fft_approach(
     z: FittableFloatVector, 
     p_crit: PositiveFloat,
     z_crit: float, 
-    w: PositiveInt,
+    w: WindowSize,
 ) -> tuple[FloatVector, BoolVector]:
     """
     Applies an absorption-identification approach based on a normality test
@@ -189,7 +177,7 @@ def fft_approach(
         Critical statistical likelihood used for identifying outlying pixels.
     z_crit : float
         Critical residual value used for identifying outlying pixels.
-    w : int
+    w : WindowSize
         Window size used when scanning the residual array.
 
     Returns
@@ -280,11 +268,11 @@ def refine_regions(
 
 @wraps(remove_single)
 def _remove_single[Mask](mask: Mask) -> Mask:
-    left = ones_like(mask, dtype=bool_)
+    left = np.ones_like(mask, dtype=np.bool_)
     right = left.copy()
 
-    left[..., :-1] = invert(mask[..., 1:])
-    right[..., 1:] = invert(mask[..., :-1])
+    left[..., :-1] = np.invert(mask[..., 1:])
+    right[..., 1:] = np.invert(mask[..., :-1])
 
     return mask & ~(left & mask & right)
 
@@ -296,38 +284,38 @@ def _log_fft_test(
     base: PositiveFloat | None = None,
 ) -> tuple[float | FloatVector, float | FloatVector]:
     N = z.shape[-1]
-    x = scipy_fft(z, axis=-1)
+    x = scipy_fft(z)
 
     if k is None and N < 6:
         raise ValueError(f"fft: insufficient input length N={N} for aggregate-frequency statistic; require N>=6")
 
     if k is None:
-        stat: float = (abs(x[..., 1 : N // 2]) ** 2).sum(axis=-1) / N
-        m: int = int(N // 2 - 2)
-        log_p: float = gamma(m, 1).logsf(stat)
+        stat = (abs(x[..., 1 : N // 2]) ** 2).sum(axis=-1) / N
+        m = int(N // 2 - 2)
+        log_p = gamma(m, 1).logsf(stat)
     else:
         if k >= N:
             raise ValueError(f"fft: frequency index k={k} out of range for length N={N}")
-        stat: float = abs(x[..., k]) ** 2 / N
-        log_p: float = -stat
+        stat = abs(x[..., k]) ** 2 / N
+        log_p = -stat
 
     if base is not None:
         if base <= 1:
             msg = f"The logarithm base must be greater than 1: {base=}"
             logger.critical(msg)
             raise ValueError(msg)
-        log_p /= math_log(base)
+        log_p /= math.log(base)
 
     return stat, log_p
 
 
 @wraps(fft_test)
 def _fft_test(
-    z: FloatVector | FloatMatrix,
+    z: FittableFloatVector | FittableFloatMatrix,
     k: NonNegativeInt | None = None,
 ) -> tuple[float | FloatVector, float | FloatVector]:
     stat, log_p = _log_fft_test(z, k=k, base=None)
-    return stat, exp(log_p)
+    return stat, np.exp(log_p)
 
 
 @wraps(fft_approach)
@@ -335,18 +323,15 @@ def _fft_approach(
     z: FittableFloatVector, 
     p_crit: PositiveFloat,
     z_crit: float, 
-    w: PositiveInt,
+    w: WindowSize,
 ) -> tuple[FloatVector, BoolVector]:
     l: int = int(w // 2)
 
-    z_slices: FloatMatrix = sliding_window_view(
-        z, w, axis=-1
-    )
+    z_slices = np.lib.stride_tricks.sliding_window_view(z, w, axis=-1)
+    ps = np.ones_like(z, dtype=np.float64, order="C")
+    ps[l:-l] = _fft_test(z_slices)[1]
 
-    ps: FloatMatrix = ones_like(z, dtype=float64, order="C")
-    ps[:,l:-l] = _fft_test(z_slices)[1]
-
-    not_edge = ones_like(z, dtype=bool_, order="C")
+    not_edge = np.ones_like(z, dtype=np.bool_, order="C")
     not_edge[:w] = False
     not_edge[-w:] = False
 
@@ -381,8 +366,15 @@ def _refine_regions(
     y_bg: FloatVector,
     valid_pixels: BoolVector | None = None,
 ) -> tuple[BoolVector, FloatVector]:
-    y_smooth = _interpolate_missing(x, y_smooth, invert(mask))
-    z = _nan_residuals(y, maximum(y_smooth, y_bg), dy, z_fill=0, mask=valid_pixels)
+    from .smoothing import _interpolate_missing
+    y_smooth = _interpolate_missing(x, y_smooth, np.invert(mask))
+    z = _nan_residuals(
+        y, 
+        np.maximum(y_smooth, y_bg), 
+        dy, 
+        z_fill=0.0, 
+        mask=valid_pixels,
+    )
     new_mask = binary_erosion(mask, iterations=0, mask=(z > 0))
     binary_dilation(new_mask, iterations=0, mask=(z < 0), output=new_mask)
 
@@ -399,9 +391,9 @@ def _nan_residuals(
 ) -> FloatVector:
 
     if mask is None:
-        mask = isfinite(y) & isfinite(f) & (dy > 0)
+        mask = np.isfinite([y, f]).all(axis=0) & (dy > 0)
 
-    z = full_like(y, z_fill)
+    z = np.full_like(y, z_fill)
     z[mask] = (y[mask] - f[mask]) / dy[mask]
 
     return z

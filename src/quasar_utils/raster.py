@@ -1,17 +1,15 @@
 """
 File containing utility functions for performing raster fits of templates.
 """
-
 __all__ = ["rasterise"]
 
+from functools import wraps
 from logging import getLogger
 
-from numpy import clip, einsum, float64, full, inf, nan, zeros
-from pydantic_core import PydanticCustomError
+import numpy as np
+import pydantic
 from quasar_typing.bounds import AstropyBounds
 from quasar_typing.numpy import FittableFloatVector, FloatMatrix, FloatVector
-
-from quasar_utils.decorators import validate_call
 
 logger = getLogger(__name__)
 
@@ -26,16 +24,17 @@ def _validate_rasterise_inputs(
         msg = f"Input arrays y ({y.shape}), dy ({dy.shape}) must have the "\
             "same shape, and match the second dimension of data "\
             f"({data.shape[1]})!"
-        raise PydanticCustomError("validation_error", msg)
+        raise ValueError(msg)
 
     if fwhm.size != data.shape[0]:
         msg = f"Input array fwhm ({fwhm.shape}) must have the same shape as "\
             f"the first dimension of data ({data.shape[0]})!"
-        raise PydanticCustomError("validation_error", msg)
+        raise ValueError(msg)
 
 
-# Basic rasterisation
-@validate_call
+# Public functions
+
+@pydantic.validate_call
 def rasterise(
     y: FittableFloatVector,
     dy: FittableFloatVector,
@@ -56,12 +55,30 @@ def rasterise(
     To access the best-fit row, use `np.argmin(chi2s)`.
     """
     _validate_rasterise_inputs(y, dy, fwhm, data)
+    return _rasterise(
+        y, dy, fwhm, data,
+        flux_bounds=flux_bounds,
+        fwhm_bounds=fwhm_bounds,
+    )
 
+
+### Private functions
+
+@wraps(rasterise)
+def _rasterise(
+    y: FittableFloatVector,
+    dy: FittableFloatVector,
+    fwhm: FloatVector,
+    data: FloatMatrix,
+    *,
+    flux_bounds: AstropyBounds = (None, None),
+    fwhm_bounds: AstropyBounds = (None, None),
+) -> tuple[FloatVector, FloatVector]:
     fwhm_lb: float = fwhm_bounds[0] or fwhm[0]
     fwhm_ub: float = fwhm_bounds[1] or fwhm[-1]
 
-    chi2s = full(fwhm.shape, inf, dtype=float64)
-    fluxs = full(fwhm.shape, nan, dtype=float64)
+    chi2s = np.full(fwhm.shape, np.inf, dtype=np.float64)
+    fluxs = np.full(fwhm.shape, np.nan, dtype=np.float64)
 
     mask = (fwhm_lb <= fwhm) & (fwhm <= fwhm_ub)
     if not mask.any():
@@ -76,11 +93,11 @@ def rasterise(
         logger.info(msg)
         raise ValueError(msg)
 
-    den = zeros(fwhm.shape, dtype=float64)
-    num = zeros(fwhm.shape, dtype=float64)
+    den = np.zeros(fwhm.shape, dtype=np.float64)
+    num = np.zeros(fwhm.shape, dtype=np.float64)
 
     w2 = 1 / dy**2
-    den[mask] = einsum("ij,ij,...j->i", data[mask], data[mask], w2)
+    den[mask] = np.einsum("ij,ij,...j->i", data[mask], data[mask], w2)
 
     mask = den != 0
     if not mask.any():
@@ -88,14 +105,14 @@ def rasterise(
         logger.info(msg)
         raise ValueError(msg)
 
-    num[mask] = einsum("ij,...j,...j->i", data[mask], y, w2)
+    num[mask] = np.einsum("ij,...j,...j->i", data[mask], y, w2)
 
-    fluxs[mask] = clip(
+    fluxs[mask] = np.clip(
         num[mask] / den[mask],
-        a_min=-inf if flux_bounds[0] is None else flux_bounds[0],
-        a_max=inf if flux_bounds[1] is None else flux_bounds[1],
+        a_min=-np.inf if flux_bounds[0] is None else flux_bounds[0],
+        a_max=np.inf if flux_bounds[1] is None else flux_bounds[1],
     )
     _d = y[None, :] - (fluxs[:, None] * data)[mask]
-    chi2s[mask] = einsum("ij,ij,...j->i", _d, _d, w2) / y.size
+    chi2s[mask] = np.einsum("ij,ij,...j->i", _d, _d, w2) / y.size
 
     return chi2s, fluxs

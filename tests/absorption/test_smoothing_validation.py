@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
+from pydantic import ValidationError
+from quasar_typing.errors import SmoothingError
 
 from quasar_utils.absorption import smoothing
-from quasar_typing.errors import SmoothingError
 
 
 def synth_spectrum(N=100):
@@ -16,7 +17,7 @@ def synth_spectrum(N=100):
 
 def test_even_window_raises():
     x, y, dy = synth_spectrum(50)
-    with pytest.raises(SmoothingError, match="odd"):
+    with pytest.raises(ValidationError):
         smoothing.weighted_savgol_filter(x, y, dy, w=20, p=2)
 
 

@@ -3,13 +3,13 @@ from dataclasses import field
 from itertools import batched
 from typing import ClassVar, Self
 
-from pydantic.dataclasses import dataclass
-from quasar_typing.pathlib import AbsoluteDirPath, AbsoluteFilePath
+import pydantic
+from quasar_typing.pathlib import DirPath, FilePath
 
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".asc", ".fits"})
 
 
-@dataclass
+@pydantic.dataclasses.dataclass
 class InputDir:
     """
     Data input directory:
@@ -19,10 +19,10 @@ class InputDir:
     ASCII and FITS files are supported.
     """
 
-    path: AbsoluteFilePath | AbsoluteDirPath
+    path: FilePath | DirPath
 
-    directory: AbsoluteDirPath | None = None
-    files: list[AbsoluteFilePath] = field(default_factory=list)
+    directory: DirPath | None = None
+    files: list[FilePath] = field(default_factory=list)
 
     allowed_extensions: ClassVar[frozenset[str]] = ALLOWED_EXTENSIONS
 
@@ -48,25 +48,11 @@ class InputDir:
                     )
                     raise ValueError(msg)
 
-    def __getstate__(self) -> dict:
-        return {
-            "path": self.path,
-            "directory": self.directory,
-            "files": self.files,
-        }
-
-    def __setstate__(self, state: dict) -> None:
-        self.__init__(
-            state["path"],
-            directory=state["directory"],
-            files=state["files"],
-        )
-
     @classmethod
-    def is_valid_extension(cls, path: AbsoluteFilePath) -> bool:
+    def is_valid_extension(cls, path: FilePath) -> bool:
         return path.is_file() and (path.suffix in cls.allowed_extensions)
 
-    def __iter__(self) -> Iterator[AbsoluteFilePath]:
+    def __iter__(self) -> Iterator[FilePath]:
         return iter(sorted(self.files, key=lambda path: path.name))
 
     def __len__(self) -> int:

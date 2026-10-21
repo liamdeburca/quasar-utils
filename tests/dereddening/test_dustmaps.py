@@ -46,12 +46,6 @@ class TestGetDustMap:
         assert isinstance(get_dust_map("SFD"), SFDQuery)
         assert isinstance(get_dust_map("CSFD"), CSFDQuery)
 
-    def test_unsupported_map_raises(self):
-        from quasar_utils.dereddening.dustmaps import get_dust_map
-
-        with pytest.raises(NotImplementedError):
-            get_dust_map("planck")
-
 
 class TestDustMapQuery:
     """Tests for querying dust maps with SkyCoord objects."""

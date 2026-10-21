@@ -3,23 +3,22 @@ Python file containing utilities for performing efficient linear interpolation
 through sparse matrix multiplication.
 """
 
-__all__ = ["create_interp_matrix"]
+__all__ = ["build_interp_data", "create_interp_matrix"]
 
-from numpy import empty, float64, int32, zeros
+from functools import wraps
+
+import numpy as np
+from pydantic import validate_call
 from quasar_typing.numpy import (
     FittableFloatVector,
     FloatVector,
     IntVector,
     SortedFloatVector,
 )
-from quasar_typing.scipy import csr_matrix_
+from quasar_typing.scipy import CSRMatrix
 from scipy.sparse import csr_matrix
 
-from ..decorators import validate_call
-from .interp_matrix_elements import (
-    _interp_matrix_elements,
-    _interp_matrix_elements_no_bias,
-)
+### Public functions (validated)
 
 
 @validate_call
@@ -29,14 +28,50 @@ def build_interp_data(
     left: float = 0.0,
     right: float = 0.0,
 ) -> tuple[IntVector, IntVector, FloatVector, FloatVector]:
-    indices = empty(xb.size, dtype=int32)
-    i_indices = empty(2 * xb.size, dtype=int32)
-    j_indices = empty(2 * xb.size, dtype=int32)
-    vals = empty(2 * xb.size, dtype=float64)
+    """Validated public wrapper that prepares indices and values for
+    constructing a sparse interpolation matrix.
 
-    bias = zeros(xb.size, dtype=float64)
+    See `_build_interp_data` for the unvalidated implementation.
+    """
+    return _build_interp_data(x, xb, left=left, right=right)
+
+
+@validate_call
+def create_interp_matrix(
+    x_in: SortedFloatVector,
+    x_out: FittableFloatVector,
+    left: float = 0,
+    right: float = 0,
+) -> tuple[CSRMatrix, FittableFloatVector]:
+    """Validated public wrapper that returns a CSR interpolation matrix and
+    bias vector.
+
+    The implementation is in `_create_interp_matrix`.
+    """
+    return _create_interp_matrix(x_in, x_out, left=left, right=right)
+
+
+### Private implementations (unvalidated)
+
+
+@wraps(build_interp_data)
+def _build_interp_data(
+    x: SortedFloatVector,
+    xb: SortedFloatVector,
+    left: float = 0.0,
+    right: float = 0.0,
+) -> tuple[IntVector, IntVector, FloatVector, FloatVector]:
+    indices = np.empty(xb.size, dtype=np.int32)
+    i_indices = np.empty(2 * xb.size, dtype=np.int32)
+    j_indices = np.empty(2 * xb.size, dtype=np.int32)
+    vals = np.empty(2 * xb.size, dtype=np.float64)
+
+    bias = np.zeros(xb.size, dtype=np.float64)
     if left == 0.0 and right == 0.0:
-        count = _interp_matrix_elements_no_bias(
+        from .interp_matrix_elements import (
+            _interp_matrix_elements_no_bias as func_no_bias,
+        )
+        count = func_no_bias(
             x,
             xb,
             indices,
@@ -45,7 +80,8 @@ def build_interp_data(
             vals,
         )
     else:
-        count = _interp_matrix_elements(
+        from .interp_matrix_elements import _interp_matrix_elements as func
+        count = func(
             x,
             xb,
             indices,
@@ -60,39 +96,14 @@ def build_interp_data(
     return i_indices[:count], j_indices[:count], vals[:count], bias
 
 
-@validate_call
-def create_interp_matrix(
+@wraps(create_interp_matrix)
+def _create_interp_matrix(
     x_in: SortedFloatVector,
     x_out: FittableFloatVector,
     left: float = 0,
     right: float = 0,
-) -> tuple[csr_matrix_, FittableFloatVector]:
-    """
-    Create a sparse linear interpolation matrix M such that:
-    M @ _a ≈ np.interp(x_out, x_in, _a, left=left, right=right)
-
-    Uses Numba JIT compilation for optimised performance.
-
-    Parameters
-    ----------
-    x_in : array_like
-        Source x-coordinates (input space), must be monotonically increasing
-    x_out : array_like
-        Target x-coordinates (output space)
-    left : float, optional
-        Value to return for x < _x[0], default is 0
-    right : float, optional
-        Value to return for x > _x[-1], default is 0
-
-    Returns
-    -------
-    M : scipy.sparse.csr_matrix
-        Sparse interpolation matrix of shape (len(x_out), len(x_in))
-
-    bias : NDArray[float64]
-        Array of bias values for extrapolated points.
-    """
-    row_indices, col_indices, values, bias = build_interp_data.__wrapped__(
+) -> tuple[CSRMatrix, FittableFloatVector]:
+    row_indices, col_indices, values, bias = _build_interp_data(
         x_in,
         x_out,
         left,

@@ -1,20 +1,19 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import pydantic
 from astropy.units import Unit
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
+from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import AstropyBounds, CoordBounds
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class ContinuumInfo(_Info):
     fit: bool = field(
         default=True,
@@ -22,7 +21,7 @@ class ContinuumInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    _x0: float | Quantity_ = field(
+    _x0: float | QuantityType = field(
         default=1450.0 * Unit("angstrom"),
         desc="Reference wavelength used for power law model",
         dtype="float",
@@ -30,7 +29,7 @@ class ContinuumInfo(_Info):
         update_to="wavelength",
         has_unit=True,
     )
-    _y0: float | Quantity_ = field(
+    _y0: float | QuantityType = field(
         default=1.0,
         desc="Reference flux density used for power law linear fitting",
         dtype="float",
@@ -38,7 +37,7 @@ class ContinuumInfo(_Info):
         update_to="flux",
         has_unit=True,
     )
-    _windows: list[CoordBounds] | Quantity_ = field(
+    _windows: list[CoordBounds] | QuantityType = field(
         default=[
             [1425.0, 1475.0],
             [1675.0, 1690.0],
@@ -53,7 +52,7 @@ class ContinuumInfo(_Info):
         update_to="wavelength_windows",
         has_unit=True,
     )
-    _flux_bounds: AstropyBounds | Quantity_ = field(
+    _flux_bounds: AstropyBounds | QuantityType = field(
         default=(1.0, 10_000.0),
         desc="Lower and upper bounds for the flux density at the reference wavelength",
         dtype="list[float | None]",
@@ -98,10 +97,10 @@ class ContinuumInfo(_Info):
         return super().to_dict("continuum", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "continuum", logger)

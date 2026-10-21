@@ -3,14 +3,8 @@ __all__ = ["read_csv", "to_csv"]
 from collections import defaultdict
 from functools import partial
 
-from pandas import DataFrame, Series
-from pandas import (
-    read_csv as pd_read_csv,
-)
-from quasar_typing.pathlib import (
-    AbsoluteCSVPath,
-    NewAbsoluteCSVPath,
-)
+import pandas
+from quasar_typing.pathlib import AnyCSVPath, CSVPath
 
 from quasar_utils.setup import Info
 
@@ -25,9 +19,9 @@ from .utils import (
 
 def _get_source_row(
     *,
-    df: DataFrame,
+    df: pandas.DataFrame,
     is_copy_of: str,
-) -> Series:
+) -> pandas.Series:
     source_row = df.loc[df["name"] == is_copy_of].iloc[0]
     if source_row["is_copy_of"]:
         # Remove the current row from the dataframe to avoid circular references
@@ -40,9 +34,9 @@ def _get_source_row(
 
 def _change_element(
     *,
-    df: DataFrame, 
+    df: pandas.DataFrame, 
     i: int, 
-    source_row: Series, 
+    source_row: pandas.Series, 
     col_name: str, 
     multiply_by: float | None = None,
 ) -> bool:
@@ -61,9 +55,9 @@ def _change_element(
 
 
 def read_csv_header(
-    path: AbsoluteCSVPath,
-) -> DataFrame:
-    df: DataFrame = pd_read_csv(
+    path: CSVPath,
+) -> pandas.DataFrame:
+    df: pandas.DataFrame = pandas.read_csv(
         path,
         skipinitialspace=True,
         nrows=0,
@@ -76,11 +70,11 @@ def read_csv_header(
 
 
 def read_csv(
-    path: AbsoluteCSVPath,
+    path: CSVPath,
     info: Info,
-) -> DataFrame:
+) -> pandas.DataFrame:
     names = list(read_csv_header(path).columns)
-    df = pd_read_csv(
+    df = pandas.read_csv(
         path,
         header=0,
         skipinitialspace=True,
@@ -159,8 +153,8 @@ def read_csv(
 
 
 def to_csv(
-    df: DataFrame,
-    path: NewAbsoluteCSVPath,
+    df: pandas.DataFrame,
+    path: AnyCSVPath,
     info: Info,
 ) -> None:
     _output_dict = df_to_dict(df=df, info=info)
@@ -173,5 +167,5 @@ def to_csv(
                 continue
             output_dict[cname].append(field.get(cname, ""))
 
-    output_df = DataFrame.from_dict(output_dict)
+    output_df = pandas.DataFrame.from_dict(output_dict)
     output_df.to_csv(path, index=False)

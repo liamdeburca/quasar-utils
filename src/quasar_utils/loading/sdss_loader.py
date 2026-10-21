@@ -3,15 +3,15 @@ __all__ = ["SDSSLoader"]
 from logging import getLogger
 from typing import TypedDict
 
+import numpy as np
+import pydantic
 from astropy.constants import c
 from astropy.io import fits
-from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import float64, full_like, nan
-from pydantic.dataclasses import dataclass
 
-from quasar_utils.loading.loader import _Loader
 from quasar_utils.naming import IGR, J2000
+
+from .loader import _Loader
 
 logger = getLogger(__name__)
 SIGMA_RES: float = 69.0 / c.to("km/s").value
@@ -25,7 +25,7 @@ class _SDSSDataDict(TypedDict):
     R: None
 
 
-def _get_data(hdul: HDUList) -> _SDSSDataDict:
+def _get_data(hdul: fits.HDUList) -> _SDSSDataDict:
     """Return spectral arrays extracted from an SDSS HDUList.
 
     Parameters
@@ -43,17 +43,17 @@ def _get_data(hdul: HDUList) -> _SDSSDataDict:
 
     data = hdul[1].data
 
-    x = 10 ** data["loglam"].astype(float64)
+    x = 10 ** data["loglam"].astype(np.float64)
     dx = x * SIGMA_RES
-    y = data["flux"].astype(float64)
+    y = data["flux"].astype(np.float64)
 
-    dy = full_like(x, nan, dtype=float64)
+    dy = np.full_like(x, np.nan, dtype=np.float64)
     mask = data["ivar"] > 0
-    dy[mask] = (1 / data["ivar"][mask] ** 0.5).astype(float64)
+    dy[mask] = (1 / data["ivar"][mask] ** 0.5).astype(np.float64)
 
     invalid_mask = data["and_mask"].astype(bool)
-    y[invalid_mask] = nan
-    dy[invalid_mask] = nan
+    y[invalid_mask] = np.nan
+    dy[invalid_mask] = np.nan
 
     return {
         "x": x * x_unit,
@@ -64,7 +64,7 @@ def _get_data(hdul: HDUList) -> _SDSSDataDict:
     }
 
 
-@dataclass
+@pydantic.dataclasses.dataclass
 class SDSSLoader(_Loader):
     """Loader for SDSS spectrum FITS files.
 

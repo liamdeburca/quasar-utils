@@ -1,29 +1,26 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import pydantic
 from astropy.units import Unit
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
-from quasar_typing.misc import (
+from quasar_typing.astropy import QuantityType
+from quasar_typing.literals import (
     BootstrapType,
     FWHMStrategy,
     Method,
-    OutLines,
-    OutMeasures,
     Scale,
     Variant,
-    VaryLines,
 )
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import JSONPath
+from quasar_typing.string_selections import OutLines, OutMeasures, VaryLines
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class ErrorInfo(_Info):
     method: Method = field(
         default="bootstrap",
@@ -87,7 +84,7 @@ class ErrorInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    _v_int: float | Quantity_ = field(
+    _v_int: float | QuantityType = field(
         default=18_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
@@ -99,7 +96,7 @@ class ErrorInfo(_Info):
         dtype="float",
         parse_as="float",
     )
-    _dx_int: float | Quantity_ = field(
+    _dx_int: float | QuantityType = field(
         default=50 * Unit("angstrom"),
         dtype="float",
         parse_as="wavelength",
@@ -154,10 +151,10 @@ class ErrorInfo(_Info):
         return super().to_dict("error", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "error", logger)

@@ -22,7 +22,7 @@ from logging import (
 )
 from typing import Any
 
-from quasar_typing.logging import FileHandler_
+from quasar_typing.logging import FileHandlerType
 
 FMT: str = "{asctime} | {levelname:<8} | {name:<40}::{funcName:<30} | {message}"
 FLAG_FMT: str = "{title}::{value}"
@@ -147,7 +147,7 @@ class DisableLogging:
     levels to 'logging.CRITICAL + 1'.
     """
 
-    def __init__(self, handlers: Iterable[FileHandler_]):
+    def __init__(self, handlers: Iterable[FileHandlerType]):
         self._levels = {handler: handler.level for handler in handlers}
 
     def __enter__(self):

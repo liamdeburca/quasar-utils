@@ -1,49 +1,26 @@
-from typing import Literal, TypedDict, TypeVar
+from typing import TypeVar
 
-from astropy.coordinates import SkyCoord
-from astropy.units import Quantity
-from numpy import ascontiguousarray
-from quasar_typing.astropy import CompositeUnit_, Quantity_, Unit_
-from quasar_typing.numpy import CoordsTuple, FloatMatrix, FloatVector
-from quasar_typing.pathlib import AbsoluteFilePath
-from quasar_typing.scipy import csr_matrix_
+import numpy as np
+from quasar_typing.astropy import CompositeUnitType, QuantityType, UnitType
+from quasar_typing.numpy import CoordsTuple, FloatVector
 
-from ..binning.binning import log_resample
-from ..dereddening import deredden_spectrum
-from ..setup import Info
+from quasar_utils.dereddening import LawName, MapName, _deredden_spectrum
+from quasar_utils.setup import Info
 
 N = TypeVar("N", bound=int)
 O = TypeVar("O", bound=int)
 K = TypeVar("K", bound=int)
-    
-
-class LoaderOutput(TypedDict):
-    path: str | AbsoluteFilePath
-    title: str
-
-    x_original: FloatVector
-    y_original: FloatVector
-    dy_original: FloatVector
-    dx_original: FloatVector
-    kernels_original: FloatMatrix | csr_matrix_
-
-    x: FloatVector
-    y: FloatVector
-    dy: FloatVector
-    dx: FloatVector
-    kernels: FloatMatrix | csr_matrix_
-
-    info: Info
 
 
 def _transform_coords(
     coords: CoordsTuple,
-    dx: FloatVector | Quantity_,
+    dx: FloatVector | QuantityType,
     info: Info,
 ) -> tuple[CoordsTuple, FloatVector]:
     """
     Transform the input coordinates to unitless numpy arrays.
     """
+    from astropy.units import Quantity
     x, y, dy = coords
     if isinstance(x, Quantity):
         x = info.units.getWavelength(x)
@@ -53,7 +30,6 @@ def _transform_coords(
         dy = info.units.getFlux(dy)
     if isinstance(dx, Quantity):
         dx = info.units.getWavelength(dx)
-
     return (x, y, dy), dx
 
 
@@ -61,15 +37,16 @@ def _deredden_coords(
     coords: CoordsTuple,
     ra: float,
     dec: float,
-    map_name: Literal["sfd", "csfd"],
-    law_name: Literal["ccm89", "o94"],
-    wavelength_unit: Unit_ | CompositeUnit_,
+    map_name: MapName,
+    law_name: LawName,
+    wavelength_unit: UnitType | CompositeUnitType,
     Rv: float,
 ) -> CoordsTuple:
     """
     Apply Galactic dereddening to the input spectrum coordinates.
     """
-    return deredden_spectrum(
+    from astropy.coordinates import SkyCoord
+    return _deredden_spectrum(
         coords,
         SkyCoord(ra=ra, dec=dec, unit="deg", frame="icrs"),
         map_name=map_name,
@@ -115,7 +92,8 @@ def _logbin_coords(
             "supported."
         )    
 
-    xr, yr, dyr = log_resample.__wrapped__(
+    from quasar_utils.binning import _log_resample
+    xr, yr, dyr = _log_resample(
         *coords,
         sigma_res,
         dx=dx,
@@ -133,7 +111,7 @@ def _finalize_coords(*arr: FloatVector) -> FloatVector:
     """
     def inner(v: FloatVector) -> FloatVector:
         if not v.flags['C_CONTIGUOUS']:
-            v = ascontiguousarray(v)
+            v = np.ascontiguousarray(v)
         v.setflags(write=False)
         return v
     

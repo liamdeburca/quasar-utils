@@ -2,63 +2,71 @@ from collections.abc import Iterable
 from logging import getLogger
 from typing import Any, Literal, Self
 
-from astropy.constants import c, h, k_B
+import numpy as np
+import pydantic
+from astropy import constants as const
 from astropy.units import Quantity, Unit
-from numpy import array2string
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import CompositeUnit_, Quantity_, Unit_
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.astropy import CompositeUnitType, QuantityType
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
-from ..utils.utils import check_val
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
-_c_unit: CompositeUnit_ = Unit(c)
-_kms_unit: CompositeUnit_ = Unit("1 km/s")
+_c_unit: CompositeUnitType = Unit(const.c)
+_kms_unit: CompositeUnitType = Unit("1 km/s")
+
+
+def _check_val[V](val: V) -> V:
+    """
+    Returns an Quantity if the input is a non-unitless Quantity. Otherwise 
+    returns the scalar value of the input.
+    """
+    return val.value \
+        if (isinstance(val, Quantity) and val.unit == Unit()) \
+        else val
 
 
 @finalise_dataclass(additional_keys=["strength_unit", "flux_unit", "c_unit"])
-@dataclass
+@pydantic.dataclasses.dataclass
 class UnitsInfo(_Info):
-    wavelength_unit: CompositeUnit_ = field(
+    wavelength_unit: CompositeUnitType = field(
         default=Unit("1 angstrom"),
         desc="Choice of wavelength unit",
         dtype="str",
         parse_as="composite_unit",
     )
-    energy_unit: CompositeUnit_ = field(
+    energy_unit: CompositeUnitType = field(
         default=Unit("1e-17 erg"),
         desc="Choice of energy unit",
         dtype="str",
         parse_as="composite_unit",
     )
-    time_unit: CompositeUnit_ = field(
+    time_unit: CompositeUnitType = field(
         default=Unit("1 s"),
         desc="Choice of time unit",
         dtype="str",
         parse_as="composite_unit",
     )
-    area_unit: CompositeUnit_ = field(
+    area_unit: CompositeUnitType = field(
         default=Unit("1 cm2"),
         desc="Choice of area unit",
         dtype="str",
         parse_as="composite_unit",
     )
-    temp_unit: CompositeUnit_ = field(
+    temp_unit: CompositeUnitType = field(
         default=Unit("1 K"),
         desc="Choice of temperature unit",
         dtype="str",
         parse_as="composite_unit",
     )
-    dens_unit: CompositeUnit_ = field(
+    dens_unit: CompositeUnitType = field(
         default=Unit("1 cm^-3"),
         desc="Choice of density unit",
         dtype="str",
         parse_as="composite_unit",
     )
-    velocity_unit: CompositeUnit_ = field(
+    velocity_unit: CompositeUnitType = field(
         default=Unit("1 km/s"),
         desc="Choice of velocity unit",
         dtype="str",
@@ -109,19 +117,19 @@ class UnitsInfo(_Info):
         super().update(info, logger)
 
     @property
-    def strength_unit(self) -> CompositeUnit_:
+    def strength_unit(self) -> CompositeUnitType:
         return self.energy_unit / self.time_unit / self.area_unit
 
     @property
-    def flux_unit(self) -> CompositeUnit_:
+    def flux_unit(self) -> CompositeUnitType:
         return self.strength_unit / self.wavelength_unit
 
     @property
-    def c_unit(self) -> CompositeUnit_:
+    def c_unit(self) -> CompositeUnitType:
         return _c_unit
 
     @property
-    def kms_unit(self) -> CompositeUnit_:
+    def kms_unit(self) -> CompositeUnitType:
         return _kms_unit
 
     def to_dict(
@@ -135,10 +143,10 @@ class UnitsInfo(_Info):
         )
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "units", logger)
@@ -170,15 +178,15 @@ class UnitsInfo(_Info):
 
     @staticmethod
     def _get_transformed_value(
-        unit: CompositeUnit_,
-        val: Quantity_ | float | Iterable,
+        unit: CompositeUnitType,
+        val: QuantityType | float | Iterable,
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         Transforms a float or iterable of floats into a Quantity, or a Quantity
         into a float or numpy array of floats. 
         """
-        val = check_val(val)
+        val = _check_val(val)
         unit = unit**power
         return val.to(unit).value \
             if isinstance(val, Quantity) \
@@ -186,16 +194,16 @@ class UnitsInfo(_Info):
 
     @staticmethod
     def _get_dimensioned_value(
-        unit: CompositeUnit_,
-        val: Quantity_ | float | Iterable,
+        unit: CompositeUnitType,
+        val: QuantityType | float | Iterable,
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         Returns a Quantity-representation of the input in the correct units. If 
         the input is a scalar or iterable of scalars, it is multiplied by the 
         specified (powered) unit.
         """
-        val = check_val(val)
+        val = _check_val(val)
         _unit = unit ** power
         if not isinstance(val, Quantity):
             val *= _unit
@@ -203,15 +211,15 @@ class UnitsInfo(_Info):
 
     @staticmethod
     def _get_unitless_value(
-        unit: CompositeUnit_,
-        val: Quantity_ | float | Iterable,
+        unit: CompositeUnitType,
+        val: QuantityType | float | Iterable,
         power: float = 1,
     ) -> float | Iterable[float]:
         """
         Returns the scalar value of a float, iterable of floats, or Quantity in 
         the correct units. 
         """
-        val = check_val(val)
+        val = _check_val(val)
         if isinstance(val, Quantity):
             unit = unit**power
             return val.to(unit).value
@@ -219,8 +227,8 @@ class UnitsInfo(_Info):
 
     @staticmethod
     def _get_formatted_value(
-        val: Quantity_ | float | Iterable[float],
-        unit: CompositeUnit_,
+        val: QuantityType | float | Iterable[float],
+        unit: CompositeUnitType,
         fmt: str,
         power: float = 1.0,
         with_unit: bool = True,
@@ -230,9 +238,9 @@ class UnitsInfo(_Info):
 
         Parameters
         ----------
-        val : Quantity_ | float | Iterable[float]
+        val : QuantityType | float | Iterable[float]
             The value to format.
-        unit : CompositeUnit_
+        unit : CompositeUnitType
             The unit of the value.
         fmt : str
             The format string.
@@ -257,7 +265,7 @@ class UnitsInfo(_Info):
             )
 
         if isinstance(val, Iterable):
-            return array2string(
+            return np.array2string(
                 val.to(_unit).value, 
                 formatter={'all': lambda v: format(v, fmt)}, 
                 sign="+",
@@ -266,7 +274,7 @@ class UnitsInfo(_Info):
 
     def formatUnitless(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         with_unit: bool = True,
     ) -> str:
         return self._get_formatted_value(
@@ -280,9 +288,9 @@ class UnitsInfo(_Info):
 
     def getWavelength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -290,14 +298,14 @@ class UnitsInfo(_Info):
 
     def getUnitlessWavelength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.wavelength_unit, val, power=power)
 
     def formatWavelength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -313,9 +321,9 @@ class UnitsInfo(_Info):
 
     def getC(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -323,21 +331,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedC(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.c_unit, val, power=power)
 
     def getUnitlessC(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.c_unit, val, power=power)
 
     def getUnitlessCFromVelocity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self.getUnitlessC(
@@ -347,7 +355,7 @@ class UnitsInfo(_Info):
 
     def formatC(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -359,9 +367,9 @@ class UnitsInfo(_Info):
 
     def getKMS(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -370,21 +378,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedKMS(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.kms_unit, val, power=power)
 
     def getUnitlessKMS(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.kms_unit, val, power=power)
 
     def getUnitlessKMSFromVelocity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self.getUnitlessKMS(
@@ -394,7 +402,7 @@ class UnitsInfo(_Info):
 
     def formatKMS(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -406,9 +414,9 @@ class UnitsInfo(_Info):
 
     def getVelocity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -416,21 +424,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedVelocity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.velocity_unit, val, power=power)
 
     def getUnitlessVelocity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.velocity_unit, val, power=power)
 
     def formatVelocity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -446,9 +454,9 @@ class UnitsInfo(_Info):
 
     def getFlux(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -456,21 +464,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedFlux(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.flux_unit, val, power=power)
 
     def getUnitlessFlux(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.flux_unit, val, power=power)
 
     def formatFlux(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -486,9 +494,9 @@ class UnitsInfo(_Info):
 
     def getStrength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -496,21 +504,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedStrength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.strength_unit, val, power=power)
 
     def getUnitlessStrength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.strength_unit, val, power=power)
 
     def formatStrength(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -526,9 +534,9 @@ class UnitsInfo(_Info):
 
     def getDensity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -536,21 +544,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedDensity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.dens_unit, val, power=power)
 
     def getUnitlessDensity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.dens_unit, val, power=power)
 
     def formatDensity(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -566,9 +574,9 @@ class UnitsInfo(_Info):
 
     def getTemperature(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_ | float | Iterable[float]:
+    ) -> QuantityType | float | Iterable[float]:
         """
         ...
         """
@@ -576,21 +584,21 @@ class UnitsInfo(_Info):
 
     def getDimensionedTemperature(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
-    ) -> Quantity_:
+    ) -> QuantityType:
         return self._get_dimensioned_value(self.temp_unit, val, power=power)
 
     def getUnitlessTemperature(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1,
     ) -> float | Iterable[float]:
         return self._get_unitless_value(self.temp_unit, val, power=power)
 
     def formatTemperature(
         self,
-        val: Quantity_ | float | Iterable[float],
+        val: QuantityType | float | Iterable[float],
         power: float = 1.0,
         with_unit: bool = True,
     ) -> str:
@@ -612,13 +620,15 @@ class UnitsInfo(_Info):
         Although 'boltz' is unitless, its true units are:
             [boltz] = [temperature] x [wavelength]
         """
-        return (h * c / k_B).to(self.temp_unit * self.wavelength_unit).value
+        return (const.h * const.c / const.k_B)\
+            .to(self.temp_unit * self.wavelength_unit)\
+            .value
 
     def getCorrespondingUnit(
         self,
         val: float | list,
         dimension_of: tuple[str, float | int] | None = None,
-    ) -> tuple[float | list, Unit_ | None]:
+    ) -> tuple[float | list, QuantityType | None]:
         """
         Takes a single or multiple values, and convert them into output-ready
         formats, i.e. in the designated output units.

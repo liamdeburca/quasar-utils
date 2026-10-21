@@ -23,5 +23,5 @@ def test_fft_with_nan_raises_validation_error():
     N = 64
     z = np.random.default_rng(0).normal(size=N)
     z[10] = np.nan
-    with pytest.raises(ValidationError):
+    with pytest.raises((ValidationError, ValueError)):
         absorption.fft_test(z, k=5)

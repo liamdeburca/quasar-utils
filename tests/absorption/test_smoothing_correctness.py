@@ -1,6 +1,6 @@
 import numpy as np
-from numpy.testing import assert_allclose
 import scipy.signal as sps
+from numpy.testing import assert_allclose
 
 from quasar_utils.absorption import smoothing
 
@@ -20,7 +20,7 @@ def test_uniform_uncertainties_matches_scipy_center():
     p = 2
 
     # Our smoothing (no interpolation)
-    y_custom = smoothing.weighted_savgol_filter.__wrapped__(x, y, dy, w=w, p=p, mask=None, interpolate=False)
+    y_custom = smoothing.weighted_savgol_filter(x, y, dy, w=w, p=p, mask=None, interpolate=False)
 
     # SciPy reference
     y_scipy = sps.savgol_filter(y, window_length=w, polyorder=p, mode='interp')
@@ -38,7 +38,7 @@ def test_uniform_uncertainties_full_mask():
     p = 2
 
     mask = np.ones_like(x, dtype=bool)
-    y_custom = smoothing.weighted_savgol_filter.__wrapped__(x, y, dy, w=w, p=p, mask=mask, interpolate=False)
+    y_custom = smoothing.weighted_savgol_filter(x, y, dy, w=w, p=p, mask=mask, interpolate=False)
 
     y_scipy = sps.savgol_filter(y, window_length=w, polyorder=p, mode='interp')
 

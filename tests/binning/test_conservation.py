@@ -1,6 +1,6 @@
 import numpy as np
 
-from quasar_utils.binning import binning
+from quasar_utils import binning
 
 RNG = np.random.default_rng(seed=42)
 V_RES: float = 2.3e-4

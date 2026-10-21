@@ -18,6 +18,11 @@ def test_convolution():
     cinfo = ConvolutionInfo()
     cinfo.to_dict()
 
+def test_cosmology():
+    from quasar_utils.setup.cosmology import CosmologyInfo
+    cinfo = CosmologyInfo()
+    cinfo.to_dict()
+
 def test_error():
     from quasar_utils.setup.error import ErrorInfo
     einfo = ErrorInfo()
@@ -43,15 +48,26 @@ def test_loading():
     linfo = LoadingInfo()
     linfo.to_dict()
 
+def test_mcmc():
+    from quasar_utils.setup.mcmc import MCMCInfo
+    minfo = MCMCInfo()
+    minfo.to_dict()
+
 def test_nonlinear():
     from quasar_utils.setup.nonlinear import NonLinearInfo
     ninfo = NonLinearInfo()
     ninfo.to_dict()
 
+def test_random():
+    from quasar_utils.setup.random import RandomInfo
+    rinfo = RandomInfo()
+    rinfo.to_dict()
+    
 def test_units():
     from quasar_utils.setup.units import UnitsInfo
     uinfo = UnitsInfo()
     uinfo.to_dict()
+
 
 def test_info():
     from quasar_utils.setup import Info

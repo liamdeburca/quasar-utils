@@ -5,6 +5,7 @@ from typing import Self
 
 from numpy import diag, isclose, zeros_like
 from numpy.linalg import det
+from pydantic import validate_call
 from pydantic_core import PydanticCustomError
 from pydantic_core.core_schema import no_info_plain_validator_function
 from quasar_models.continuum import PowerLawModel
@@ -13,8 +14,6 @@ from scipy.stats._multivariate import (
     multivariate_normal,
     multivariate_normal_frozen,
 )
-
-from .decorators import validate_call
 
 
 def _cov_from_jac(jac: FloatMatrix) -> FloatMatrix:

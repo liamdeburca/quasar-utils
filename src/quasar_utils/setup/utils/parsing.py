@@ -2,10 +2,10 @@ from collections.abc import Callable
 from inspect import getmembers, ismethod
 from typing import Any, TypedDict
 
+import numpy as np
 from astropy.units import CompositeUnit, Quantity, Unit
-from numpy import arange, finfo, float64
-from numpy.random import RandomState
-from quasar_typing.misc import (
+from quasar_typing.numpy import SortedFloatVector
+from quasar_typing.string_selections import (
     BalmerModelParams,
     HostGalaxyModelParams,
     OutLines,
@@ -13,7 +13,6 @@ from quasar_typing.misc import (
     StringSelection,
     VaryLines,
 )
-from quasar_typing.numpy import SortedFloatVector
 
 from .unit_checking import (
     is_density_unit,
@@ -24,7 +23,7 @@ from .unit_checking import (
 )
 
 JSONDataType = str | int | float | bool | None
-MACHINE_PRECISION = finfo(float64).eps
+MACHINE_PRECISION = np.finfo(float).eps
 
 class JSONField(TypedDict):
     value: JSONDataType | list[JSONDataType] | dict[str, JSONDataType]
@@ -248,7 +247,7 @@ class Parser:
             
     @classmethod
     def as_arange(cls, field: JSONField) -> Quantity | SortedFloatVector:
-        val = arange(*field["value"], dtype=float64)
+        val = np.arange(*field["value"], dtype=np.float64)
         if unit := field.get("unit", None):
             unit = Unit(unit)
             assert is_velocity_unit(unit)
@@ -749,11 +748,11 @@ class Parser:
         }
 
     @classmethod
-    def as_random_state(cls, field: JSONField) -> RandomState:
-        return RandomState(cls.as_int(field))
+    def as_random_state(cls, field: JSONField) -> np.random.RandomState:
+        return np.random.RandomState(cls.as_int(field))
 
     @classmethod
-    def undo_as_random_state(cls, value: RandomState) -> JSONField:
+    def undo_as_random_state(cls, value: np.random.RandomState) -> JSONField:
         return {
             "value": value.get_state()[2],
             "unit": None,

@@ -5,11 +5,11 @@ from typing import ClassVar, Self
 
 from pydantic.dataclasses import dataclass
 from quasar_typing.pathlib import (
-    AbsoluteCSVPath,
-    AbsoluteDirPath,
-    AbsoluteJSONPath,
-    AbsolutePath,
-    AnyAbsolutePath,
+    AnyDirPath,
+    CSVPath,
+    DirPath,
+    ExistingPath,
+    JSONPath,
 )
 
 from .defaults import DIRECTORY_TO_DEFAULTS
@@ -17,14 +17,14 @@ from .defaults import DIRECTORY_TO_DEFAULTS
 
 @dataclass
 class BackupFile:
-    input_path: AbsolutePath | None = field(default=None, kw_only=True)
-    output_path: AnyAbsolutePath | None = field(default=None, kw_only=True)
+    input_path: ExistingPath | None = field(default=None, kw_only=True)
+    output_path: AnyDirPath | None = field(default=None, kw_only=True)
 
-    fitting_info: AbsoluteJSONPath | None = field(default=None, kw_only=True)
-    line_list: AbsoluteCSVPath | None = field(default=None, kw_only=True)
-    measure_list: AbsoluteCSVPath | None = field(default=None, kw_only=True)
+    fitting_info: JSONPath | None = field(default=None, kw_only=True)
+    line_list: CSVPath | None = field(default=None, kw_only=True)
+    measure_list: CSVPath | None = field(default=None, kw_only=True)
 
-    directory_to_defaults: ClassVar[AbsoluteDirPath] = DIRECTORY_TO_DEFAULTS
+    directory_to_defaults: ClassVar[DirPath] = DIRECTORY_TO_DEFAULTS
 
     def __post_init__(self) -> None:
         if self.fitting_info is None:
@@ -37,7 +37,7 @@ class BackupFile:
             self.measure_list = self.directory_to_defaults / "measure_list.csv"
 
     @classmethod
-    def load(cls, path: AbsoluteJSONPath | None) -> Self:
+    def load(cls, path: JSONPath | None) -> Self:
         """
         Creates a 'BackupFile' instance from a JSON file.
         """

@@ -1,22 +1,22 @@
 __all__ = ["SubDir"]
 
 from dataclasses import field
-from logging import DEBUG, INFO, getLogger
+from logging import DEBUG, INFO, FileHandler, getLogger
 from typing import Literal, Self
 
-from pydantic.dataclasses import dataclass
-from quasar_typing.logging import FileHandler_
+import pydantic
+from quasar_typing.logging import FileHandlerType
 from quasar_typing.pathlib import (
-    AbsoluteCSVPath,
-    AbsoluteDirPath,
-    AbsoluteFilePath,
-    AbsoluteLogPath,
-    AnyAbsoluteCSVPath,
-    AnyAbsoluteDirPath,
-    AnyAbsoluteLogPath,
+    AnyCSVPath,
+    AnyDirPath,
+    AnyLogPath,
+    CSVPath,
+    DirPath,
+    FilePath,
+    LogPath,
 )
 
-from ..logging import (
+from quasar_utils.logging import (
     CONFIG_KWARGS,
     FlagFilter,
     # FlagFormatter,
@@ -28,22 +28,22 @@ logger = getLogger(__name__)
 root = logger.root
 
 
-@dataclass(eq=False)
+@pydantic.dataclasses.dataclass(eq=False)
 class SubDir:
-    in_file: AbsoluteFilePath
-    _out_dir: AnyAbsoluteDirPath
+    in_file: FilePath
+    _out_dir: AnyDirPath
 
-    _debug_log: AnyAbsoluteLogPath | None = None
-    _main_log: AnyAbsoluteLogPath | None = None
-    _flags_log: AnyAbsoluteLogPath | None = None
-    _profile: AnyAbsoluteCSVPath | None = None
+    _debug_log: AnyLogPath | None = None
+    _main_log: AnyLogPath | None = None
+    _flags_log: AnyLogPath | None = None
+    _profile: AnyCSVPath | None = None
 
-    handlers: dict[Literal["debug", "main", "flag"], FileHandler_] = field(
+    handlers: dict[Literal["debug", "main", "flag"], FileHandlerType] = field(
         default_factory=dict,
     )
     current_log: list[str] = field(default_factory=list)
 
-    _prev_handlers: list[FileHandler_] = field(default_factory=list)
+    _prev_handlers: list[FileHandlerType] = field(default_factory=list)
     _prev_level: int | None = field(default=None)
 
     def __post_init__(self) -> None:
@@ -59,7 +59,7 @@ class SubDir:
     def create_handlers(
         self,
         use_colors: bool = False,
-    ) -> dict[Literal["debug", "main", "flag"], FileHandler_]:
+    ) -> dict[Literal["debug", "main", "flag"], FileHandlerType]:
         """Create and return file handlers for this SubDir.
 
         This method will create the output directory (if not present) and
@@ -70,21 +70,21 @@ class SubDir:
         # Ensure output directory exists
         _ = self.out_dir
 
-        handlers: dict[Literal["debug", "main", "flag"], FileHandler_] = {}
+        handlers: dict[Literal["debug", "main", "flag"], FileHandlerType] = {}
 
-        h_debug = FileHandler_(self._debug_log, mode="a", encoding="utf-8")
+        h_debug = FileHandler(self._debug_log, mode="a", encoding="utf-8")
         h_debug.setLevel(DEBUG)
         h_debug.setFormatter(QuasarFormatter(use_colors=use_colors))
         h_debug.addFilter(QuasarFilter())
         handlers["debug"] = h_debug
 
-        h_main = FileHandler_(self._main_log, mode="a", encoding="utf-8")
+        h_main = FileHandler(self._main_log, mode="a", encoding="utf-8")
         h_main.setLevel(INFO)
         h_main.setFormatter(QuasarFormatter(use_colors=use_colors))
         h_main.addFilter(QuasarFilter())
         handlers["main"] = h_main
 
-        h_flags = FileHandler_(self._flags_log, mode="a", encoding="utf-8")
+        h_flags = FileHandler(self._flags_log, mode="a", encoding="utf-8")
         h_flags.setLevel(INFO)
         # h_flags.setFormatter(FlagFormatter())
         h_flags.addFilter(FlagFilter())
@@ -168,7 +168,7 @@ class SubDir:
             root.setLevel(self._prev_level)
             self._prev_level = None
 
-    def __tuple__(self) -> tuple[AbsoluteFilePath, AnyAbsoluteDirPath]:
+    def __tuple__(self) -> tuple[FilePath, AnyDirPath]:
         return (self.in_file, self._out_dir)
 
     def __hash__(self) -> int:
@@ -207,42 +207,42 @@ class SubDir:
         )
 
     @property
-    def out_dir(self) -> AbsoluteDirPath:
+    def out_dir(self) -> DirPath:
         self._out_dir.mkdir(parents=True, exist_ok=True)
         return self._out_dir
 
     @property
-    def debug_log(self) -> AbsoluteLogPath:
+    def debug_log(self) -> LogPath:
         _ = self.out_dir
         self._debug_log.touch(exist_ok=True)
         return self._debug_log
 
     @property
-    def main_log(self) -> AbsoluteLogPath:
+    def main_log(self) -> LogPath:
         _ = self.out_dir
         self._main_log.touch(exist_ok=True)
         return self._main_log
 
     @property
-    def flags_log(self) -> AbsoluteLogPath:
+    def flags_log(self) -> LogPath:
         _ = self.out_dir
         self._flags_log.touch(exist_ok=True)
         return self._flags_log
 
     @property
-    def profile(self) -> AbsoluteCSVPath:
+    def profile(self) -> CSVPath:
         _ = self.out_dir
         self._profile.touch(exist_ok=True)
         return self._profile
 
     @property
-    def plots(self) -> AbsoluteDirPath:
+    def plots(self) -> DirPath:
         path = self.out_dir / "plots"
         path.mkdir(parents=True, exist_ok=True)
         return path
 
     @property
-    def line_results(self) -> AbsoluteDirPath:
+    def line_results(self) -> DirPath:
         path = self.out_dir / "line_results"
         path.mkdir(parents=True, exist_ok=True)
         return path

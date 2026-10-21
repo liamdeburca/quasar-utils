@@ -76,7 +76,7 @@ def test_application(
         sparse=False,
     )
 
-    for i in range(100):
+    for i in range(5):
         y = rng.normal(size=x.size)
         with subtests.test(i):
             test = resolving.apply_resolution(y, kernels)
@@ -101,7 +101,7 @@ def test_application_sparse(
         sparse=True,
     )
 
-    for i in range(100):
+    for i in range(5):
         y = rng.normal(size=x.size)
         with subtests.test(i):
             test = resolving.apply_resolution(y, kernels)

@@ -1,17 +1,16 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
-from pydantic.dataclasses import dataclass
-from quasar_typing.pathlib import AbsoluteFilePath
+import pydantic
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class ConvolutionInfo(_Info):
     allow_interp_fitting: bool = field(
         default=False,
@@ -39,10 +38,10 @@ class ConvolutionInfo(_Info):
         return super().to_dict("convolution", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "convolution", logger)

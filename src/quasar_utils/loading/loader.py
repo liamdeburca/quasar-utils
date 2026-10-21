@@ -2,39 +2,49 @@ __all__ = ["_Loader"]
 
 from dataclasses import field
 from logging import getLogger
-from typing import Literal
+from typing import Literal, TypedDict
 
-from numpy import diff, float64, full, interp, log, ones
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
+import numpy as np
+import pydantic
+from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import CoordBounds
 from quasar_typing.numpy import CoordsTuple, FloatMatrix, FloatVector
-from quasar_typing.pathlib import AbsoluteFilePath
-from quasar_typing.scipy import csr_matrix_
+from quasar_typing.pathlib import FilePath
+from quasar_typing.scipy import CSRMatrix
 
+from quasar_utils.decorators import validated_apply_info_to_method
 from quasar_utils.resolving import create_kernels
-
-from ..decorators import validated_apply_info_to_method
-from ..setup import Info
-from .utils import (
-    LoaderOutput,
-    _deredden_coords,
-    _finalize_coords,
-    _logbin_coords,
-    _redshift_correct_coords,
-    _transform_coords,
-)
+from quasar_utils.setup import Info
 
 logger = getLogger(__name__)
 
 
-@dataclass
+class LoaderOutput(TypedDict):
+    path: str | FilePath
+    title: str
+
+    x_original: FloatVector
+    y_original: FloatVector
+    dy_original: FloatVector
+    dx_original: FloatVector
+    kernels_original: FloatMatrix | CSRMatrix
+
+    x: FloatVector
+    y: FloatVector
+    dy: FloatVector
+    dx: FloatVector
+    kernels: FloatMatrix | CSRMatrix
+
+    info: Info
+
+
+@pydantic.dataclasses.dataclass
 class _Loader:
     """
     Loader helper that encapsulates a single spectrum's loading and
     coordinate-transformation pipeline.
     """
-    path: str | AbsoluteFilePath
+    path: str | FilePath
     info: Info = field(default_factory=Info)
     z: float | None = None
 
@@ -42,19 +52,19 @@ class _Loader:
     ra: float | None = None
     dec: float | None = None
 
-    x_original: FloatVector | Quantity_ = field(init=False)
-    y_original: FloatVector | Quantity_ = field(init=False)
-    dy_original: FloatVector | Quantity_ = field(init=False)
-    dx_original: float | FloatVector | Quantity_ = field(init=False)
+    x_original: FloatVector | QuantityType = field(init=False)
+    y_original: FloatVector | QuantityType = field(init=False)
+    dy_original: FloatVector | QuantityType = field(init=False)
+    dx_original: float | FloatVector | QuantityType = field(init=False)
     R_original: FloatVector | None = field(init=False)
-    kernels_original: FloatMatrix | csr_matrix_ = field(init=False)
+    kernels_original: FloatMatrix | CSRMatrix = field(init=False)
 
     x: FloatVector = field(init=False)
     y: FloatVector = field(init=False)
     dy: FloatVector = field(init=False)
     dx: FloatVector = field(init=False)
     R: FloatVector | None = field(init=False)
-    kernels: FloatMatrix | csr_matrix_ = field(init=False)
+    kernels: FloatMatrix | CSRMatrix = field(init=False)
 
     x_bounds: CoordBounds = field(init=False)
 
@@ -72,10 +82,10 @@ class _Loader:
         assert hasattr(self, "dx_original")
 
         if isinstance(self.dx_original, float):
-            self.dx_original = full(
+            self.dx_original = np.full(
                 self.x_original.size, 
                 self.dx_original, 
-                dtype=float64,
+                dtype=float,
             )
 
         # Make original arrays read-only
@@ -170,7 +180,7 @@ class _Loader:
                 self.info.loading.sigma_res, 
                 with_unit=False,
             )
-            _sigma_res_obs = diff(log(self.x_original))
+            _sigma_res_obs = np.diff(np.log(self.x_original))
             obs_mean: str = self.info.units.formatC(
                 _sigma_res_obs.mean(),
                 with_unit=False,
@@ -217,6 +227,8 @@ class _Loader:
         these arrays are then made read-only as all future operations will be on 
         rebinned coordinates.
         """
+        from .utils import _transform_coords
+
         if not self._is_transformed:
             out = _transform_coords(
                 (self.x_original, self.y_original, self.dy_original),
@@ -241,6 +253,8 @@ class _Loader:
         already been done, this property does nothing except returning the 
         original data arrays.
         """
+        from .utils import _deredden_coords
+
         if not self._is_dereddened:
             assert self.ra is not None, "RA is required for dereddening"
             assert self.dec is not None, "DEC is required for dereddening"
@@ -268,6 +282,8 @@ class _Loader:
         """
         Return coordinates and spacing after applying redshift correction.
         """
+        from .utils import _redshift_correct_coords
+
         if not self._is_redshift_corrected:
             out = _redshift_correct_coords(
                 (self.x_original, self.y_original, self.dy_original),
@@ -295,6 +311,8 @@ class _Loader:
         Return coordinates after logarithmic re-binning using ``Info``
         defaults.
         """
+        from .utils import _logbin_coords
+
         self.x_original.setflags(write=True)
         self.y_original.setflags(write=True)
         self.dy_original.setflags(write=True)
@@ -321,12 +339,15 @@ class _Loader:
         if self.R_original is None:
             self.R = None
         else:
-            self.R = interp(self.x, self.x_original, self.R_original)
+            self.R = np.interp(self.x, self.x_original, self.R_original)
             self.R.setflags(write=False)
 
     def create_kernels(self) -> None:
         if self.R_original is None:
-            self.kernels_original = ones((self.x_original.size, 1), float64)
+            self.kernels_original = np.ones(
+                (self.x_original.size, 1), 
+                np.float64,
+            )
         else:
             self.kernels_original = create_kernels(
                 self.R_original, self.x_original, self.dx_original,
@@ -338,7 +359,7 @@ class _Loader:
 
         if hasattr(self, "x"):
             if self.R is None:
-                self.kernels = ones((self.x.size, 1), float64)
+                self.kernels = np.ones((self.x.size, 1), np.float64)
             else:
                 self.kernels = create_kernels(
                     self.R, self.x, self.dx,
@@ -354,6 +375,8 @@ class _Loader:
         self.kernels.setflags(write=False)
         
     def finalize_coords(self) -> None:
+        from .utils import _finalize_coords
+
         coords = [
             self.x_original,
             self.y_original,

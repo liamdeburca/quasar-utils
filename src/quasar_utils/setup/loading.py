@@ -1,20 +1,21 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import pydantic
 from astropy.units import Unit
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
+from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import CoordBounds
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
+from quasar_utils.dereddening import LawName, MapName
+
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class LoadingInfo(_Info):
     loader: str = field(
         default="fits",
@@ -28,8 +29,8 @@ class LoadingInfo(_Info):
     )
     deredden: tuple[
         bool, 
-        Literal["sfd", "csfd"], 
-        Literal["ccm89", "o94"], 
+        MapName, 
+        LawName, 
         float,
     ] = field(
         default=(True, "sfd", "ccm89", 3.1),
@@ -58,14 +59,14 @@ class LoadingInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    _sigma_res: float | Quantity_ = field(
+    _sigma_res: float | QuantityType = field(
         default=69 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
         update_to="velocity_c",
         has_unit=True,
     )
-    _x_bounds: CoordBounds | Quantity_ = field(
+    _x_bounds: CoordBounds | QuantityType = field(
         default=(1200, 10_000) * Unit("angstrom"),
         dtype="list[float, float]",
         parse_as="wavelength_bounds",
@@ -112,10 +113,10 @@ class LoadingInfo(_Info):
         return super().to_dict("loading", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "loading", logger)

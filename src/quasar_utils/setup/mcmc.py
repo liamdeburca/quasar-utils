@@ -1,11 +1,10 @@
 from logging import getLogger
 from typing import Any, Literal, Self, TypedDict
 
-from pydantic.dataclasses import dataclass
-from quasar_typing.misc import MCMCSamplingMethod
-from quasar_typing.pathlib import AbsoluteFilePath
+import pydantic
+from quasar_typing.literals import MCMCSamplingMethod
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
@@ -22,7 +21,7 @@ class MCMCKwargs(TypedDict):
 
 
 @finalise_dataclass(additional_keys=["mcmc_kwargs"])
-@dataclass
+@pydantic.dataclasses.dataclass
 class MCMCInfo(_Info):
     max_nfev: int = field(
         desc="Maximum number of function evaluations for MCMC (per walker)",
@@ -114,10 +113,10 @@ class MCMCInfo(_Info):
         return super().to_dict("mcmc", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "mcmc", logger)

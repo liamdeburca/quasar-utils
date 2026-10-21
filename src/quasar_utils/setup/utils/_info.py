@@ -7,9 +7,8 @@ from logging import Logger, getLogger
 from pathlib import Path
 from typing import Any, ClassVar, Self
 
-from numpy import ndarray
-from quasar_typing.astropy import CompositeUnit_, Unit_
-from quasar_typing.numpy import RandomState_
+import numpy as np
+from astropy import units
 
 from .dataclasses import field_to_dict, get_field_metadata
 from .parsing import Parser
@@ -25,11 +24,11 @@ def _make_hashable(value: Any) -> Any:
         return frozenset((k, _make_hashable(v)) for k, v in value.items())
     elif isinstance(value, set):
         return frozenset(_make_hashable(v) for v in value)
-    elif isinstance(value, ndarray):
+    elif isinstance(value, np.ndarray):
         return value.tobytes()
-    elif isinstance(value, (Unit_, CompositeUnit_, Path)):
+    elif isinstance(value, (units.Unit, units.CompositeUnit, Path)):
         return str(value)
-    elif isinstance(value, RandomState_):
+    elif isinstance(value, np.random.RandomState):
         return value.get_state()
     else:
         return value

@@ -1,35 +1,34 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import pydantic
 from astropy.units import Unit
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
+from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import AstropyBounds
 from quasar_typing.numpy import SortedFloatVector
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class LinesInfo(_Info):
     fit: bool = field(
         default=True,
         dtype="bool",
         parse_as="bool",
     )
-    _x_limit: float | Quantity_ = field(
+    _x_limit: float | QuantityType = field(
         default=1220 * Unit("angstrom"),
         dtype="float",
         parse_as="wavelength",
         update_to="wavelength",
         has_unit=True,
     )
-    _v_sep: float | Quantity_ = field(
+    _v_sep: float | QuantityType = field(
         default=10_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
@@ -37,7 +36,7 @@ class LinesInfo(_Info):
         has_unit=True,
     )
 
-    _v_off_bounds_n: AstropyBounds | Quantity_ = field(
+    _v_off_bounds_n: AstropyBounds | QuantityType = field(
         desc="Velocity offset bounds for narrow components",
         default=(-500, 500) * Unit("km/s"),
         dtype="list[float | None]",
@@ -45,7 +44,7 @@ class LinesInfo(_Info):
         update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _v_off_bounds_b: AstropyBounds | Quantity_ = field(
+    _v_off_bounds_b: AstropyBounds | QuantityType = field(
         desc="Velocity offset bounds for broad components",
         default=(-1_000, 1_000) * Unit("km/s"),
         dtype="list[float | None]",
@@ -53,7 +52,7 @@ class LinesInfo(_Info):
         update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _fwhm_v_bounds_n: AstropyBounds | Quantity_ = field(
+    _fwhm_v_bounds_n: AstropyBounds | QuantityType = field(
         desc="FWHM velocity bounds for narrow components",
         default=(100, 1_000) * Unit("km/s"),
         dtype="list[float | None]",
@@ -61,7 +60,7 @@ class LinesInfo(_Info):
         update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _fwhm_v_bounds_b: AstropyBounds | Quantity_ = field(
+    _fwhm_v_bounds_b: AstropyBounds | QuantityType = field(
         desc="FWHM velocity bounds for broad components",
         default=(1000, 10_000) * Unit("km/s"),
         dtype="list[float | None]",
@@ -69,7 +68,7 @@ class LinesInfo(_Info):
         update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _strength_bounds_n: AstropyBounds | Quantity_ = field(
+    _strength_bounds_n: AstropyBounds | QuantityType = field(
         desc="Strength bounds for narrow components",
         default=(0.0, 100_000.0),
         dtype="list[float | None]",
@@ -77,7 +76,7 @@ class LinesInfo(_Info):
         update_to="flux_bounds",
         has_unit=True,
     )
-    _strength_bounds_b: AstropyBounds | Quantity_ = field(
+    _strength_bounds_b: AstropyBounds | QuantityType = field(
         desc="Strength bounds for broad components",
         default=(0.0, 100_000.0),
         dtype="list[float | None]",
@@ -85,14 +84,14 @@ class LinesInfo(_Info):
         update_to="flux_bounds",
         has_unit=True,
     )
-    _w: int | Quantity_ = field(
+    _w: int | QuantityType = field(
         default=25,
         dtype="int",
         parse_as="n_pixels",
         update_to="n_pixels",
         has_unit=True,
     )
-    _forced_splits: list[float] | Quantity_ = field(
+    _forced_splits: list[float] | QuantityType = field(
         default=[1450, 1680, 2000] * Unit("angstrom"),
         dtype="list[float]",
         parse_as="wavelength_list",
@@ -192,10 +191,10 @@ class LinesInfo(_Info):
         return super().to_dict("lines", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "lines", logger)

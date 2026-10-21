@@ -3,14 +3,14 @@ from logging import getLogger
 from pathlib import Path
 from typing import TypedDict
 
+import numpy as np
+import pandas
 from astropy.io import fits
-from astropy.io.fits import HDUList
 from astropy.units import Quantity, Unit
-from numpy import float64, full, interp, nan
-from pandas import read_csv
 from quasar_typing.numpy import FloatVector
 
-from ..naming import IGR, J2000
+from quasar_utils.naming import IGR, J2000
+
 from .loader import _Loader
 
 logger = getLogger(__name__)
@@ -26,7 +26,7 @@ class _PAQSDataDict(TypedDict):
     dx: Quantity
     R: FloatVector
 
-def _get_data(hdul: HDUList) -> _PAQSDataDict:
+def _get_data(hdul: fits.HDUList) -> _PAQSDataDict:
     """
     Loads PAQS data from a fits HDU list assuming: 
 
@@ -41,18 +41,18 @@ def _get_data(hdul: HDUList) -> _PAQSDataDict:
     flux_unit = Unit("erg/(s.cm2.angstrom)")
 
     data = hdul[1].data
-    wave = data["WAVE"].flatten().astype(float64)
-    flux = data["FLUX"].flatten().astype(float64)
-    err = data["ERR"].flatten().astype(float64)
-    qual = data["QUAL"].flatten().astype(float64)
-    bin_size = full(wave.size, 0.25, dtype=float64)
+    wave = data["WAVE"].flatten().astype(np.float64)
+    flux = data["FLUX"].flatten().astype(np.float64)
+    err = data["ERR"].flatten().astype(np.float64)
+    qual = data["QUAL"].flatten().astype(np.float64)
+    bin_size = np.full(wave.size, 0.25, dtype=np.float64)
 
     bad_pixels = (qual != 0.0)
-    flux[bad_pixels] = nan
-    err[bad_pixels] = nan
+    flux[bad_pixels] = np.nan
+    err[bad_pixels] = np.nan
 
     # 4MOST: R=4000 @ 3700 angstrom, R=7700 @ 9500 angstrom
-    R = interp(wave, *_get_Rs())
+    R = np.interp(wave, *_get_Rs())
 
     return {
         "x": wave * wave_unit,
@@ -76,9 +76,9 @@ def _get_Rs() -> tuple[FloatVector, FloatVector]:
     Rs : FloatVector
         A read_only 1d array of resolving power (R) values.
     """
-    df = read_csv(PATH_TO_DATA, usecols=["lambda", "R"])
-    xs = df["lambda"].to_numpy(dtype=float64)
-    Rs = df["R"].to_numpy(dtype=float64)
+    df = pandas.read_csv(PATH_TO_DATA, usecols=["lambda", "R"])
+    xs = df["lambda"].to_numpy(dtype=np.float64)
+    Rs = df["R"].to_numpy(dtype=np.float64)
 
     xs.setflags(write=False)
     Rs.setflags(write=False)

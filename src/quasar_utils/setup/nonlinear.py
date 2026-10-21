@@ -1,16 +1,15 @@
 from logging import getLogger
 from typing import Any, Literal, Self, TypedDict
 
-from numpy import finfo
-from pydantic.dataclasses import dataclass
-from quasar_typing.pathlib import AbsoluteFilePath
+import numpy as np
+import pydantic
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
-MACHINE_PRECISION = finfo(float).eps
+MACHINE_PRECISION = np.finfo(float).eps
 
 class FitterKwargs(TypedDict):
     method: Literal["trf", "dogbox", "lm"]
@@ -24,7 +23,7 @@ class FitterKwargs(TypedDict):
 
 
 @finalise_dataclass(additional_keys=["fitter_kwargs"])
-@dataclass
+@pydantic.dataclasses.dataclass
 class NonLinearInfo(_Info):
     method: Literal["trf", "dogbox", "lm"] = field(
         desc="Choice of optimization algorithm: 'trf' (Trust Region Reflective), 'dogbox' (Dogleg), or 'lm' (Levenberg-Marquardt).",
@@ -127,10 +126,10 @@ class NonLinearInfo(_Info):
         )
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         return cls._from_json(json, create_copy, "nonlinear", logger)

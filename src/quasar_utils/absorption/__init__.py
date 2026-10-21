@@ -8,14 +8,6 @@ from numpy import arange, invert, isfinite, maximum
 from pydantic import validate_call
 from quasar_typing.numpy import BoolVector, FloatVector
 
-from .absorption import (
-    _fft_approach,
-    _join_regions,
-    _nan_residuals,
-    _refine_regions,
-)
-from .smoothing import _interpolate_missing, _weighted_savgol_filter
-
 ### Public functions (w/ validation)
 
 @validate_call
@@ -136,6 +128,14 @@ def _remove_absorption(
     join: int,
     refine: bool,
 ) -> tuple[FloatVector, BoolVector, FloatVector]:
+    from .absorption import (
+        _fft_approach,
+        _join_regions,
+        _nan_residuals,
+        _refine_regions,
+    )
+    from .smoothing import _interpolate_missing
+
     if valid_pixels is None:
         valid_pixels = isfinite([x, y, dy]).all(axis=0) & (dy > 0)
 
@@ -188,6 +188,7 @@ def _smooth_spectrum(
     p: int,
     logspace: bool,
 ) -> FloatVector:
+    from .smoothing import _weighted_savgol_filter
     return _weighted_savgol_filter(
         arange(len(x)) if logspace else x,
         y,

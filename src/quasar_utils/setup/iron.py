@@ -1,29 +1,28 @@
 from logging import getLogger
 from typing import Any, Literal, Self
 
+import numpy as np
+import pydantic
 from astropy.units import Unit
-from numpy import arange
-from pydantic.dataclasses import dataclass
-from quasar_typing.astropy import Quantity_
+from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import AstropyBounds, CoordBounds
 from quasar_typing.numpy import FloatVector, SortedFloatVector
-from quasar_typing.pathlib import AbsoluteFilePath
+from quasar_typing.pathlib import JSONPath
 
-from ..decorators import validate_call
 from .utils import _Info, field, finalise_dataclass
 
 logger = getLogger(__name__)
 
 
 @finalise_dataclass
-@dataclass
+@pydantic.dataclasses.dataclass
 class IronInfo(_Info):
     fit: bool = field(
         default=True,
         dtype="bool",
         parse_as="bool",
     )
-    _windows: list[CoordBounds] | Quantity_ = field(
+    _windows: list[CoordBounds] | QuantityType = field(
         default=[
             [2050.0, 2700.0],
             [3000.0, 3500.0],
@@ -49,28 +48,28 @@ class IronInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    _fwhm: list[float] | Quantity_ = field(
-        default=arange(1_000, 20_000 + 1, 250) * Unit("km/s"),
+    _fwhm: list[float] | QuantityType = field(
+        default=np.arange(1_000, 20_000 + 1, 250) * Unit("km/s"),
         dtype="list[float]",
         parse_as="velocity_list",
         update_to="sorted_velocity_kms_array",
         has_unit=True,
     )
-    _flux_bounds: AstropyBounds | Quantity_ = field(
+    _flux_bounds: AstropyBounds | QuantityType = field(
         default=(1.0, 1000.0),
         dtype="list[float | None]",
         parse_as="flux_bounds",
         update_to="flux_bounds",
         has_unit=True,
     )
-    _fwhm_bounds: AstropyBounds | Quantity_ = field(
+    _fwhm_bounds: AstropyBounds | QuantityType = field(
         default=[1_000, 10_000] * Unit("km/s"),
         dtype="list[float | None]",
         parse_as="velocity_bounds",
         update_to="velocity_kms_bounds",
         has_unit=True,
     )
-    _split: list[float] | Quantity_ = field(
+    _split: list[float] | QuantityType = field(
         default=[0, 0, 0, 0, 0] * Unit("angstrom"),
         dtype="list[float]",
         parse_as="wavelength_list",
@@ -92,7 +91,7 @@ class IronInfo(_Info):
         dtype="list[bool]",
         parse_as="bool_list",
     )
-    _scale: float | Quantity_ = field(
+    _scale: float | QuantityType = field(
         default=140.0 * Unit("angstrom"),
         dtype="float",
         parse_as="wavelength",
@@ -109,7 +108,7 @@ class IronInfo(_Info):
         dtype="bool",
         parse_as="bool",
     )
-    _fwhm_norm: float | Quantity_ = field(
+    _fwhm_norm: float | QuantityType = field(
         default=5_000 * Unit("km/s"),
         dtype="float",
         parse_as="velocity",
@@ -144,10 +143,10 @@ class IronInfo(_Info):
         return super().to_dict("iron", jsonify=jsonify)
 
     @classmethod
-    @validate_call
+    @pydantic.validate_call
     def from_json(
         cls,
-        json: dict[str, dict] | AbsoluteFilePath | None = None,
+        json: dict[str, dict] | JSONPath | None = None,
         create_copy: bool = True,
     ) -> Self:
         out: IronInfo = cls._from_json(json, create_copy, "iron", logger)

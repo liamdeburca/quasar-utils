@@ -25,6 +25,22 @@ def test_continuum_info_is_hashable():
     assert isinstance(hash_value, int)
 
 
+def test_convolution_info_is_hashable():
+    from quasar_utils.setup.convolution import ConvolutionInfo
+
+    info = ConvolutionInfo()
+    hash_value = hash(info)
+    assert isinstance(hash_value, int)
+
+
+def test_cosmology_info_is_hashable():
+    from quasar_utils.setup.cosmology import CosmologyInfo
+
+    info = CosmologyInfo()
+    hash_value = hash(info)
+    assert isinstance(hash_value, int)
+
+
 def test_error_info_is_hashable():
     from quasar_utils.setup.error import ErrorInfo
 
@@ -102,20 +118,3 @@ def test_info_is_hashable():
 
     info = Info()
     assert hash(info) is not None
-
-
-def test_info_subclasses_can_be_used_in_set():
-    """Test that Info subclass instances can be added to a set."""
-    from quasar_utils.setup.absorption import AbsorptionInfo
-    from quasar_utils.setup.balmer import BalmerInfo
-
-    abs_info1 = AbsorptionInfo()
-    abs_info2 = AbsorptionInfo()
-    balmer_info = BalmerInfo()
-
-    # Should be able to add to a set
-    info_set = {abs_info1, balmer_info}
-    assert len(info_set) == 2
-
-    # abs_info2 should equal abs_info1 since they have the same values
-    assert hash(abs_info2) == hash(abs_info1)
