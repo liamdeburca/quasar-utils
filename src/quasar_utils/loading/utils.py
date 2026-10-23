@@ -2,9 +2,9 @@ from typing import TypeVar
 
 import numpy as np
 from quasar_typing.astropy import CompositeUnitType, QuantityType, UnitType
+from quasar_typing.literals import LawName, MapName
 from quasar_typing.numpy import CoordsTuple, FloatVector
 
-from quasar_utils.dereddening import LawName, MapName, _deredden_spectrum
 from quasar_utils.setup import Info
 
 N = TypeVar("N", bound=int)
@@ -46,6 +46,9 @@ def _deredden_coords(
     Apply Galactic dereddening to the input spectrum coordinates.
     """
     from astropy.coordinates import SkyCoord
+
+    from quasar_utils.dereddening.dereddening import _deredden_spectrum
+    
     return _deredden_spectrum(
         coords,
         SkyCoord(ra=ra, dec=dec, unit="deg", frame="icrs"),

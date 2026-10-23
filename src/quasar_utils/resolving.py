@@ -10,8 +10,22 @@ import math
 from functools import wraps
 from typing import Literal, final, overload
 
-import numpy as np
 import pydantic
+from numpy import (
+    arange,
+    clip,
+    einsum,
+    exp,
+    float64,
+    pad,
+    prod,
+    sort,
+    take_along_axis,
+    tile,
+    where,
+    zeros_like,
+)
+from numpy.lib.stride_tricks import sliding_window_view
 from quasar_typing.numpy import (
     BoolVector,
     FloatArray,
@@ -235,19 +249,19 @@ def _create_kernels(
     normalize: bool,
     sparse: bool = False,
 ) -> FloatMatrix | CSRMatrix:
-    _x = np.pad(
+    _x = pad(
         x,
         (w // 2, w // 2),
         mode="constant",
-        constant_values=(-np.inf, np.inf),
+        constant_values=(-math.inf, math.inf),
     )
-    _dx = np.pad(
+    _dx = pad(
         dx,
         (w // 2, w // 2),
         mode="constant",
         constant_values=0,
     )
-    xs, dxs = np.lib.stride_tricks.sliding_window_view(
+    xs, dxs = sliding_window_view(
         [_x, _dx], 
         window_shape=w, 
         axis=1,
@@ -255,11 +269,11 @@ def _create_kernels(
 
     sigmas = x / R * FWHM_TO_SIGMA
     zs = (xs - x[:,None]) / sigmas[:,None]
-    zs[zs < -n_sigma] = -np.inf
-    zs[zs >  n_sigma] = np.inf
+    zs[zs < -n_sigma] = -math.inf
+    zs[zs >  n_sigma] = math.inf
 
     z2s = zs ** 2
-    kernels = np.exp(-0.5 * z2s) / sigmas[:,None] / math.sqrt(2 * math.pi)
+    kernels = exp(-0.5 * z2s) / sigmas[:,None] / math.sqrt(2 * math.pi)
     kernels *= dxs    
 
     if normalize:
@@ -278,16 +292,29 @@ def _mask_kernels(
     w = kernels.shape[1]
     if w == 1:
         return kernels[mask]
-    
-    local_masks = np.lib.stride_tricks.sliding_window_view(
-        np.pad(mask, (w // 2, w // 2), mode="constant", constant_values=True), 
+
+    l = w // 2
+    local_masks = sliding_window_view(
+        pad(mask, (l, l), mode="constant", constant_values=True), 
         window_shape=w, 
         axis=0,
     )
-    if (is_sparse := isinstance(kernels, csr_matrix)):
+    if (is_sparse := issparse(kernels)):
         kernels = kernels.toarray()
-    
-    new_kernels = np.where(local_masks[mask], kernels[mask], 0)
+
+    new_kernels = where(local_masks[mask], kernels[mask], 0)
+
+    indices = tile(arange(w), (new_kernels.shape[0], 1))
+    is_zero_left = (new_kernels[:, :l] == 0)
+    is_zero_right = (new_kernels[:, l+1:] == 0)
+
+    indices[:, :l][is_zero_left] = -1
+    indices[:, l+1:][is_zero_right] = w
+
+    indices = sort(indices, axis=1)
+    clip(indices, 0, w-1, out=indices)
+
+    new_kernels = take_along_axis(new_kernels, indices, axis=1)
     return csr_matrix(new_kernels) if is_sparse else new_kernels
 
 
@@ -297,7 +324,7 @@ def _limit_loss(
     mask: BoolVector,
     shrink: bool,
 ) -> BoolVector:
-    signal = mask.astype(np.float64)
+    signal = mask.astype(float64)
     if shrink:
         signal = 1.0 - signal
     _apply_resolution(signal, kernels, out=signal)
@@ -318,18 +345,18 @@ def _apply_resolution(
     w = kernels.shape[1]
     
     pad_width = [(0, 0)] * (y.ndim - 1) + [(w // 2, w // 2)]
-    windows = np.lib.stride_tricks.sliding_window_view(
-        np.pad(y, pad_width, mode="constant", constant_values=0),
+    windows = sliding_window_view(
+        pad(y, pad_width, mode="constant", constant_values=0),
         window_shape=w,
         axis=-1,
     )
     if not issparse(kernels):
-        return np.einsum("...ij,ij->...i", windows, kernels, out=out)
+        return einsum("...ij,ij->...i", windows, kernels, out=out)
 
     if out is None:
-        out = np.zeros_like(y, np.float64)
+        out = zeros_like(y, dtype=float64)
     
-    batch_prod = int(np.prod(y.shape[:-1]))
+    batch_prod = int(prod(y.shape[:-1]))
     win_reshaped = windows.reshape(
         batch_prod, 
         kernels.shape[0], 

@@ -2,7 +2,6 @@ __all__ = ["read_yaml", "to_yaml"]
 
 from collections import defaultdict
 
-import pandas
 import yaml
 from quasar_typing.pathlib import AnyYAMLPath, YAMLPath
 
@@ -19,7 +18,9 @@ from .utils import (
 def read_yaml(
     path: YAMLPath,
     info: Info,
-) -> pandas.DataFrame:
+):
+    from pandas import DataFrame
+
     with open(path, "r") as f:
         raw_data = yaml.safe_load(f)
 
@@ -85,13 +86,13 @@ def read_yaml(
             Converter.scale_fixed_converter(info, f.get("scale_fixed", ""))
         )
 
-    df = pandas.DataFrame.from_dict(processed_data)
+    df = DataFrame.from_dict(processed_data)
     df.sort_values("wave", inplace=True)
     return df
 
 
 def to_yaml(
-    df: pandas.DataFrame,
+    df: object,
     path: AnyYAMLPath,
     info: Info,
 ) -> None:

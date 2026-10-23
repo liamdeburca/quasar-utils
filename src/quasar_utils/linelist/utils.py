@@ -1,5 +1,10 @@
+"""
+Utilities for handling and converting linelist data in CSV format.
+
+As the `LineList` class is often used for type annotations, minimal type 
+information is included here to avoid import overhead (e.g. from pandas).
+"""
 from astropy.units import Quantity
-from pandas import DataFrame
 
 from quasar_utils.setup import Info
 
@@ -235,9 +240,15 @@ class BroadConverter(Converter):
 
 def df_to_dict(
     *,
-    df: DataFrame,
+    df: object,
     info: Info,
 ) -> dict:
+    """
+    Parameters
+    ----------
+    df : pandas.DataFrame
+    info: Info
+    """
     output_dict = {}
     for _, row in df.iterrows():
         name = row["name"]

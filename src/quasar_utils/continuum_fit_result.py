@@ -3,17 +3,11 @@ __all__ = ["ContinuumFitResult"]
 from itertools import repeat
 from typing import Self
 
-from numpy import diag, isclose, zeros_like
-from numpy.linalg import det
 from pydantic import validate_call
 from pydantic_core import PydanticCustomError
 from pydantic_core.core_schema import no_info_plain_validator_function
 from quasar_models.continuum import PowerLawModel
 from quasar_typing.numpy import FloatMatrix, FloatVector
-from scipy.stats._multivariate import (
-    multivariate_normal,
-    multivariate_normal_frozen,
-)
 
 
 def _cov_from_jac(jac: FloatMatrix) -> FloatMatrix:
@@ -29,21 +23,22 @@ class ContinuumFitResult:
         self,
         mean: FloatVector,
         jac: FloatMatrix,
-        x0: float | None = None,
-        y0: float | None = None,
+        x0: float,
+        y0: float,
     ):
-        """
-        ** PYDANTIC VALIDATED METHOD **
-        """
+        from numpy import diag, isclose, zeros_like
+        from numpy.linalg import det
+        from scipy.stats import multivariate_normal
+
         assert mean.ndim == 1, "Mean vector must be 1D."
         assert mean.size == 2, "Mean vector must have size 2."
         assert jac.ndim == 2, "Jacobian matrix must be 2D."
         assert jac.shape == (2, 2), "Jacobian matrix must be 2x2."
 
-        self.mean: FloatVector[2] = mean
-        self.jac: FloatMatrix[(2, 2)] = jac
-        self.cov: FloatMatrix[(2, 2)] = _cov_from_jac(jac)
-        self.std: FloatVector[2] = diag(jac) ** 0.5
+        self.mean: FloatVector = mean
+        self.jac: FloatMatrix = jac
+        self.cov: FloatMatrix = _cov_from_jac(jac)
+        self.std: FloatVector = diag(jac) ** 0.5
 
         _var = self.std[:, None] * self.std[None, :]
         is_valid = ~isclose(_var, 0)
@@ -53,13 +48,13 @@ class ContinuumFitResult:
 
         _det = det(self.cov)
         if isclose(_det, 0):
-            cov = diag(diag(self.cov))
+            self.cov = diag(diag(self.cov))
 
-        self.dist: multivariate_normal_frozen = multivariate_normal(mean, cov)
+        self.dist = multivariate_normal(mean, self.cov, allow_singular=True)
 
         # Rerefence wavelength used for PLWiggle model
-        self.x0: float = x0 or 1450
-        self.y0: float = y0 or 1
+        self.x0: float = x0
+        self.y0: float = y0
 
     @classmethod
     def _validate(cls, value) -> Self:

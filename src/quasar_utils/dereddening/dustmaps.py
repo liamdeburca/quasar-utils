@@ -15,10 +15,8 @@ __all__ = ["PATH_TO_CACHE", "get_dust_map", "reset_cache", "setup_dustmaps"]
 from functools import wraps
 from pathlib import Path
 from shutil import rmtree
+from typing import TYPE_CHECKING
 
-from dustmaps.config import config
-from dustmaps.csfd import CSFDQuery
-from dustmaps.sfd import SFDQuery
 from pydantic import validate_call
 from quasar_typing.literals import MapName
 
@@ -48,7 +46,7 @@ def reset_cache() -> None:
 
 
 @validate_call
-def get_dust_map(map_name: MapName) -> SFDQuery | CSFDQuery:
+def get_dust_map(map_name: MapName):
     """Return a query object for a supported dust map.
 
     Parameters
@@ -69,6 +67,8 @@ def get_dust_map(map_name: MapName) -> SFDQuery | CSFDQuery:
 
 @wraps(setup_dustmaps)
 def _setup_dustmaps() -> None:
+    from dustmaps.config import config
+    
     # Ensure cache dir exists and configure dustmaps to use it.
     if not PATH_TO_CACHE.exists():
         PATH_TO_CACHE.mkdir()
@@ -91,20 +91,23 @@ def _setup_dustmaps() -> None:
 @wraps(reset_cache)
 def _reset_cache() -> None:
     # Remove everything under the cache directory then re-setup
-    for path in PATH_TO_CACHE.iterdir():
-        rmtree(path)
-
+    rmtree(PATH_TO_CACHE)
     _setup_dustmaps()
 
 
 @wraps(get_dust_map)
-def _get_dust_map(map_name: MapName) -> SFDQuery | CSFDQuery:
+def _get_dust_map(map_name: MapName):
     match map_name:
         case "sfd":
+            from dustmaps.sfd import SFDQuery
             return SFDQuery()
         case "csfd":
+            from dustmaps.csfd import CSFDQuery
             return CSFDQuery()
 
 
+if not TYPE_CHECKING:
+    _setup_dustmaps()
+    
 if __name__ == "__main__":
     _reset_cache()

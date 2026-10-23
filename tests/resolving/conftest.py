@@ -5,11 +5,11 @@ from quasar_typing.numpy import FloatVector
 
 @pytest.fixture(scope="session")
 def N() -> int:
-    return 5_000
+    return 20_000
 
 @pytest.fixture(scope="session")
 def dx(N: int) -> FloatVector:
-    return np.full(N, 1.0, dtype=np.float64)
+    return np.full(N, 0.25, dtype=np.float64)
 
 @pytest.fixture(scope="session")
 def x(dx: FloatVector) -> FloatVector:
@@ -22,7 +22,7 @@ def R(x: FloatVector) -> FloatVector:
 
 @pytest.fixture(scope="session")
 def w() -> int:
-    return 11
+    return 31
 
 @pytest.fixture(scope="session")
 def n_sigma() -> float:

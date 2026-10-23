@@ -8,19 +8,15 @@ implementation lives in a private function decorated with ``functools.wraps``.
 __all__ = ["get_dust_law"]
 
 from functools import wraps
-from typing import Union
 
 from pydantic import validate_call
 from quasar_typing.literals import LawName
-
-from .ccm89 import CCM89
-from .o94 import O94
 
 ### Public functions
 
 
 @validate_call
-def get_dust_law(law_name: LawName) -> Union[CCM89, O94]:
+def get_dust_law(law_name: LawName):
     """Return a dust extinction law instance by name.
 
     Public (validated) wrapper around :func:`_get_dust_law`.
@@ -30,13 +26,11 @@ def get_dust_law(law_name: LawName) -> Union[CCM89, O94]:
 ### Private functions
 
 @wraps(get_dust_law)
-def _get_dust_law(law_name: LawName) -> Union[CCM89, O94]:
+def _get_dust_law(law_name: LawName):
     match law_name:
         case "ccm89":
+            from .ccm89 import CCM89
             return CCM89()
         case "o94":
+            from .o94 import O94
             return O94()
-    raise ValueError(
-        f"Dust curve '{law_name}' is not supported. "
-        "Supported curves are: 'ccm89', 'o94'."
-    )

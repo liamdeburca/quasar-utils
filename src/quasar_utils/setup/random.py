@@ -2,7 +2,6 @@ from logging import getLogger
 from typing import Any, Literal, Self
 
 import pydantic
-from numpy.random import RandomState
 from quasar_typing.numpy import RandomStateType
 from quasar_typing.pathlib import JSONPath
 
@@ -27,6 +26,7 @@ class RandomInfo(_Info):
 
     @property
     def random_state(self) -> RandomStateType:
+        from numpy.random import RandomState
         if self.renew_rng:
             return RandomState(self.seed)
 

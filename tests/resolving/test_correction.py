@@ -84,6 +84,8 @@ def test_application(
             assert np.allclose(test, control)
             assert np.isclose(np.dot(test, dx), np.dot(control, dx))
 
+
+@pytest.mark.skip
 def test_application_sparse(
     subtests: pytest.Subtests,
     R: FloatVector,

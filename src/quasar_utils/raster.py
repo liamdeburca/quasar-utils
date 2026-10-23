@@ -20,16 +20,21 @@ def _validate_rasterise_inputs(
     fwhm: FloatVector,
     data: FloatVector,
 ) -> None:
-    if not y.size == dy.size == data.shape[1]:
-        msg = f"Input arrays y ({y.shape}), dy ({dy.shape}) must have the "\
-            "same shape, and match the second dimension of data "\
+    if y.shape != dy.shape:
+        raise ValueError(
+            f"Input arrays y ({y.shape}) and dy ({dy.shape}) must have the same "
+            "shape."
+        )
+    if y.size != data.shape[1]:
+        raise ValueError(
+            f"Input array y ({y.shape}) must match the second dimension of data "
             f"({data.shape[1]})!"
-        raise ValueError(msg)
-
+        )
     if fwhm.size != data.shape[0]:
-        msg = f"Input array fwhm ({fwhm.shape}) must have the same shape as "\
-            f"the first dimension of data ({data.shape[0]})!"
-        raise ValueError(msg)
+        raise ValueError(
+            f"Input array fwhm ({fwhm.shape}) must match the first dimension "
+            f"of data ({data.shape[0]})!"
+        )
 
 
 # Public functions

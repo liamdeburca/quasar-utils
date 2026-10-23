@@ -39,7 +39,7 @@ def build_interp_data(
 @validate_call
 def create_interp_matrix(
     x_in: SortedFloatVector,
-    x_out: FittableFloatVector,
+    x_out: SortedFloatVector,
     left: float = 0,
     right: float = 0,
 ) -> tuple[CSRMatrix, FittableFloatVector]:
@@ -99,7 +99,7 @@ def _build_interp_data(
 @wraps(create_interp_matrix)
 def _create_interp_matrix(
     x_in: SortedFloatVector,
-    x_out: FittableFloatVector,
+    x_out: SortedFloatVector,
     left: float = 0,
     right: float = 0,
 ) -> tuple[CSRMatrix, FittableFloatVector]:

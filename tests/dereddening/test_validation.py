@@ -1,6 +1,5 @@
 from pydantic import validate_call
-
-from quasar_utils.dereddening import LawName, MapName
+from quasar_typing.literals import LawName, MapName
 
 
 @validate_call

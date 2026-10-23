@@ -97,6 +97,7 @@ class Info:
         "balmer",
         "continuum",
         "convolution",
+        "cosmology",
         "error",
         "host",
         "iron",

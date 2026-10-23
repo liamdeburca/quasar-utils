@@ -5,9 +5,8 @@ import pydantic
 from astropy.units import Unit
 from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import CoordBounds
+from quasar_typing.literals import LawName, MapName
 from quasar_typing.pathlib import JSONPath
-
-from quasar_utils.dereddening import LawName, MapName
 
 from .utils import _Info, field, finalise_dataclass
 
