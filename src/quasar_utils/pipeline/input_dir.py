@@ -1,16 +1,14 @@
 from collections.abc import Iterator
-from dataclasses import field
 from itertools import batched
-from typing import ClassVar, Self
+from typing import Any, ClassVar, Self
 
-import pydantic
+from pydantic import BaseModel, Field, validate_call
 from quasar_typing.pathlib import DirPath, FilePath
 
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".asc", ".fits"})
 
 
-@pydantic.dataclasses.dataclass
-class InputDir:
+class InputDir(BaseModel, validate_assignment=True):
     """
     Data input directory:
 
@@ -18,35 +16,57 @@ class InputDir:
     directory containing one or more spectra to be fitted. Currently, only
     ASCII and FITS files are supported.
     """
-
     path: FilePath | DirPath
-
-    directory: DirPath | None = None
-    files: list[FilePath] = field(default_factory=list)
+    directory: DirPath
+    files: list[FilePath] = Field(default_factory=list)
 
     allowed_extensions: ClassVar[frozenset[str]] = ALLOWED_EXTENSIONS
 
-    def __post_init__(self) -> None:
-        if self.files:
-            self.directory = self.directory or self.files[0].parent
+
+    @classmethod
+    def _create(
+        cls,
+        path: FilePath | DirPath,
+        directory: DirPath | None = None,
+        files: list[FilePath] | None = None,
+    ) -> dict[str, Any]:
+        if files:
+            directory = directory or files[0].parent
+            path = directory
         else:
-            if self.path.is_file() and self.is_valid_extension(self.path):
-                self.directory = self.path.parent
-                self.files.append(self.path)
+            if path.is_file():
+                if not cls.is_valid_extension(path):
+                    raise ValueError(f"File has an invalid extension: {path}")
+                
+                directory = path.parent
+                files = [path]
             else:
-                self.directory = self.path
-                self.files.extend(
-                    filter(
-                        self.is_valid_extension,
-                        self.directory.iterdir(),
+                directory = path
+                files = list(filter(
+                    cls.is_valid_extension, 
+                    directory.iterdir(),
+                ))
+                if not files:
+                    raise ValueError(
+                        f"No valid data files found in directory: {directory}"
                     )
-                )
-                if not self.files:
-                    msg = (
-                        f"InputDir was not able to find any valid data "
-                        f"files in: {self.directory}"
-                    )
-                    raise ValueError(msg)
+
+        return {
+            "path": path,
+            "directory": directory,
+            "files": files or [],
+        }
+
+
+    @classmethod
+    @validate_call
+    def create(
+        cls,
+        path: FilePath | DirPath,
+        directory: DirPath | None = None,
+        files: list[FilePath] | None = None,
+    ) -> Self:
+        return cls(**cls._create(path, directory=directory, files=files))
 
     @classmethod
     def is_valid_extension(cls, path: FilePath) -> bool:
@@ -57,11 +77,11 @@ class InputDir:
 
     def __len__(self) -> int:
         return len(self.files)
-
+    
     def batched(self, batch_size: int) -> Iterator[Self]:
         for files_batch in batched(self, batch_size):
             yield InputDir(
-                self.path,
+                path=self.path,
                 directory=self.directory,
                 files=list(files_batch),
             )

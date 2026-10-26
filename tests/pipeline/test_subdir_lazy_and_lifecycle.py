@@ -15,7 +15,7 @@ def test_subdir_lazy_and_lifecycle(tmp_path: Path):
     out_root = tmp_path / "out_root"
     sub_out = out_root / "spec1_out"
 
-    sub = SubDir(in_file, sub_out)
+    sub = SubDir(in_file=in_file, out_dir=sub_out)
 
     # No files or handlers before use
     assert not Path(sub._debug_log).exists()

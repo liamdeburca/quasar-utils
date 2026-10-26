@@ -11,8 +11,8 @@ def test_outputdir_iteration_is_lazy(tmp_path: Path):
     (d / "one.asc").write_text("1")
     (d / "two.asc").write_text("2")
 
-    input_dir = InputDir(d)
-    out = OutputDir(input_dir, path=tmp_path / "out2")
+    input_dir = InputDir.create(d)
+    out = OutputDir.create(input_dir, path=tmp_path / "out2")
 
     for s in out.subdirs:
         assert not Path(s._debug_log).exists()

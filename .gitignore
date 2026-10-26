@@ -2,10 +2,12 @@ __pycache__
 .DS_Store
 .VSCodeCounter
 .vscode
+src/quasar_utils.egg-info
 .notes
 build
 notebooks/
 *.c
 *.so
 src/quasar_utils/dereddening/__cache__
+src/pipeline/profiling
 vito_loader.py

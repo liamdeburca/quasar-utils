@@ -38,14 +38,14 @@ def temp_dir_with_ten_asc_files():
 def input_dir_fixture(temp_dir_with_fits):
     """Create an InputDir from temp directory with FITS file."""
     tmpdir, fits_file = temp_dir_with_fits
-    return InputDir(fits_file)
+    return InputDir.create(fits_file)
 
 
 @pytest.fixture
 def input_dir_with_ten_asc_files(temp_dir_with_ten_asc_files):
     """Create an InputDir with 10 ASC files."""
     tmpdir, asc_files = temp_dir_with_ten_asc_files
-    return InputDir(tmpdir)
+    return InputDir.create(tmpdir)
 
 
 @pytest.fixture
@@ -68,12 +68,12 @@ def temp_output_dir_for_ten_files(temp_dir_with_ten_asc_files):
 
 class TestOutputDirPickle:
     """Tests for OutputDir pickling functionality."""
-
+    
     def test_basic_pickle_and_unpickle(
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that OutputDir can be pickled and unpickled."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(output_dir)
@@ -88,7 +88,7 @@ class TestOutputDirPickle:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that input_dir is preserved after pickling."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(output_dir)
@@ -102,7 +102,7 @@ class TestOutputDirPickle:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that output path is preserved after pickling."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(output_dir)
@@ -115,7 +115,7 @@ class TestOutputDirPickle:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that subdirectories are preserved after pickling."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
         original_subdirs = list(output_dir)
 
         # Pickle and unpickle
@@ -132,7 +132,7 @@ class TestOutputDirPickle:
 
     def test_pickle_multiple_times(self, input_dir_fixture, temp_output_dir):
         """Test that OutputDir can be pickled and unpickled multiple times."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
 
         # Pickle and unpickle multiple times
         obj = output_dir
@@ -145,24 +145,9 @@ class TestOutputDirPickle:
         assert obj.dangerous == output_dir.dangerous
         assert set(obj) == set(output_dir)
 
-    def test_getstate_returns_dict_with_expected_keys(
-        self, input_dir_fixture, temp_output_dir
-    ):
-        """Test that __getstate__ returns a dictionary with expected keys."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
-
-        state = output_dir.__getstate__()
-
-        # Verify structure
-        assert isinstance(state, dict)
-        assert "input_dir" in state
-        assert "path" in state
-        assert "dangerous" in state
-        assert "subdirs" in state
-
     def test_pickle_default_output_path(self, input_dir_fixture):
         """Test pickling OutputDir with default output path (None)."""
-        output_dir = OutputDir(input_dir_fixture)
+        output_dir = OutputDir.create(input_dir_fixture)
 
         # Pickle and unpickle
         pickled = pickle.dumps(output_dir)
@@ -175,7 +160,7 @@ class TestOutputDirPickle:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that OutputDir's set behavior is preserved after pickling."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
         original_subdirs = set(output_dir)
 
         # Pickle and unpickle
@@ -189,7 +174,7 @@ class TestOutputDirPickle:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test pickling OutputDir with dangerous=False (default)."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_fixture, path=temp_output_dir, dangerous=False
         )
 
@@ -204,7 +189,7 @@ class TestOutputDirPickle:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that unpickled OutputDir subdirs have the same attributes and current_log."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
 
         # Add current_log to each subdir
         for subdir in output_dir:
@@ -221,8 +206,8 @@ class TestOutputDirPickle:
         for original_subdir, unpickled_subdir in zip(
             original_subdirs, unpickled_subdirs
         ):
-            assert unpickled_subdir.in_file == original_subdir.in_file
-            assert unpickled_subdir._out_dir == original_subdir._out_dir
+            assert unpickled_subdir.in_file.samefile(original_subdir.in_file)
+            assert unpickled_subdir.out_dir == original_subdir.out_dir
             assert unpickled_subdir.current_log == original_subdir.current_log
 
     def test_pickle_with_unsafe_characters_in_path(self, input_dir_fixture):
@@ -232,7 +217,7 @@ class TestOutputDirPickle:
             output_path = tmpdir / "output_with_spaces_and_dashes"
             output_path.mkdir()
 
-            output_dir = OutputDir(input_dir_fixture, path=output_path)
+            output_dir = OutputDir.create(input_dir_fixture, path=output_path)
 
             # Pickle and unpickle
             pickled = pickle.dumps(output_dir)
@@ -249,7 +234,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir creates 10 SubDirs for 10 input files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -261,7 +246,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir's subdirs have correct size."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -274,7 +259,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir (as a set) has size 10."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -288,7 +273,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that iterating OutputDir yields 10 SubDirs."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -305,7 +290,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that each SubDir in OutputDir points to one of the 10 input files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -319,7 +304,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir has no duplicate SubDirs."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -333,7 +318,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that all 10 SubDirs have unique input files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -346,7 +331,7 @@ class TestOutputDirWithTenAscFiles:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir preserves InputDir with 10 files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -356,12 +341,12 @@ class TestOutputDirWithTenAscFiles:
 
 class TestOutputDirBatched:
     """Tests for OutputDir.batched() method."""
-
+    
     def test_batched_basic_division(
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test batching OutputDir with exact division."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -380,7 +365,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test batching OutputDir with remainder."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -398,7 +383,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test batching OutputDir with batch_size=1."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -414,7 +399,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test batching when batch_size equals total files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -429,7 +414,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that batched OutputDir instances have subdirs created."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -445,7 +430,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that batched OutputDir instances preserve output path."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -459,7 +444,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test batching with a custom output path."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -479,8 +464,8 @@ class TestOutputDirBatched:
     ):
         """Test batching with a custom InputDir."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
-        output_dir = OutputDir(input_dir, path=temp_output_dir_for_ten_files)
+        input_dir = InputDir.create(tmpdir)
+        output_dir = OutputDir.create(input_dir, path=temp_output_dir_for_ten_files)
 
         with tempfile.TemporaryDirectory() as custom_tmpdir:
             custom_tmpdir = Path(custom_tmpdir)
@@ -491,7 +476,7 @@ class TestOutputDirBatched:
                 custom_file.touch()
                 custom_files.append(custom_file)
 
-            custom_input_dir = InputDir(custom_tmpdir)
+            custom_input_dir = InputDir.create(custom_tmpdir)
 
             # Batch with custom input_dir
             batches = list(
@@ -512,7 +497,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that batching covers all original subdirs without loss or duplication."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
         original_subdirs = set(output_dir)
@@ -532,7 +517,7 @@ class TestOutputDirBatched:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that each batched OutputDir has correct input_dir (subset)."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -555,7 +540,7 @@ class TestOutputDir:
     def test_output_dir_resets_dangerous(
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
         assert not output_dir.dangerous
@@ -564,7 +549,7 @@ class TestOutputDir:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir creates 10 SubDirs for 10 input files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -578,7 +563,7 @@ class TestOutputDir:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that all SubDirs in OutputDir have valid input files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -595,7 +580,7 @@ class TestOutputDir:
         self, input_dir_fixture, temp_output_dir
     ):
         """Test that OutputDir's single SubDir has correct attributes."""
-        output_dir = OutputDir(input_dir_fixture, path=temp_output_dir)
+        output_dir = OutputDir.create(input_dir_fixture, path=temp_output_dir)
 
         assert len(output_dir) == 1, (
             f"Expected 1 SubDir, got {len(output_dir)}"
@@ -604,13 +589,13 @@ class TestOutputDir:
 
         assert isinstance(subdir, SubDir)
         assert subdir.in_file == input_dir_fixture.path
-        assert subdir._out_dir is not None
+        assert subdir.out_dir is not None
 
     def test_output_dir_does_not_lose_subdirs_on_access(
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir doesn't lose SubDirs when accessing them multiple times."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -633,7 +618,7 @@ class TestOutputDir:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that the number of SubDirs matches the number of input files."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -648,7 +633,7 @@ class TestOutputDir:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that OutputDir's set size is correct."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 
@@ -660,7 +645,7 @@ class TestOutputDir:
         self, input_dir_with_ten_asc_files, temp_output_dir_for_ten_files
     ):
         """Test that iterating OutputDir doesn't modify its size."""
-        output_dir = OutputDir(
+        output_dir = OutputDir.create(
             input_dir_with_ten_asc_files, path=temp_output_dir_for_ten_files
         )
 

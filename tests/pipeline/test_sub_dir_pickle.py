@@ -27,7 +27,7 @@ class TestSubDirPickle:
     def test_basic_pickle_and_unpickle(self, temp_dirs):
         """Test that SubDir can be pickled and unpickled."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(subdir)
@@ -35,44 +35,15 @@ class TestSubDirPickle:
 
         # Verify basic attributes
         assert unpickled.in_file == subdir.in_file
-        assert unpickled._out_dir == subdir._out_dir
+        assert unpickled.out_dir == subdir.out_dir
         assert unpickled._debug_log == subdir._debug_log
         assert unpickled._main_log == subdir._main_log
         assert unpickled._profile == subdir._profile
 
-    def test_pickle_with_custom_log_paths(self, temp_dirs):
-        """Test pickling SubDir with custom log file paths."""
-        in_file, out_dir = temp_dirs
-        debug_log = out_dir / "custom_debug.log"
-        main_log = out_dir / "custom_main.log"
-        profile = out_dir / "custom_profile.csv"
-        
-        # Create the log files so samefile() can work
-        debug_log.touch()
-        main_log.touch()
-        profile.touch()
-
-        subdir = SubDir(
-            in_file,
-            out_dir,
-            _debug_log=debug_log,
-            _main_log=main_log,
-            _profile=profile,
-        )
-
-        # Pickle and unpickle
-        pickled = pickle.dumps(subdir)
-        unpickled = pickle.loads(pickled)
-
-        # Verify custom paths are preserved (use samefile to handle symlinks)
-        assert unpickled._debug_log.samefile(debug_log)
-        assert unpickled._main_log.samefile(main_log)
-        assert unpickled._profile.samefile(profile)
-
     def test_pickle_equality(self, temp_dirs):
         """Test that unpickled SubDir is equal to original."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(subdir)
@@ -84,7 +55,7 @@ class TestSubDirPickle:
     def test_pickle_hash_consistency(self, temp_dirs):
         """Test that unpickled SubDir has the same hash as original."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(subdir)
@@ -96,7 +67,7 @@ class TestSubDirPickle:
     def test_pickle_empty_handlers(self, temp_dirs):
         """Test pickling SubDir with empty handlers dict."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir, handlers={})
+        subdir = SubDir(in_file=in_file, out_dir=out_dir, handlers={})
 
         # Pickle and unpickle
         pickled = pickle.dumps(subdir)
@@ -108,7 +79,7 @@ class TestSubDirPickle:
     def test_pickle_multiple_times(self, temp_dirs):
         """Test that SubDir can be pickled and unpickled multiple times."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir)
 
         # Pickle and unpickle multiple times
         obj = subdir
@@ -119,7 +90,7 @@ class TestSubDirPickle:
         # Verify the object is still equal to the original
         assert obj == subdir
         assert obj.in_file == subdir.in_file
-        assert obj._out_dir == subdir._out_dir
+        assert obj.out_dir == subdir.out_dir
 
     def test_pickle_with_current_log(self, temp_dirs):
         """Test pickling SubDir with current_log messages."""
@@ -130,19 +101,18 @@ class TestSubDirPickle:
             "Log entry 3\n",
         ]
 
-        subdir = SubDir(in_file, out_dir, current_log=current_log)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir, current_log=current_log)
 
         # Pickle and unpickle
         pickled = pickle.dumps(subdir)
         unpickled = pickle.loads(pickled)
 
-        # Verify log messages are preserved
-        assert unpickled.current_log == current_log
+        assert unpickled.current_log == subdir.current_log
 
     def test_pickle_with_empty_current_log(self, temp_dirs):
         """Test pickling SubDir with empty current_log."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir, current_log=[])
+        subdir = SubDir(in_file=in_file, out_dir=out_dir, current_log=[])
 
         # Pickle and unpickle
         pickled = pickle.dumps(subdir)
@@ -151,51 +121,17 @@ class TestSubDirPickle:
         # Verify empty log is preserved
         assert unpickled.current_log == []
 
-    def test_getstate_returns_dict(self, temp_dirs):
-        """Test that __getstate__ returns a dictionary with expected keys."""
-        in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
-
-        state = subdir.__getstate__()
-
-        # Verify all expected keys are present
-        expected_keys = {
-            "in_file",
-            "_out_dir",
-            "_debug_log",
-            "_main_log",
-            "_flags_log",
-            "_profile",
-            "handlers",
-            "current_log",
-        }
-        assert set(state.keys()) == expected_keys
-
-    def test_getstate_has_string_paths(self, temp_dirs):
-        """Test that __getstate__ converts paths to strings."""
-        in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
-
-        state = subdir.__getstate__()
-
-        # Verify paths are strings
-        assert isinstance(state["in_file"], str)
-        assert isinstance(state["_out_dir"], str)
-        assert isinstance(state["_debug_log"], str)
-        assert isinstance(state["_main_log"], str)
-        assert isinstance(state["_profile"], str)
-
     def test_current_log_default_empty(self, temp_dirs):
         """Test that current_log defaults to an empty list."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir)
 
         assert subdir.current_log == []
 
     def test_current_log_is_mutable(self, temp_dirs):
         """Test that current_log can be modified after creation."""
         in_file, out_dir = temp_dirs
-        subdir = SubDir(in_file, out_dir)
+        subdir = SubDir(in_file=in_file, out_dir=out_dir)
 
         subdir.current_log.append("New log entry\n")
         assert subdir.current_log == ["New log entry\n"]

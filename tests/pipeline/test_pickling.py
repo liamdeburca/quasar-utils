@@ -13,7 +13,7 @@ def test_pickling_subdir_before_handlers(tmp_path: Path):
     in_file = tmp_path / "pick1.asc"
     in_file.write_text("dummy")
 
-    sub = SubDir(in_file, tmp_path / "pick1_out")
+    sub = SubDir(in_file=in_file, out_dir=tmp_path / "pick1_out")
 
     data = pickle.dumps(sub)
     sub2 = pickle.loads(data)
@@ -31,7 +31,7 @@ def test_pickling_subdir_after_handlers(tmp_path: Path):
     in_file = tmp_path / "pick2.asc"
     in_file.write_text("dummy")
 
-    sub = SubDir(in_file, tmp_path / "pick2_out")
+    sub = SubDir(in_file=in_file, out_dir=tmp_path / "pick2_out")
 
     logger = logging.getLogger("quasar")
     with sub:
@@ -53,8 +53,8 @@ def test_pickling_outputdir(tmp_path: Path):
     f1.write_text("a")
     f2.write_text("b")
 
-    input_dir = InputDir(d)
-    out = OutputDir(input_dir, path=tmp_path / "odir")
+    input_dir = InputDir.create(d)
+    out = OutputDir.create(input_dir, path=tmp_path / "odir")
     data = pickle.dumps(out)
     out2 = pickle.loads(data)
 

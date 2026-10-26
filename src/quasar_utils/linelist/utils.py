@@ -4,6 +4,8 @@ Utilities for handling and converting linelist data in CSV format.
 As the `LineList` class is often used for type annotations, minimal type 
 information is included here to avoid import overhead (e.g. from pandas).
 """
+from abc import ABC
+
 from astropy.units import Quantity
 
 from quasar_utils.setup import Info
@@ -28,10 +30,24 @@ REQUIRED_COLUMNS: frozenset[str] = frozenset([
     "scale_fixed",
 ])
 
-class Converter:
+class Converter(ABC):
     @classmethod
-    def strength_lower_converter(cls, info: Info, s: str) -> float:
-        if not hasattr(cls, "strength_bounds"):
+    def strength_bounds(cls, info: Info) -> None:
+        return None
+
+    @classmethod
+    def fwhm_v_bounds(cls, info: Info) -> None:
+        return None
+
+    @classmethod
+    def v_off_bounds(cls, info: Info) -> None:
+        return None
+
+    ###
+
+    @classmethod
+    def strength_lower_converter(cls, info: Info, s: str | float) -> str | float:
+        if cls.strength_bounds(info) is None or isinstance(s, float):
             return s
         
         _s = s.strip()
@@ -48,8 +64,8 @@ class Converter:
         return val
 
     @classmethod
-    def strength_upper_converter(cls, info: Info, s: str) -> float:
-        if not hasattr(cls, "strength_bounds"):
+    def strength_upper_converter(cls, info: Info, s: str | float) -> str | float:
+        if cls.strength_bounds(info) is None or isinstance(s, float):
             return s
         
         _s = s.strip()
@@ -66,8 +82,8 @@ class Converter:
         return val
 
     @classmethod
-    def fwhm_v_lower_converter(cls, info: Info, s: str) -> float:
-        if not hasattr(cls, "fwhm_v_bounds"):
+    def fwhm_v_lower_converter(cls, info: Info, s: str | float) -> float:
+        if cls.fwhm_v_bounds(info) is None or isinstance(s, float):
             return s
         
         _s = s.strip()
@@ -84,8 +100,8 @@ class Converter:
         return val
 
     @classmethod
-    def fwhm_v_upper_converter(cls, info: Info, s: str) -> float:
-        if not hasattr(cls, "fwhm_v_bounds"):
+    def fwhm_v_upper_converter(cls, info: Info, s: str | float) -> float:
+        if cls.fwhm_v_bounds(info) is None or isinstance(s, float):
             return s
 
         _s = s.strip()
@@ -102,8 +118,8 @@ class Converter:
         return val
 
     @classmethod
-    def v_off_lower_converter(cls, info: Info, s: str) -> float:
-        if not hasattr(cls, "v_off_bounds"):
+    def v_off_lower_converter(cls, info: Info, s: str | float) -> float:
+        if cls.v_off_bounds(info) is None or isinstance(s, float):
             return s
         
         _s = s.strip()
@@ -119,8 +135,8 @@ class Converter:
         return val
 
     @classmethod
-    def v_off_upper_converter(cls, info: Info, s: str) -> float:
-        if not hasattr(cls, "v_off_bounds"):
+    def v_off_upper_converter(cls, info: Info, s: str | float) -> float:
+        if cls.v_off_bounds(info) is None or isinstance(s, float):
             return s
         
         _s = s.strip()
@@ -194,8 +210,14 @@ class Converter:
 
     @classmethod
     def scale_fixed_converter(cls, info: Info, s: str) -> bool:
-        _s = s.strip()
-        return bool(_s) if _s else info.lines.scale_fixed
+        _s = s.strip().lower()
+        match _s:
+            case "true" | "1" | "yes":
+                return True
+            case "false" | "0" | "no":
+                return False
+
+        return info.lines.scale_fixed
 
     @classmethod
     def wave_reverser(cls, wave: float, info: Info) -> str:

@@ -1,11 +1,10 @@
+import os
+import shutil
 from collections.abc import Iterator
-from dataclasses import field
 from logging import FileHandler
-from os import symlink
-from shutil import rmtree
-from typing import Self
+from typing import Any, Self
 
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, validate_call
 from quasar_typing.pathlib import (
     AnyDirPath,
     AnyLogPath,
@@ -18,49 +17,104 @@ from .input_dir import InputDir
 from .sub_dir import SubDir
 
 
-@dataclass
-class OutputDir:
+class OutputDir(BaseModel, validate_assignment=True):
     input_dir: InputDir
-
-    path: AnyDirPath | None = None
-    input_link: FilePath | DirPath | None = None
+    path: AnyDirPath
+    input_link: FilePath | DirPath
     dangerous: bool = False
-
-    subdirs: set[SubDir] = field(default_factory=set)
-
-    def __post_init__(self) -> None:
-        if self.path is None:
-            self.path = self.input_dir.directory
-        else:
-            self.path.mkdir(parents=True, exist_ok=True)
-
-        if not self.subdirs:
-            self.create_subdirs()
-
-        self.dangerous = False
-
-        # Create symbolic link to input file/directory
-        self.input_link = self.path / "input"
-        if not self.input_link.exists():
-            symlink(
-                self.input_dir.path, 
-                self.input_link,
-                target_is_directory=self.input_dir.path.is_dir(),
-            )
+    subdirs: set[SubDir]
 
     @classmethod
-    def resume(cls, path: DirPath) -> Self:
+    def _create(
+        cls,
+        input_dir: InputDir,
+        path: AnyDirPath | None = None,
+        dangerous: bool = False,
+        subdirs: set[SubDir] | None = None,
+    ) -> dict[str, Any]:
+        if path is None:
+            path = input_dir.directory
+        else:
+            path.mkdir(parents=True, exist_ok=True)
+
+        if not subdirs:
+            subdirs = {
+                cls.createSubdir(in_file, path, dangerous=dangerous)
+                for in_file in input_dir.files
+            }
+
+        input_link = path / "input"
+        if not input_link.exists():
+            os.symlink(
+                input_dir.path, 
+                input_link,
+                target_is_directory=True,
+            )
+
+        return {
+            "input_dir": input_dir,
+            "path": path,
+            "input_link": input_link,
+            "dangerous": dangerous,
+            "subdirs": subdirs,
+        }
+
+
+    @classmethod
+    @validate_call
+    def create(
+        cls,
+        input_dir: InputDir,
+        path: AnyDirPath | None = None,
+        dangerous: bool = False,
+        subdirs: set[SubDir] | None = None,
+    ) -> Self:
+        return cls(**cls._create(
+            input_dir,
+            path=path,
+            dangerous=dangerous,
+            subdirs=subdirs,
+        ))
+
+    @classmethod
+    def createSubdir(
+        cls,
+        in_file: FilePath,
+        output_dir_path: DirPath,
+        dangerous: bool = False,
+    ) -> SubDir:
+        out_dir = output_dir_path / f"{in_file.stem}_out"
+
+        msg = f"Output directory @ {out_dir!s} "
+        if not out_dir.exists():
+            msg += "does not exist."
+        else:
+            is_empty = next(out_dir.iterdir(), None) is None
+            if is_empty:
+                msg += "exists and empty -> using directory."
+            elif dangerous:
+                msg += "exists and is not empty -> deleting contents."
+                shutil.rmtree(out_dir, ignore_errors=True)
+            else:
+                msg += "exists and NOT empty! "
+                msg += "Use 'dangerous=True' to automatically delete contents."
+
+        return SubDir(
+            in_file=in_file, 
+            out_dir=out_dir, 
+            current_log=[msg],
+        )
+
+        
+    @classmethod
+    def resume(cls, path: DirPath):
         """
         Re-instantiate an OutputDir object from an existing output directory 
         path.
         """
         input_link = path / "input"
-        return OutputDir(
-            InputDir(input_link.resolve()),
-            path=path,
-            input_link=input_link,
-            dangerous=False,
-        )
+        input_dir = InputDir.create(input_link.resolve())
+        return cls.create(input_dir, path=path, dangerous=False)
 
     def batched(
         self,
@@ -77,12 +131,10 @@ class OutputDir:
         if input_dir is None:
             input_dir = self.input_dir
 
-        for input_dir_batch in input_dir.batched(batch_size):
-            yield OutputDir(
-                input_dir=input_dir_batch,
-                path=path,
-                dangerous=False,
-            )
+        yield from (
+            OutputDir.create(input_dir_batch, path=path, dangerous=False)
+            for input_dir_batch in input_dir.batched(batch_size)
+        )
 
     ###
 
@@ -90,53 +142,35 @@ class OutputDir:
         return len(self.subdirs)
 
     def __iter__(self) -> Iterator[SubDir]:
-        yield from sorted(self.subdirs, key=lambda subdir: subdir._out_dir.stem)
+        yield from sorted(self.subdirs, key=lambda subdir: subdir.out_dir.stem)
 
-    def __getstate__(self) -> dict:
-        return {
-            "input_dir": self.input_dir,
-            "path": self.path,
-            "input_link": self.input_link,
-            "dangerous": False,
-            "subdirs": self.subdirs,
-        }
-
-    def __setstate__(self, state: dict) -> None:
-        self.__init__(
-            input_dir=state["input_dir"],
-            path=state["path"],
-            input_link=state["input_link"],
-            dangerous=False,
-            subdirs=state["subdirs"],
-        )
-
+    ###
+    
     @property
     def _debug_logs(self) -> set[AnyLogPath]:
-        """
-        Returns the set of debug log paths for all subdirectories.
-        """
         return {subdir._debug_log for subdir in self}
 
     @property
-    def debug_logs(self) -> set[LogPath]:
-        """
-        Returns the set of (existing) debug log paths for all subdirectories.
-        """
-        return {subdir.debug_log for subdir in self}
-
-    @property
     def _main_logs(self) -> set[AnyLogPath]:
-        """
-        Returns the set of main log paths for all subdirectories.
-        """
         return {subdir._main_log for subdir in self}
 
     @property
+    def _flags_logs(self) -> set[AnyLogPath]:
+        return {subdir._flags_log for subdir in self}
+
+    ###
+
+    @property
+    def debug_logs(self) -> set[LogPath]:
+        return {subdir.debug_log for subdir in self}
+
+    @property
     def main_logs(self) -> set[LogPath]:
-        """
-        Returns the set of (existing) main log paths for all subdirectories.
-        """
         return {subdir.main_log for subdir in self}
+
+    @property
+    def flags_logs(self) -> set[LogPath]:
+        return {subdir.flags_log for subdir in self}
 
     @property
     def debug_handlers(self) -> list[FileHandler]:
@@ -149,50 +183,3 @@ class OutputDir:
     @property
     def all_handlers(self) -> list[FileHandler]:
         return self.debug_handlers + self.main_handlers
-
-    def create_subdir(
-        self,
-        path: FilePath,
-    ) -> SubDir:
-        """
-        Create a 'SubDir' object for the given input file path.
-
-        If the subdirectory already exists and is not empty, it can be deleted 
-        by setting `dangerous` to True.
-
-        Parameters
-        ----------
-        path : FilePath
-            The input file path for which to create the subdirectory.
-
-        Returns
-        -------
-        SubDir
-            The created 'SubDir' object.
-        """
-        out_dir = self.path / f"{path.stem}_out"
-
-        msg = f"Output directory @ {out_dir!s} "
-        if not out_dir.exists():
-            msg += "does not exist."
-        else:
-            is_empty = next(out_dir.iterdir(), None) is None
-            if is_empty:
-                msg += "exists and empty -> using directory."
-            elif self.dangerous:
-                msg += "exists and is not empty -> deleting contents."
-                rmtree(out_dir, ignore_errors=True)
-            else:
-                msg += "exists and NOT empty! "
-                msg += "Use 'dangerous=True' to automatically delete contents."
-
-        subdir = SubDir(path, out_dir)
-        subdir.current_log.append(msg)
-        return subdir
-
-    def create_subdirs(self) -> None:
-        """
-        Creates subdirectories for each input file.
-        """
-        for in_path in self.input_dir.files:
-            self.subdirs.add(self.create_subdir(in_path))

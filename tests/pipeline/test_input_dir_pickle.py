@@ -16,6 +16,7 @@ def temp_dir_with_fits():
         tmpdir = Path(tmpdir)
         fits_file = tmpdir / "test_spectrum.fits"
         fits_file.touch()
+        assert fits_file.is_file()
         yield tmpdir, fits_file
 
 
@@ -60,7 +61,7 @@ class TestInputDirPickle:
     def test_basic_pickle_and_unpickle_single_file(self, temp_dir_with_fits):
         """Test that InputDir with a single file can be pickled and unpickled."""
         tmpdir, fits_file = temp_dir_with_fits
-        input_dir = InputDir(fits_file)
+        input_dir = InputDir.create(fits_file)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -74,7 +75,7 @@ class TestInputDirPickle:
     def test_pickle_and_unpickle_directory(self, temp_dir_with_multiple_files):
         """Test that InputDir with a directory can be pickled and unpickled."""
         tmpdir, files = temp_dir_with_multiple_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -87,7 +88,7 @@ class TestInputDirPickle:
     def test_pickle_preserves_path(self, temp_dir_with_fits):
         """Test that the path attribute is preserved after pickling."""
         tmpdir, fits_file = temp_dir_with_fits
-        input_dir = InputDir(fits_file)
+        input_dir = InputDir.create(fits_file)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -99,7 +100,7 @@ class TestInputDirPickle:
     def test_pickle_preserves_directory(self, temp_dir_with_fits):
         """Test that the directory attribute is preserved after pickling."""
         tmpdir, fits_file = temp_dir_with_fits
-        input_dir = InputDir(fits_file)
+        input_dir = InputDir.create(fits_file)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -111,7 +112,7 @@ class TestInputDirPickle:
     def test_pickle_preserves_files_list(self, temp_dir_with_multiple_files):
         """Test that the files list is preserved after pickling."""
         tmpdir, files = temp_dir_with_multiple_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -124,7 +125,7 @@ class TestInputDirPickle:
     def test_pickle_multiple_times(self, temp_dir_with_fits):
         """Test that InputDir can be pickled and unpickled multiple times."""
         tmpdir, fits_file = temp_dir_with_fits
-        input_dir = InputDir(fits_file)
+        input_dir = InputDir.create(fits_file)
 
         # Pickle and unpickle multiple times
         obj = input_dir
@@ -133,26 +134,14 @@ class TestInputDirPickle:
             obj = pickle.loads(pickled)
 
         # Verify the object is still correct
-        assert obj.path == input_dir.path
+        assert obj.path.samefile(input_dir.path)
         assert obj.directory == input_dir.directory
         assert obj.files == input_dir.files
-
-    def test_getstate_returns_dict_with_path(self, temp_dir_with_fits):
-        """Test that __getstate__ returns a dictionary with path."""
-        tmpdir, fits_file = temp_dir_with_fits
-        input_dir = InputDir(fits_file)
-
-        state = input_dir.__getstate__()
-
-        # Verify structure
-        assert isinstance(state, dict)
-        assert "path" in state
-        assert state["path"].samefile(fits_file)
 
     def test_pickle_asc_file(self, temp_dir_with_asc):
         """Test pickling InputDir with an ASCII file."""
         tmpdir, asc_file = temp_dir_with_asc
-        input_dir = InputDir(asc_file)
+        input_dir = InputDir.create(asc_file)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -168,7 +157,7 @@ class TestInputDirPickle:
     ):
         """Test that pickling InputDir created from directory works correctly."""
         tmpdir, files = temp_dir_with_multiple_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -187,7 +176,7 @@ class TestInputDirPickle:
     ):
         """Test that iteration works the same after unpickling."""
         tmpdir, files = temp_dir_with_multiple_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
         original_files = list(input_dir)
 
         # Pickle and unpickle
@@ -201,7 +190,7 @@ class TestInputDirPickle:
     def test_pickle_preserves_len(self, temp_dir_with_multiple_files):
         """Test that __len__ works the same after unpickling."""
         tmpdir, files = temp_dir_with_multiple_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
         original_len = len(input_dir)
 
         # Pickle and unpickle
@@ -215,7 +204,7 @@ class TestInputDirPickle:
     def test_ten_asc_files_found(self, temp_dir_with_ten_asc_files):
         """Test that InputDir finds all 10 ASCII files in the directory."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Verify 10 files are found
         assert len(input_dir) == 10
@@ -228,7 +217,7 @@ class TestInputDirPickle:
     def test_ten_asc_files_iteration(self, temp_dir_with_ten_asc_files):
         """Test that all 10 ASC files can be iterated over."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Iterate and collect files
         iterated_files = list(input_dir)
@@ -245,7 +234,7 @@ class TestInputDirPickle:
     ):
         """Test that InputDir with 10 ASC files can be pickled and unpickled."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Pickle and unpickle
         pickled = pickle.dumps(input_dir)
@@ -264,7 +253,7 @@ class TestInputDirPickle:
     ):
         """Test that InputDir with 10 ASC files survives multiple pickle cycles."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Pickle and unpickle multiple times
         obj = input_dir
@@ -286,7 +275,7 @@ class TestInputDirBatched:
     def test_batched_basic_division(self, temp_dir_with_ten_asc_files):
         """Test batching with exact division into equal batches."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Batch into 5 batches of 2 files each
         batches = list(input_dir.batched(batch_size=2))
@@ -302,7 +291,7 @@ class TestInputDirBatched:
     def test_batched_with_remainder(self, temp_dir_with_ten_asc_files):
         """Test batching with remainder files."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Batch into 3 files per batch (will have 3 full batches + 1 with 1 file)
         batches = list(input_dir.batched(batch_size=3))
@@ -319,7 +308,7 @@ class TestInputDirBatched:
     def test_batched_size_one(self, temp_dir_with_ten_asc_files):
         """Test batching with batch_size=1."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Batch into single files
         batches = list(input_dir.batched(batch_size=1))
@@ -332,7 +321,7 @@ class TestInputDirBatched:
     def test_batched_size_equals_total(self, temp_dir_with_ten_asc_files):
         """Test batching when batch_size equals total files."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Batch with size 10 (all files in one batch)
         batches = list(input_dir.batched(batch_size=10))
@@ -344,7 +333,7 @@ class TestInputDirBatched:
     def test_batched_preserves_attributes(self, temp_dir_with_ten_asc_files):
         """Test that batched InputDir instances preserve path and directory."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         batches = list(input_dir.batched(batch_size=3))
 
@@ -356,7 +345,7 @@ class TestInputDirBatched:
     def test_batched_covers_all_files(self, temp_dir_with_ten_asc_files):
         """Test that batching covers all original files without loss or duplication."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
         original_files = set(input_dir)
 
         batches = list(input_dir.batched(batch_size=3))
@@ -375,7 +364,7 @@ class TestInputDirBatched:
     ):
         """Test that batched InputDir maintains sorted iteration order."""
         tmpdir, asc_files = temp_dir_with_ten_asc_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
         original_order = list(input_dir)
 
         batches = list(input_dir.batched(batch_size=2))
@@ -393,7 +382,7 @@ class TestInputDirBatched:
     ):
         """Test batching with mixed FITS and ASCII files."""
         tmpdir, files = temp_dir_with_multiple_files
-        input_dir = InputDir(tmpdir)
+        input_dir = InputDir.create(tmpdir)
 
         # Batch into single files
         batches = list(input_dir.batched(batch_size=1))

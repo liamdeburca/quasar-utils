@@ -10,9 +10,6 @@ setup(
         [
             "src/quasar_utils/binning/alpha_matrix_elements.pyx",
             "src/quasar_utils/interpolation/interp_matrix_elements.pyx",
-            "src/quasar_utils/masking/irregular.pyx",
-            "src/quasar_utils/masking/linear.pyx",
-            "src/quasar_utils/masking/logarithmic.pyx",
         ],
         language_level=3,
         compiler_directives={

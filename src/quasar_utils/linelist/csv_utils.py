@@ -101,9 +101,10 @@ def read_csv(path: CSVPath, info: Info):
     df = df[df["n_max"] != 0]
 
     for i, row in df.iterrows():
-        converter = NarrowConverter \
-            if row["linetype"] == "n" \
-            else BroadConverter
+        converter: type[Converter] = {
+            "n": NarrowConverter,
+            "b": BroadConverter,
+        }[row["linetype"]]
 
         df.at[i, "strength_lower"] = str(converter.strength_lower_converter(info, row["strength_lower"]))
         df.at[i, "strength_upper"] = str(converter.strength_upper_converter(info, row["strength_upper"]))

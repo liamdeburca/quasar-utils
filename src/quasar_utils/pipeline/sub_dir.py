@@ -1,10 +1,9 @@
 __all__ = ["SubDir"]
 
-from dataclasses import field
 from logging import DEBUG, INFO, FileHandler, getLogger
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
-import pydantic
+from pydantic import BaseModel, Field, validate_call
 from quasar_typing.logging import FileHandlerType
 from quasar_typing.pathlib import (
     AnyCSVPath,
@@ -28,35 +27,118 @@ logger = getLogger(__name__)
 root = logger.root
 
 
-@pydantic.dataclasses.dataclass(eq=False)
-class SubDir:
-    in_file: FilePath
-    _out_dir: AnyDirPath
-
-    _debug_log: AnyLogPath | None = None
-    _main_log: AnyLogPath | None = None
-    _flags_log: AnyLogPath | None = None
-    _profile: AnyCSVPath | None = None
-
-    handlers: dict[Literal["debug", "main", "flag"], FileHandlerType] = field(
-        default_factory=dict,
+class SubDir(BaseModel, validate_assignment=True):
+    in_file: FilePath = Field(
+        description="Path to the input file",
     )
-    current_log: list[str] = field(default_factory=list)
+    out_dir: AnyDirPath = Field(
+        description="Path to the output directory."
+    )
 
-    _prev_handlers: list[FileHandlerType] = field(default_factory=list)
-    _prev_level: int | None = field(default=None)
+    handlers: dict[Literal["debug", "main", "flag"], FileHandlerType] = Field(
+        default_factory=dict,
+        exclude=True,
+    )
+    current_log: list[str] = Field(
+        default_factory=list,
+        exclude=True,
+    )
+    prev_handlers: list[FileHandlerType] = Field(
+        default_factory=list,
+        exclude=True,
+    )
+    prev_level: int | None = None
 
-    def __post_init__(self) -> None:
-        if self._debug_log is None:
-            self._debug_log = self._out_dir / "debug.log"
-        if self._main_log is None:
-            self._main_log = self._out_dir / "main.log"
-        if self._flags_log is None:
-            self._flags_log = self._out_dir / "flags.log"
-        if self._profile is None:
-            self._profile = self._out_dir / "profile.csv"
 
-    def create_handlers(
+    @classmethod
+    def _create(cls, in_file: FilePath, out_dir: AnyDirPath) -> dict[str, Any]:
+        return {"in_file": in_file, "out_dir": out_dir}
+
+
+    @classmethod
+    @validate_call
+    def create(cls, in_file: FilePath, out_dir: AnyDirPath) -> Self:
+        return cls(**cls._create(in_file, out_dir))
+
+    ###
+
+    @property
+    def _debug_log(self) -> AnyLogPath:
+        return self.out_dir / "debug.log"
+
+    
+    @property
+    def _main_log(self) -> AnyLogPath:
+        return self.out_dir / "main.log"
+    
+    
+    @property
+    def _flags_log(self) -> AnyLogPath:
+        return self.out_dir / "flags.log"
+    
+    
+    @property
+    def _profile(self) -> AnyCSVPath:
+        return self.out_dir / "profile.csv"
+
+
+    @property
+    def _plots(self) -> AnyDirPath:
+        return self.out_dir / "plots"
+
+    @property
+    def _line_results(self) -> AnyDirPath:
+        return self.out_dir / "line_results"
+
+    ###
+
+    @property
+    def debug_log(self) -> LogPath:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self._debug_log.touch(exist_ok=True)
+        return self._debug_log
+
+    @property
+    def main_log(self) -> LogPath:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self._main_log.touch(exist_ok=True)
+        return self._main_log
+    
+    
+    @property
+    def flags_log(self) -> LogPath:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self._flags_log.touch(exist_ok=True)
+        return self._flags_log
+    
+    
+    @property
+    def profile(self) -> CSVPath:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self._profile.touch(exist_ok=True)
+        return self._profile
+
+
+    @property
+    def plots(self) -> DirPath:
+        self._plots.mkdir(parents=True, exist_ok=True)
+        return self._plots
+
+    @property
+    def line_results(self) -> DirPath:
+        self._line_results.mkdir(parents=True, exist_ok=True)
+        return self._line_results
+
+    ###
+
+    def getOutDir(self) -> DirPath:
+        """Get the output directory, creating it if necessary."""
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        return self.out_dir
+
+    ###
+
+    def createHandlers(
         self,
         use_colors: bool = False,
     ) -> dict[Literal["debug", "main", "flag"], FileHandlerType]:
@@ -68,34 +150,35 @@ class SubDir:
         self.handlers.
         """
         # Ensure output directory exists
-        _ = self.out_dir
+        _ = self.getOutDir()
 
-        handlers: dict[Literal["debug", "main", "flag"], FileHandlerType] = {}
-
-        h_debug = FileHandler(self._debug_log, mode="a", encoding="utf-8")
+        h_debug = FileHandler(self.debug_log, mode="a", encoding="utf-8")
         h_debug.setLevel(DEBUG)
         h_debug.setFormatter(QuasarFormatter(use_colors=use_colors))
         h_debug.addFilter(QuasarFilter())
-        handlers["debug"] = h_debug
 
-        h_main = FileHandler(self._main_log, mode="a", encoding="utf-8")
+        h_main = FileHandler(self.main_log, mode="a", encoding="utf-8")
         h_main.setLevel(INFO)
         h_main.setFormatter(QuasarFormatter(use_colors=use_colors))
         h_main.addFilter(QuasarFilter())
-        handlers["main"] = h_main
 
-        h_flags = FileHandler(self._flags_log, mode="a", encoding="utf-8")
+        h_flags = FileHandler(self.flags_log, mode="a", encoding="utf-8")
         h_flags.setLevel(INFO)
         # h_flags.setFormatter(FlagFormatter())
         h_flags.addFilter(FlagFilter())
-        handlers["flag"] = h_flags
+
+        handlers = {
+            "debug": h_debug,
+            "main": h_main,
+            "flag": h_flags
+        }
 
         # Close any existing handlers we own before replacing
-        self.close_handlers()
-        self.handlers.update(handlers)
-        return handlers
+        self.closeHandlers()
+        self.handlers = handlers
+        return self.handlers
 
-    def close_handlers(self) -> None:
+    def closeHandlers(self) -> None:
         """Close and clear this SubDir's handlers.
 
         Safe to call multiple times.
@@ -103,15 +186,8 @@ class SubDir:
         for h in list(self.handlers.values()):
             try:
                 h.flush()
-            except (OSError, ValueError):
-                # Flush may fail if the underlying stream is invalid; ignore
-                # these specific errors but allow others to surface.
-                pass
-            try:
                 h.close()
             except (OSError, ValueError):
-                # Closing can sometimes raise if the file descriptor is bad;
-                # swallow these expected errors to ensure robust cleanup.
                 pass
         self.handlers.clear()
 
@@ -122,19 +198,19 @@ class SubDir:
         actually used in a with-block.
         """
         # create handlers for this subdir
-        self.create_handlers()
+        self.createHandlers()
 
         # Install our handlers on the root logger, saving previous handlers
         # so they can be restored on exit. We remove previous handlers from
         # the root without closing them so they can be re-attached.
-        self._prev_handlers.clear()
-        self._prev_handlers.extend(root.handlers)
-        _ = [root.removeHandler(h) for h in self._prev_handlers]
+        self.prev_handlers.clear()
+        self.prev_handlers.extend(root.handlers)
+        _ = [root.removeHandler(h) for h in self.prev_handlers]
         _ = [root.addHandler(h) for h in self.handlers.values()]
 
         # Apply level from config if present; save previous level to restore
         # on exit.
-        self._prev_level = root.level
+        self.prev_level = root.level
         level = CONFIG_KWARGS.get("level")
         if level is not None:
             root.setLevel(level)
@@ -156,20 +232,20 @@ class SubDir:
         _ = [root.removeHandler(h) for h in self.handlers.values()]
 
         # Close and clear our handlers
-        self.close_handlers()
+        self.closeHandlers()
 
         # Restore prior handlers (if we saved them during __enter__)
-        if self._prev_handlers:
-            [root.addHandler(h) for h in self._prev_handlers]
-            self._prev_handlers.clear()
+        if self.prev_handlers:
+            [root.addHandler(h) for h in self.prev_handlers]
+            self.prev_handlers.clear()
 
         # Restore previous logging level if we saved it
-        if self._prev_level is not None:
-            root.setLevel(self._prev_level)
-            self._prev_level = None
+        if self.prev_level is not None:
+            root.setLevel(self.prev_level)
+            self.prev_level = None
 
     def __tuple__(self) -> tuple[FilePath, AnyDirPath]:
-        return (self.in_file, self._out_dir)
+        return (self.in_file, self.out_dir)
 
     def __hash__(self) -> int:
         # Use the stored path attributes for hashing to avoid creating
@@ -179,70 +255,3 @@ class SubDir:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, SubDir) \
             and self.__tuple__() == other.__tuple__()
-
-    def __getstate__(self) -> dict:
-        # Only serialize persistent metadata; runtime-only fields like
-        # _prev_handlers/_prev_level are transient and should not be pickled.
-        return {
-            "in_file": str(self.in_file),
-            "_out_dir": str(self._out_dir),
-            "_debug_log": str(self._debug_log),
-            "_main_log": str(self._main_log),
-            "_flags_log": str(self._flags_log),
-            "_profile": str(self._profile),
-            "handlers": self.handlers,
-            "current_log": self.current_log,
-        }
-
-    def __setstate__(self, state: dict) -> None:
-        self.__init__(
-            state.pop("in_file"),
-            state.pop("_out_dir"),
-            _debug_log=state.pop("_debug_log", None),
-            _main_log=state.pop("_main_log", None),
-            _flags_log=state.pop("_flags_log", None),
-            _profile=state.pop("_profile", None),
-            handlers=state.pop("handlers", {}),
-            current_log=state.pop("current_log", []),
-        )
-
-    @property
-    def out_dir(self) -> DirPath:
-        self._out_dir.mkdir(parents=True, exist_ok=True)
-        return self._out_dir
-
-    @property
-    def debug_log(self) -> LogPath:
-        _ = self.out_dir
-        self._debug_log.touch(exist_ok=True)
-        return self._debug_log
-
-    @property
-    def main_log(self) -> LogPath:
-        _ = self.out_dir
-        self._main_log.touch(exist_ok=True)
-        return self._main_log
-
-    @property
-    def flags_log(self) -> LogPath:
-        _ = self.out_dir
-        self._flags_log.touch(exist_ok=True)
-        return self._flags_log
-
-    @property
-    def profile(self) -> CSVPath:
-        _ = self.out_dir
-        self._profile.touch(exist_ok=True)
-        return self._profile
-
-    @property
-    def plots(self) -> DirPath:
-        path = self.out_dir / "plots"
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-
-    @property
-    def line_results(self) -> DirPath:
-        path = self.out_dir / "line_results"
-        path.mkdir(parents=True, exist_ok=True)
-        return path
