@@ -17,6 +17,7 @@ dependencies = [
     "cython==3.0.12",
     "dustmaps==1.0.14",
     "healpy==1.19.0",
+    "cachetools>=7.0.0",
 ]
 
 [project.urls]
