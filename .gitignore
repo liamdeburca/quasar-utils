@@ -2,9 +2,10 @@ __pycache__
 .DS_Store
 .VSCodeCounter
 .vscode
-src/quasar_utils.egg-info
 .notes
+src/quasar_utils.egg-info
 build
+dist
 notebooks/
 *.c
 *.so
