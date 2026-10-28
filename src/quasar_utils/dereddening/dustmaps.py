@@ -13,15 +13,13 @@ helpers are placed at the end of the file.
 __all__ = ["PATH_TO_CACHE", "get_dust_map", "reset_cache", "setup_dustmaps"]
 
 from functools import wraps
-from pathlib import Path
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
 from pydantic import validate_call
 from quasar_typing.literals import MapName
 
-_this_file: Path = Path(__file__).resolve()
-PATH_TO_CACHE: Path = _this_file.parent / "__cache__"
+from .download_data import PATH_TO_CACHE
 
 ### Public functions
 
@@ -71,21 +69,10 @@ def _setup_dustmaps() -> None:
     
     # Ensure cache dir exists and configure dustmaps to use it.
     if not PATH_TO_CACHE.exists():
-        PATH_TO_CACHE.mkdir()
+        from .download_data import main
+        main(force=True)
 
     config["data_dir"] = str(PATH_TO_CACHE)
-
-    # Ensure SFD is available
-    if not (PATH_TO_CACHE / "sfd").exists():
-        import dustmaps.sfd
-
-        dustmaps.sfd.fetch()
-
-    # Ensure CSFD is available
-    if not (PATH_TO_CACHE / "csfd").exists():
-        import dustmaps.csfd
-
-        dustmaps.csfd.fetch()
 
 
 @wraps(reset_cache)
