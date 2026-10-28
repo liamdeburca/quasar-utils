@@ -12,3 +12,4 @@ notebooks/
 src/quasar_utils/dereddening/__cache__
 src/pipeline/profiling
 vito_loader.py
+build.sh

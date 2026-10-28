@@ -26,6 +26,7 @@ dependencies = [
     "healpy==1.19.0",
     "numpy==1.26",
     "scipy==1.16",
+    "pandas==3.0.5",
     "lazy-imports==1.2.0",
     "cachetools==7.0.5",
 ]
