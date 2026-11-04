@@ -1,28 +1,30 @@
 __all__ = ["SDSSLoader"]
 
 from logging import getLogger
-from typing import TypedDict
+from typing import Any, Self, TypedDict
 
 import numpy as np
-import pydantic
 from astropy.constants import c
 from astropy.io import fits
 from astropy.units import Quantity, Unit
+from pydantic import validate_call
+from quasar_typing.pathlib import FITSPath
 
-from quasar_utils.naming import IGR, J2000
+from quasar_utils.setup import Info
 
 from .loader import _Loader
+from .metadata import SDSSMeta
 
 logger = getLogger(__name__)
 SIGMA_RES: float = 69.0 / c.to("km/s").value
 
 
 class _SDSSDataDict(TypedDict):
-    x: Quantity
-    y: Quantity
-    dy: Quantity
-    dx: Quantity
-    R: None
+    x_original: Quantity
+    y_original: Quantity
+    dy_original: Quantity
+    dx_original: Quantity
+    R_original: None
 
 
 def _get_data(hdul: fits.HDUList) -> _SDSSDataDict:
@@ -56,15 +58,14 @@ def _get_data(hdul: fits.HDUList) -> _SDSSDataDict:
     dy[invalid_mask] = np.nan
 
     return {
-        "x": x * x_unit,
-        "y": y * flux_unit,
-        "dy": dy * flux_unit,
-        "dx": dx * x_unit,
-        "R": None, # No instrumental correction
+        "x_original": x * x_unit,
+        "y_original": y * flux_unit,
+        "dy_original": dy * flux_unit,
+        "dx_original": dx * x_unit,
+        "R_original": None, # No instrumental correction
     }
 
 
-@pydantic.dataclasses.dataclass
 class SDSSLoader(_Loader):
     """Loader for SDSS spectrum FITS files.
 
@@ -89,77 +90,94 @@ class SDSSLoader(_Loader):
     dec : float | None, optional
         Declination in degrees.
     """
+    @classmethod
+    @validate_call
+    def fromPath(
+        cls,
+        path: FITSPath,
+        info: Info | None = None,
+        z: float | None = None,
+        title: str | None = None,
+        ra: float | None = None,
+        dec: float | None = None,
+    ) -> Self:
+        from quasar_utils.naming import IGR, J2000
 
-    def __post_init__(self):
-        """Post-initialise the SDSS loader and extract metadata.
+        info = info or Info()
+        kwargs = {"path": path, "info": info}
 
-        This opens the FITS file at ``self.path`` and, when not
-        provided, extracts RA, DEC, object name and redshift from the
-        primary header. The instance title is generated according to
-        ``self.info.loading.naming`` when possible. Finally the
-        spectral arrays are read via :func:`get_data` and assigned to
-        ``self.x, self.y, self.dy, self.dx``.
-        """
-
-        msg: str = "Initialising loader (SDSS): "
-
-        msg += f"(1) reading data from {self.path}, "
-        with fits.open(self.path) as hdul:
-            if self.ra is None:
-                self.ra = float(hdul[0].header["RADEG"])
-                msg += "(2) extracted 'ra' from header / "
+        logger.debug("Creating SDSSLoader from path: %s", path)
+        with fits.open(path) as hdul:
+            if ra is None:
+                ra = float(hdul[0].header["RADEG"])
+                logger.debug("Extracted RA from header: %s", ra)
             else:
-                msg += "(2) got 'ra' from argument / "
+                logger.debug("Using provided RA: %s", ra)
+            kwargs["ra"] = ra
 
-            if self.dec is None:
-                self.dec = float(hdul[0].header["DECDEG"])
-                msg += "extracted 'dec' from header / "
+            if dec is None:
+                dec = float(hdul[0].header["DECDEG"])
+                logger.debug("Extracted DEC from header: %s", dec)
             else:
-                msg += "got 'dec' from argument / "
+                logger.debug("Using provided DEC: %s", dec)
+            kwargs["dec"] = dec
 
-            msg += f"proceeding with coordinates: (ra={self.ra:.3f}, "\
-                f"(dec={self.dec:.3f}), "
-
-            if "OBJ_NAME" in hdul[0].header:
-                name = hdul[0].header["OBJ_NAME"]
-                msg += f"(3) extracted name from header ({name}), "
+            if info.loading.naming.upper() == "IGR":
+                title = IGR.get_name(
+                    ra=ra * Unit("deg"), 
+                    dec=dec * Unit("deg"),
+                )
+                logger.debug("Generated title using IGR naming: %s", title)
+            elif info.loading.naming.upper() == "J2000":
+                title = J2000.get_name(
+                    ra=ra * Unit("deg"), 
+                    dec=dec * Unit("deg"),
+                )
+                logger.debug("Generated title using J2000 naming: %s", title)
+            elif "OBJ_NAME" in hdul[0].header:
+                title = hdul[0].header["OBJ_NAME"]
+                logger.debug("Extracted title from header: %s", title)
             else:
-                name = "missing_name"
-                msg += "(3) no name in header, "
+                title = "missing_title"
+                logger.debug("Title missing, using default: %s", title)
+            kwargs["title"] = title
 
-            match self.info.loading.naming.upper():
-                case "IGR":
-                    self.title = IGR.get_name(
-                        self.ra * Unit("degree"),
-                        self.dec * Unit("degree"),
-                    )
-                    msg += f"(4) generated IGR title from coordinates: {self.title}"
-                case "J2000":
-                    self.title = J2000.get_name(
-                        self.ra * Unit("degree"),
-                        self.dec * Unit("degree"),
-                    )
-                    msg += f"(4) generated J2000 title from coordinates: {self.title}"
-                case _:
-                    self.title = name
-                    msg += "(4) no valid naming convention specified, "
-
-            if self.z is None:
-                try:
-                    self.z = float(hdul[0].header["OBJ_Z"])
-                    msg += f"(5) extracted redshift from header: {self.z:.3f}."
-                except KeyError:
-                    self.z = 0.0
-                    msg += "(5) no redshift found in header, defaulting to 0.0."
+            if z is None:
+                if "OBJ_Z" in hdul[0].header:
+                    z = float(hdul[0].header["OBJ_Z"])
+                    logger.debug("Extracted redshift from header: %s", z)
+                else:
+                    z = 0.0
+                    logger.debug("Redshift missing, using default: %s", z)
             else:
-                msg += f"(5) got redshift from argument: {self.z:.3f}."
+                logger.debug("Using provided redshift: %s", z)
+            kwargs["z"] = z
 
             data = _get_data(hdul)
-            self.x_original = data["x"]
-            self.y_original = data["y"]
-            self.dy_original = data["dy"]
-            self.dx_original = data["dx"]
-            self.R_original = data["R"]
+            logger.debug(
+                "Getting data: %s", 
+                {k: None if v is None else v.shape for k, v in data.items()}
+            )
+            kwargs.update(data)
 
-        logger.debug(msg)
-        super().__post_init__()
+        return cls(**kwargs)
+
+    ### Metadata
+
+    def _get_metadata(self) -> dict[str, Any]:
+        hdr = fits.getheader(self.path, ext=0)
+        return {
+            "path": self.path,
+            "title": self.title,
+            "ra": self.ra,
+            "dec": self.dec,
+            "z": self.z,
+            "luminosity_distance_mpc": self.luminosity_distance_mpc or 0.0,
+            "plate": int(hdr.get("PLATEID", -1)),
+            "fiber": int(hdr.get("FIBERID", -1)),
+            "mjd": int(hdr.get("MJD", -1)),
+        }
+
+
+    def get_metadata(self) -> SDSSMeta:
+        return SDSSMeta(**self._get_metadata())

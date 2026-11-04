@@ -1,7 +1,12 @@
 from typing import TypeVar
 
 import numpy as np
-from quasar_typing.astropy import CompositeUnitType, QuantityType, UnitType
+from quasar_typing.astropy import (
+    CompositeUnitType,
+    CosmologyName,
+    QuantityType,
+    UnitType,
+)
 from quasar_typing.literals import LawName, MapName
 from quasar_typing.numpy import CoordsTuple, FloatVector
 
@@ -106,6 +111,12 @@ def _logbin_coords(
     dxr = xr * sigma_res
 
     return (xr, yr, dyr), dxr
+
+
+def _get_luminosity_distance(cosmology_name: CosmologyName, z: float) -> float:
+    """Calculate the luminosity distance in Mpc."""
+    from quasar_utils.cosmology import get_cosmology, get_luminosity_distance
+    return get_luminosity_distance(get_cosmology(cosmology_name), z)
 
 
 def _finalize_coords(*arr: FloatVector) -> FloatVector:

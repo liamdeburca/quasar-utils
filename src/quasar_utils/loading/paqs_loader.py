@@ -1,17 +1,20 @@
 from functools import lru_cache
 from logging import getLogger
 from pathlib import Path
-from typing import TypedDict
+from typing import Annotated, Any, Self, TypedDict
 
-import numpy as np
-import pandas
 from astropy.io import fits
 from astropy.units import Quantity, Unit
+from numpy import float64, full, interp, nan
+from pydantic import StringConstraints, validate_call
+from quasar_typing.astropy import TableType
 from quasar_typing.numpy import FloatVector
+from quasar_typing.pathlib import FITSPath
 
-from quasar_utils.naming import IGR, J2000
+from quasar_utils.setup import Info
 
 from .loader import _Loader
+from .metadata import PAQSMeta
 
 logger = getLogger(__name__)
 
@@ -20,11 +23,12 @@ PATH_TO_DATA: Path = _this_file.parent / "data/4most_low.csv"
 
 
 class _PAQSDataDict(TypedDict):
-    x: Quantity
-    y: Quantity
-    dy: Quantity
-    dx: Quantity
-    R: FloatVector
+    x_original: Quantity
+    y_original: Quantity
+    dy_original: Quantity
+    dx_original: Quantity
+    R_original: FloatVector
+
 
 def _get_data(hdul: fits.HDUList) -> _PAQSDataDict:
     """
@@ -41,25 +45,25 @@ def _get_data(hdul: fits.HDUList) -> _PAQSDataDict:
     flux_unit = Unit("erg/(s.cm2.angstrom)")
 
     data = hdul[1].data
-    wave = data["WAVE"].flatten().astype(np.float64)
-    flux = data["FLUX"].flatten().astype(np.float64)
-    err = data["ERR"].flatten().astype(np.float64)
-    qual = data["QUAL"].flatten().astype(np.float64)
-    bin_size = np.full(wave.size, 0.25, dtype=np.float64)
+    wave = data["WAVE"].flatten().astype(float64)
+    flux = data["FLUX"].flatten().astype(float64)
+    err = data["ERR"].flatten().astype(float64)
+    qual = data["QUAL"].flatten().astype(float64)
+    bin_size = full(wave.size, 0.25, dtype=float64)
 
     bad_pixels = (qual != 0.0)
-    flux[bad_pixels] = np.nan
-    err[bad_pixels] = np.nan
+    flux[bad_pixels] = nan
+    err[bad_pixels] = nan
 
     # 4MOST: R=4000 @ 3700 angstrom, R=7700 @ 9500 angstrom
-    R = np.interp(wave, *_get_Rs())
+    R = interp(wave, *_get_Rs())
 
     return {
-        "x": wave * wave_unit,
-        "y": flux * flux_unit,
-        "dy": err * flux_unit,
-        "dx": bin_size * wave_unit,
-        "R": R,
+        "x_original": wave * wave_unit,
+        "y_original": flux * flux_unit,
+        "dy_original": err * flux_unit,
+        "dx_original": bin_size * wave_unit,
+        "R_original": R,
     }
 
 
@@ -76,9 +80,11 @@ def _get_Rs() -> tuple[FloatVector, FloatVector]:
     Rs : FloatVector
         A read_only 1d array of resolving power (R) values.
     """
-    df = pandas.read_csv(PATH_TO_DATA, usecols=["lambda", "R"])
-    xs = df["lambda"].to_numpy(dtype=np.float64)
-    Rs = df["R"].to_numpy(dtype=np.float64)
+    from pandas import read_csv
+    
+    df = read_csv(PATH_TO_DATA, usecols=["lambda", "R"])
+    xs = df["lambda"].to_numpy(dtype=float64)
+    Rs = df["R"].to_numpy(dtype=float64)
 
     xs.setflags(write=False)
     Rs.setflags(write=False)
@@ -90,79 +96,108 @@ class PAQSLoader(_Loader):
     """
     Loader designed for reading PAQS files.
     """
-    def __post_init__(self) -> None:
-        msg: str = "Initialising loader (PAQS): "
+    obj_nme: Annotated[str, StringConstraints(min_length=1)]
+    obj_uid: int
+    specuid: int
 
-        msg += f"(1) reading data from {self.path}, "
-        with fits.open(self.path) as hdul:
-            if self.ra is None:
-                ra = hdul[0].header.get("RA", None)
-                if ra is None:
-                    ra = 0.0
-                    msg += "(2) could not extract RA from header / "
-                else:
-                    ra = float(ra)
-                    msg += f"(2) got RA ({ra:.1f}) from header / "
+    @classmethod
+    @validate_call
+    def loadLookup(cls, path: FITSPath) -> TableType:
+        """
+        Read a FITS table from file. 
+        """
+        from astropy.table import Table
+        return Table.read(path, format="fits")
+
+    @classmethod
+    @validate_call
+    def fromPath(
+        cls,
+        path: FITSPath,
+        lookup: TableType,
+        info: Info | None = None,
+        z: float | None = None,
+        title: str | None = None,
+        ra: float | None = None,
+        dec: float | None = None,
+    ) -> Self:
+        from astropy.table import Row
+
+        from quasar_utils.naming import IGR, J2000
+
+        info = info or Info()
+        kwargs = {"path": path, "info": info}
+        lookup = lookup["OBJ_NME", "OBJ_UID", "SPECUID", "Z_QSO"]
+
+        logger.debug("Creating PAQSLoader from path: %s", path)
+        with fits.open(path) as hdul:
+            obj_nme: str = str(hdul[0].header.get("OBJECT"))
+
+            row = Row(lookup, (lookup["OBJ_NME"] == obj_nme).argmax())
+            kwargs["obj_uid"] = int(row["OBJ_UID"])
+            kwargs["specuid"] = int(row["SPECUID"])
+            
+            if ra is None:
+                ra = float(hdul[0].header["RA"])
+                logger.debug("Extracted RA from header: %s", ra)
             else:
-                ra = self.ra
-                msg += f"(2) got RA from argument ({ra:.1f}) / "
+                logger.debug("Using provided RA: %s", ra)
+            kwargs["ra"] = ra
 
-            if self.dec is None:
-                dec = hdul[0].header.get("DEC", None)
-                if dec is None:
-                    dec = 0.0
-                    msg += "could not extract DEC from header, "
-                else:
-                    dec = float(dec)
-                    msg += f"got DEC ({dec:.1f}) from header, "
+            if dec is None:
+                dec = float(hdul[0].header["DEC"])
+                logger.debug("Extracted DEC from header: %s", dec)
             else:
-                dec = self.dec
-                msg += f"got DEC from argument ({dec:.1f}), "
+                logger.debug("Using provided DEC: %s", dec)
+            kwargs["dec"] = dec
 
-            msg += f"proceeding with coordinates: (ra={ra:.3f}, "\
-                f"(dec={dec:.3f}), "
-
-            name = hdul[0].header.get("OBJECT", None)
-            if name is None:
-                name = "missing_name"
-                msg += "(3) no name in header, "
+            if info.loading.naming.upper() == "IGR":
+                title = IGR.get_name(
+                    ra=ra * Unit("deg"), 
+                    dec=dec * Unit("deg"),
+                )
+                logger.debug("Generated title using IGR naming: %s", title)
+            elif info.loading.naming.upper() == "J2000":
+                title = J2000.get_name(
+                    ra=ra * Unit("deg"), 
+                    dec=dec * Unit("deg"),
+                )
+                logger.debug("Generated title using J2000 naming: %s", title)
             else:
-                msg += f"(3) extracted name from header ({name}), "
+                title = obj_nme
+                logger.debug("Extracted title from header: %s", title)
+            kwargs["title"] = title
 
-            match self.info.loading.naming.upper():
-                case "IGR":
-                    self.title = IGR.get_name(
-                        ra * Unit("degree"),
-                        dec * Unit("degree"),
-                    )
-                    msg += f"(4) generated IGR title from coordinates: {self.title}"
-                case "J2000":
-                    self.title = J2000.get_name(
-                        ra * Unit("degree"),
-                        dec * Unit("degree"),
-                    )
-                    msg += f"(4) generated J2000 title from coordinates: {self.title}"
-                case _:
-                    self.title = name
-                    msg += "(4) no valid naming convention specified, "
-
-            if self.z is None:
-                z = hdul[0].header.get("OBJ_Z", None)
-                if z is None:
-                    self.z = 0.0
-                    msg += "(5) no redshift in header, defaulting to 0.0."
-                else:
-                    self.z = float(z)
-                    msg += f"(5) got redshift from header ({self.z:.3f})."
+            if z is None:
+                z = float(row["Z_QSO"])
+                logger.debug("Using Z_QSO from lookup: %s", z)
             else:
-                msg += f"(5) got redshift from argument ({self.z:.3f})."
+                logger.debug("Using provided redshift: %s", z)
+            kwargs["z"] = z
 
             data = _get_data(hdul)
-            self.x_original = data["x"]
-            self.y_original = data["y"]
-            self.dy_original = data["dy"]
-            self.dx_original = data["dx"]
-            self.R_original = data["R"]
+            logger.debug(
+                "Getting data: %s", 
+                {k: None if v is None else v.shape for k, v in data.items()}
+            )
+            kwargs.update(data)
 
-        logger.debug(msg)
-        super().__post_init__()
+        return cls(**kwargs)
+
+    ### Metadata
+
+    def _get_metadata(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "title": self.title,
+            "ra": self.ra,
+            "dec": self.dec,
+            "z": self.z,
+            "luminosity_distance_mpc": self.luminosity_distance_mpc or 0.0,
+            "obj_nme": self.obj_nme,
+            "obj_uid": self.obj_uid,
+            "specuid": self.specuid,
+        }
+
+    def get_metadata(self) -> PAQSMeta:
+        return PAQSMeta(**self._get_metadata())
