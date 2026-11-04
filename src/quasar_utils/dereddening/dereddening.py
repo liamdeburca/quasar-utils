@@ -10,8 +10,6 @@ __all__ = [
     "get_correction",
 ]
 
-from functools import wraps
-
 import numpy as np
 from astropy.units import Unit
 from pydantic import validate_call
@@ -21,7 +19,6 @@ from quasar_typing.literals import LawName, MapName
 from quasar_typing.numpy import FloatVector, SpectrumCoordsTuple
 
 ### Public functions
-
 
 @validate_call
 def get_correction(
@@ -113,7 +110,6 @@ def deredden_spectrum(
 ### Private functions
 
 
-@wraps(get_correction)
 def _get_correction(
     x: FloatVector,
     sky_coords: SkyCoordType,
@@ -140,7 +136,6 @@ def _get_correction(
     return corr
 
 
-@wraps(deredden_spectrum)
 def _deredden_spectrum(
     coords: SpectrumCoordsTuple,
     sky_coords: SkyCoordType,

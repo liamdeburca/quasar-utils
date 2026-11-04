@@ -2,7 +2,6 @@ __all__ = [
     "remove_absorption",
     "smooth_spectrum",
 ]
-from functools import wraps
 
 from numpy import arange, invert, isfinite, maximum
 from pydantic import validate_call
@@ -112,9 +111,8 @@ def smooth_spectrum(
     return _smooth_spectrum(x, y, dy, valid_pixels, w, p, logspace)
 
 
-### Private functions (w/o validation, use functools.wraps to inherit docstrings)
+### Private functions
 
-@wraps(remove_absorption)
 def _remove_absorption(
     x: FloatVector,
     y: FloatVector,
@@ -178,7 +176,6 @@ def _remove_absorption(
     return p_absorbed, absorbed_pixels, y_smooth
 
 
-@wraps(smooth_spectrum)
 def _smooth_spectrum(
     x: FloatVector,
     y: FloatVector,

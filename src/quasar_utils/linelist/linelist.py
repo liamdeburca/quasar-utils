@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from functools import wraps
 from typing import Any, ClassVar, Literal, Self
 
 from pydantic import BaseModel, model_validator, validate_call
@@ -117,7 +116,6 @@ class LineList(BaseModel):
         return cls(**cls._read_csv(path=path, info=info))
 
     @classmethod
-    @wraps(read_csv)
     def _read_csv(
         cls,
         *,

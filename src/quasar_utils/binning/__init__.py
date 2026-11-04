@@ -1,5 +1,4 @@
 import math
-from functools import wraps
 
 import numpy as np
 from pydantic import validate_call
@@ -88,7 +87,6 @@ def log_resample(
 
 ### Private functions
 
-@wraps(log_edges)
 def _log_edges(
     x: SortedFloatVector,
     v_res: float,
@@ -116,7 +114,6 @@ def _log_edges(
     return x_edges, xr_edges, xr
 
 
-@wraps(alpha_matrix_elements)
 def _alpha_matrix_elements(
     x: SortedFloatVector,
     xr: SortedFloatVector,
@@ -137,7 +134,6 @@ def _alpha_matrix_elements(
 
     return i_indices[:count], j_indices[:count], vals[:count]
 
-@wraps(alpha_matrix_elements_conserved)
 def _alpha_matrix_elements_conserved(
     x: SortedFloatVector,
     xr: SortedFloatVector,
@@ -160,7 +156,6 @@ def _alpha_matrix_elements_conserved(
     return i_indices[:count], j_indices[:count], vals[:count]
 
 
-@wraps(alpha_matrix_sparse)
 def _alpha_matrix_sparse(
     x_edges: SortedFloatVector,
     xr_edges: SortedFloatVector,
@@ -183,7 +178,6 @@ def _alpha_matrix_sparse(
     )
 
 
-@wraps(log_resample)
 def _log_resample(
     x: FloatVector,
     y: FloatVector,

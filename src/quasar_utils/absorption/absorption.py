@@ -8,7 +8,6 @@ __all__ = [
 ]
 
 import math
-from functools import wraps
 from logging import getLogger
 from typing import Literal, TypeVar, final, overload
 
@@ -264,9 +263,8 @@ def refine_regions(
     )
 
 
-### Private functions (w/o validation, use functools.wraps to inherit docstrings)
+### Private functions
 
-@wraps(remove_single)
 def _remove_single[Mask](mask: Mask) -> Mask:
     left = np.ones_like(mask, dtype=np.bool_)
     right = left.copy()
@@ -277,7 +275,6 @@ def _remove_single[Mask](mask: Mask) -> Mask:
     return mask & ~(left & mask & right)
 
 
-@wraps(log_fft_test)
 def _log_fft_test(
     z: FittableFloatVector | FittableFloatMatrix,
     k: NonNegativeInt | None = None,
@@ -309,7 +306,6 @@ def _log_fft_test(
     return stat, log_p
 
 
-@wraps(fft_test)
 def _fft_test(
     z: FittableFloatVector | FittableFloatMatrix,
     k: NonNegativeInt | None = None,
@@ -318,7 +314,6 @@ def _fft_test(
     return stat, np.exp(log_p)
 
 
-@wraps(fft_approach)
 def _fft_approach(
     z: FittableFloatVector, 
     p_crit: PositiveFloat,
@@ -344,7 +339,6 @@ def _fft_approach(
     return ps, mask
 
 
-@wraps(join_regions)
 def _join_regions(
     mask: BoolVector,
     iterations: PositiveInt | Literal[0],
@@ -356,7 +350,6 @@ def _join_regions(
     return mask | new_mask
 
 
-@wraps(refine_regions)
 def _refine_regions(
     mask: BoolVector,
     x: FloatVector,

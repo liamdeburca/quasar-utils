@@ -3,7 +3,6 @@ File containing utility functions for performing raster fits of templates.
 """
 __all__ = ["rasterise"]
 
-from functools import wraps
 from logging import getLogger
 
 import numpy as np
@@ -69,7 +68,6 @@ def rasterise(
 
 ### Private functions
 
-@wraps(rasterise)
 def _rasterise(
     y: FittableFloatVector,
     dy: FittableFloatVector,

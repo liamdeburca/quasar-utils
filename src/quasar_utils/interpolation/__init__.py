@@ -1,11 +1,4 @@
-"""
-Python file containing utilities for performing efficient linear interpolation
-through sparse matrix multiplication.
-"""
-
 __all__ = ["build_interp_data", "create_interp_matrix"]
-
-from functools import wraps
 
 import numpy as np
 from pydantic import validate_call
@@ -54,7 +47,6 @@ def create_interp_matrix(
 ### Private implementations (unvalidated)
 
 
-@wraps(build_interp_data)
 def _build_interp_data(
     x: SortedFloatVector,
     xb: SortedFloatVector,
@@ -96,7 +88,6 @@ def _build_interp_data(
     return i_indices[:count], j_indices[:count], vals[:count], bias
 
 
-@wraps(create_interp_matrix)
 def _create_interp_matrix(
     x_in: SortedFloatVector,
     x_out: SortedFloatVector,

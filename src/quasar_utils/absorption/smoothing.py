@@ -7,12 +7,27 @@ __all__ = [
     "weighted_savgol_filter",
 ]
 
-from functools import wraps
 from itertools import batched
 from logging import getLogger
 from typing import Literal
 
-import numpy as np
+from numpy import (
+    append,
+    argwhere,
+    concatenate,
+    convolve,
+    float64,
+    full_like,
+    interp,
+    isfinite,
+    nan,
+    ones,
+    where,
+    zeros,
+)
+from numpy.lib.stride_tricks import sliding_window_view
+from numpy.linalg import lstsq
+from numpy.polynomial.polynomial import polyvander
 from pydantic import PositiveInt, validate_call
 from quasar_typing.errors import SmoothingError
 from quasar_typing.misc import PolynomialOrder, WindowSize
@@ -266,9 +281,8 @@ def weighted_savgol_filter(
     return _weighted_savgol_filter(x, y, dy, w, p, mask, interpolate, mode)
 
 
-### Private functions (w/o validation, use functools.wraps to inherit docstrings)
+### Private functions
 
-@wraps(get_gap_sizes)
 def _get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
     n_pix = mask.size
     match n_pix:
@@ -280,7 +294,7 @@ def _get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
             if not mask.any():
                 return [(0, n_pix - 1, n_pix)]
             if not (mask[0] and mask[-1]):
-                true_indices = np.argwhere(mask).flatten()
+                true_indices = argwhere(mask).flatten()
                 _mask = mask[true_indices[0] : true_indices[-1] + 1]
 
                 out = _get_gap_sizes(_mask)
@@ -304,7 +318,7 @@ def _get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
 
                 return out
 
-            edges = np.argwhere(mask[:-1] ^ mask[1:]).flatten()
+            edges = argwhere(mask[:-1] ^ mask[1:]).flatten()
 
             return [
                 (left + 1, right, right - left)
@@ -312,7 +326,6 @@ def _get_gap_sizes(mask: BoolVector) -> list[tuple[int, int, int]]:
             ]
 
 
-@wraps(interpolate_missing)
 def _interpolate_missing(
     x: SortedFloatVector,
     y: FloatVector,
@@ -325,10 +338,10 @@ def _interpolate_missing(
         raise ValueError("'mask' must contain at least one True value for interpolation.")
     elif _x.size == 1:
         if out is None:
-            return np.full_like(y, _y[0])
+            return full_like(y, _y[0])
         out.fill(_y[0])
     else:
-        _out = np.interp(x, _x, _y, left=_y[0], right=_y[-1])
+        _out = interp(x, _x, _y, left=_y[0], right=_y[-1])
         if out is None:
             return _out
         out[:] = _out
@@ -336,7 +349,6 @@ def _interpolate_missing(
     return None
 
 
-@wraps(get_valid_indices)
 def _get_valid_indices(
     mask: BoolVector,
     w: WindowSize,
@@ -346,13 +358,13 @@ def _get_valid_indices(
 ) -> BoolVector:
     match side:
         case "left":
-            kernel = np.append(np.ones(w), np.zeros(w - 1))
+            kernel = append(ones(w), zeros(w - 1))
         case "right":
-            kernel = np.append(np.zeros(w - 1), np.ones(w))
+            kernel = append(zeros(w - 1), ones(w))
         case _:
-            kernel = np.ones(w)
+            kernel = ones(w)
 
-    n_points_covered = np.convolve(mask.astype(int), kernel, mode="same")
+    n_points_covered = convolve(mask.astype(int), kernel, mode="same")
 
     match mode:
         case "flexible":
@@ -367,7 +379,6 @@ def _get_valid_indices(
     return n_points_covered >= n_points_minimum
 
 
-@wraps(create_slides)
 def _create_slides(
     x: FloatVector,
     y: FloatVector,
@@ -376,10 +387,10 @@ def _create_slides(
     mask: BoolVector | None = None,
 ) -> tuple[FloatMatrix, FloatMatrix, FloatMatrix]:
     l = w // 2
-    filler = np.nan * np.ones(l)
-    _fill = lambda arr: np.concatenate([filler, arr, filler], axis=0)
+    filler = nan * ones(l)
+    _fill = lambda arr: concatenate([filler, arr, filler], axis=0)
 
-    f = lambda arr: np.lib.stride_tricks.sliding_window_view(
+    f = lambda arr: sliding_window_view(
         _fill(arr), 
         window_shape=w,
     )
@@ -396,7 +407,6 @@ def _create_slides(
     return x_slides, y_slides, dy_slides
 
 
-@wraps(solve_weighted_poly)
 def _solve_weighted_poly(
     x_slides: FloatMatrix,
     y_slides: FloatMatrix,
@@ -405,31 +415,30 @@ def _solve_weighted_poly(
     full: bool = False,
 ) -> FloatVector | FloatMatrix:
     n_slides = y_slides.shape[0]
-    coeffs = np.zeros((n_slides, p + 1), dtype=np.float64)
+    coeffs = zeros((n_slides, p + 1), dtype=float64)
 
     for i in range(n_slides):
         x_s = x_slides[i]
         y_s = y_slides[i]
         dy_s = dy_slides[i]
 
-        valid = np.isfinite([x_s, y_s, dy_s]).all(axis=0) &  (dy_s > 0)
+        valid = isfinite([x_s, y_s, dy_s]).all(axis=0) &  (dy_s > 0)
         if valid.sum() == 0:
-            coeffs[i, :] = np.nan
+            coeffs[i, :] = nan
             continue
 
-        X = np.polynomial.polynomial.polyvander(x_s[valid], deg=p)
+        X = polyvander(x_s[valid], deg=p)
 
         sqrt_w = 1.0 / dy_s[valid]
         Xw = X * sqrt_w[:, None]
         yw = y_s[valid] * sqrt_w
 
-        sol, *_ = np.linalg.lstsq(Xw, yw, rcond=None)
+        sol, *_ = lstsq(Xw, yw, rcond=None)
         coeffs[i, :] = sol
 
     return coeffs if full else coeffs[:, 0]
 
 
-@wraps(weighted_savgol_filter)
 def _weighted_savgol_filter(
     x: FloatVector,
     y: FloatVector,
@@ -454,9 +463,9 @@ def _weighted_savgol_filter(
 
     y_smooth = y.copy()
 
-    x_valid = np.isfinite(x)
+    x_valid = isfinite(x)
     if mask is None:
-        mask = x_valid & np.isfinite([y, dy]).all(axis=0) & (dy > 0)
+        mask = x_valid & isfinite([y, dy]).all(axis=0) & (dy > 0)
 
     gap_sizes = _get_gap_sizes(mask)
     if gap_sizes:
@@ -473,9 +482,9 @@ def _weighted_savgol_filter(
         return y_smooth
 
     slides = _create_slides(
-        np.where(x_valid, x, np.nan),
-        np.where(mask, y, np.nan),
-        np.where(mask, dy, np.nan),
+        where(x_valid, x, nan),
+        where(mask, y, nan),
+        where(mask, dy, nan),
         w,
         mask=valid_indices,
     )

@@ -5,7 +5,7 @@ from logging import getLogger
 from typing import Any, TypedDict
 
 from numpy import diff, float64, interp, log, ndarray, ones
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validate_call
 from quasar_typing.astropy import QuantityType
 from quasar_typing.bounds import CoordBounds
 from quasar_typing.literals import LawName, MapName
@@ -13,7 +13,7 @@ from quasar_typing.numpy import FloatMatrix, FloatVector
 from quasar_typing.pathlib import FilePath
 from quasar_typing.scipy import CSRMatrix
 
-from quasar_utils.decorators import validated_apply_info_to_method
+from quasar_utils.decorators import apply_info_to_method
 from quasar_utils.resolving import create_kernels
 from quasar_utils.setup import Info
 
@@ -74,7 +74,8 @@ class _Loader(BaseModel, ABC):
 
     has_been: set[str] = Field(default_factory=set)
 
-    @validated_apply_info_to_method(subjects=("loading",))
+    @validate_call
+    @apply_info_to_method(subjects=("loading",))
     def run(
         self,
         *,
@@ -92,14 +93,7 @@ class _Loader(BaseModel, ABC):
         Parameters
         ----------
         deredden : tuple[bool, MapName, LawName, float], optional
-            If provided, a 4-tuple used to control dereddening:
-            ``(apply: bool, map_name: MapName, law_name: LawName, Rv: float)``. If the
-            first element is ``False`` the deredden step is skipped.
-            When ``None`` the decorator :func:`validated_apply_info_to_method`
-            supplies defaults from ``self.info``.
         rebin : bool | None, optional
-            Whether to perform logarithmic re-binning. If ``None`` the
-            info-loading defaults are applied via the decorator.
 
         Raises
         ------

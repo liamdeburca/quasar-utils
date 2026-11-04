@@ -1,13 +1,4 @@
-"""dust_extinction compatibility helpers.
-
-This module exposes a small helper to return modified local classes for the
-commonly used dust-extinction laws. The module follows the project's
-public/private pattern: public wrappers are validated with Pydantic and the
-implementation lives in a private function decorated with ``functools.wraps``.
-"""
 __all__ = ["get_dust_law"]
-
-from functools import wraps
 
 from pydantic import validate_call
 from quasar_typing.literals import LawName
@@ -25,7 +16,6 @@ def get_dust_law(law_name: LawName):
 
 ### Private functions
 
-@wraps(get_dust_law)
 def _get_dust_law(law_name: LawName):
     match law_name:
         case "ccm89":

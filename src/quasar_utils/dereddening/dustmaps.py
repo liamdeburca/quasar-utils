@@ -12,7 +12,6 @@ helpers are placed at the end of the file.
 """
 __all__ = ["PATH_TO_CACHE", "get_dust_map", "reset_cache", "setup_dustmaps"]
 
-from functools import wraps
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
@@ -63,7 +62,6 @@ def get_dust_map(map_name: MapName):
 ### Private implementations
 
 
-@wraps(setup_dustmaps)
 def _setup_dustmaps() -> None:
     from dustmaps.config import config
     
@@ -75,14 +73,12 @@ def _setup_dustmaps() -> None:
     config["data_dir"] = str(PATH_TO_CACHE)
 
 
-@wraps(reset_cache)
 def _reset_cache() -> None:
     # Remove everything under the cache directory then re-setup
     rmtree(PATH_TO_CACHE)
     _setup_dustmaps()
 
 
-@wraps(get_dust_map)
 def _get_dust_map(map_name: MapName):
     match map_name:
         case "sfd":

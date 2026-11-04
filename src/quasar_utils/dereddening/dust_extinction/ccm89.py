@@ -21,7 +21,7 @@ class CCM89(BaseModel):
     Raises
     ------
     InputParameterError
-       Input Rv values outside of defined range
+        Input Rv values outside of defined range
 
     Notes
     -----

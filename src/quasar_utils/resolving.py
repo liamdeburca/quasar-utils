@@ -7,10 +7,8 @@ where l is the (observed wavelength) and dl is the FWHM of a delta function
 response.
 """
 import math
-from functools import wraps
 from typing import Literal, final, overload
 
-import pydantic
 from numpy import (
     arange,
     clip,
@@ -26,6 +24,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.lib.stride_tricks import sliding_window_view
+from pydantic import validate_call
 from quasar_typing.numpy import (
     BoolVector,
     FloatArray,
@@ -42,7 +41,7 @@ FWHM_TO_SIGMA: float = 1 / SIGMA_TO_FWHM
 
 ### Public functions
     
-@pydantic.validate_call
+@validate_call
 def R_to_sigma(R: float, x: float) -> float:
     """
     Convert a resolving power, R, to the corresponding Gaussian sigma at a 
@@ -51,7 +50,7 @@ def R_to_sigma(R: float, x: float) -> float:
     return _R_to_sigma(R, x)
 
 
-@pydantic.validate_call
+@validate_call
 def create_kernel(
     R: float, 
     mu: float,
@@ -96,7 +95,7 @@ def create_kernels(
 ) -> CSRMatrix:
     ...
 
-@pydantic.validate_call
+@validate_call
 @final
 def create_kernels(
     R: FloatVector,
@@ -137,7 +136,7 @@ def mask_kernels(
 ) -> CSRMatrix:
     ...
 
-@pydantic.validate_call
+@validate_call
 @final
 def mask_kernels(
     kernels: FloatMatrix | CSRMatrix,
@@ -161,7 +160,7 @@ def mask_kernels(
     return _mask_kernels(kernels, mask)
 
 
-@pydantic.validate_call
+@validate_call
 def limit_loss(
     kernels: FloatMatrix | CSRMatrix,
     mask: BoolVector,
@@ -178,7 +177,7 @@ def limit_loss(
     return _limit_loss(kernels, mask, shrink)
 
 
-@pydantic.validate_call
+@validate_call
 def apply_resolution(
     y: FloatArray, 
     kernels: FloatMatrix | CSRMatrix,
@@ -208,12 +207,10 @@ def apply_resolution(
 ### Private functions
 
 
-@wraps(R_to_sigma)
 def _R_to_sigma(R: float, x: float) -> float:
     return x / R * FWHM_TO_SIGMA
 
 
-@wraps(create_kernel)
 def _create_kernel(
     R: float, 
     mu: float,
@@ -238,7 +235,6 @@ def _create_kernel(
     return kernel
 
 
-@wraps(create_kernels)
 def _create_kernels(
     R: FloatVector,
     x: FloatVector,
@@ -281,7 +277,6 @@ def _create_kernels(
     return csr_matrix(kernels) if sparse else kernels
 
 
-@wraps(mask_kernels)
 def _mask_kernels(
     kernels: FloatMatrix | CSRMatrix,
     mask: BoolVector,
@@ -318,7 +313,6 @@ def _mask_kernels(
     return csr_matrix(new_kernels) if is_sparse else new_kernels
 
 
-@wraps(limit_loss)
 def _limit_loss(
     kernels: FloatMatrix | CSRMatrix,
     mask: BoolVector,
@@ -331,7 +325,6 @@ def _limit_loss(
     return (signal == 0) if shrink else (signal > 0)
 
 
-@wraps(apply_resolution)
 def _apply_resolution(
     y: FloatArray, 
     kernels: FloatMatrix | CSRMatrix,

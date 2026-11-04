@@ -1,8 +1,7 @@
 import math
-from functools import wraps
 
 import numpy as np
-import pydantic
+from pydantic import validate_call
 from quasar_typing.numpy import FloatMatrix, FloatVector, IntVector
 from scipy.signal import fftconvolve
 
@@ -15,7 +14,7 @@ N_SCALES: float = 5.0
 ### Public functions
 
 
-@pydantic.validate_call
+@validate_call
 def scale(
     fwhm: float, 
     sigma_res: float,
@@ -27,7 +26,7 @@ def scale(
     return _scale(fwhm, sigma_res, fwhm_to_sigma)
 
 
-@pydantic.validate_call
+@validate_call
 def pixels(
     scale: float,
     n_scales: float = N_SCALES,
@@ -38,7 +37,7 @@ def pixels(
     return _pixels(scale, n_scales=n_scales)
 
 
-@pydantic.validate_call
+@validate_call
 def kernel(
     fwhm: float,
     sigma_res: float,
@@ -50,7 +49,7 @@ def kernel(
     return _kernel(fwhm, sigma_res, gauss_amp=gauss_amp)
 
 
-@pydantic.validate_call
+@validate_call
 def kernel_deriv(
     fwhm: float,
     sigma_res: float,
@@ -62,7 +61,7 @@ def kernel_deriv(
     return _kernel_deriv(fwhm, sigma_res, sigma_to_fwhm=sigma_to_fwhm)
 
 
-@pydantic.validate_call
+@validate_call
 def convolve_signal(
     signal: FloatVector, 
     kernel: FloatVector,
@@ -74,7 +73,7 @@ def convolve_signal(
     return _convolve_signal(signal, kernel)
 
 
-@pydantic.validate_call
+@validate_call
 def identify_closest_idx(
     fwhm: FloatVector,
     fwhm_final: float,
@@ -86,7 +85,7 @@ def identify_closest_idx(
     return _identify_closest_idx(fwhm, fwhm_final, for_deriv=for_deriv)
 
 
-@pydantic.validate_call
+@validate_call
 def identify_closest(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -100,7 +99,7 @@ def identify_closest(
     return _identify_closest(data, fwhm, fwhm_final, for_deriv=for_deriv)
 
 
-@pydantic.validate_call
+@validate_call
 def convolve(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -123,7 +122,7 @@ def convolve(
     return _convolve(data, fwhm, fwhm_final, sigma_res)
 
 
-@pydantic.validate_call
+@validate_call
 def convolve_deriv(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -139,7 +138,6 @@ def convolve_deriv(
 ### Private functions
 
 
-@wraps(scale)
 def _scale(
     fwhm: float, 
     sigma_res: float,
@@ -148,13 +146,11 @@ def _scale(
     return fwhm * fwhm_to_sigma / sigma_res
 
 
-@wraps(pixels)
 def _pixels(scale: float, n_scales: float = N_SCALES) -> IntVector:
     l = int(n_scales * scale)
     return np.arange(-l, l+1, dtype=np.int_)
 
 
-@wraps(kernel)
 def _kernel(
     fwhm: float,
     sigma_res: float,
@@ -169,7 +165,6 @@ def _kernel(
     return k / k.sum()
 
 
-@wraps(kernel_deriv)
 def _kernel_deriv(
     fwhm: float,
     sigma_res: float,
@@ -184,7 +179,6 @@ def _kernel_deriv(
     return sigma_to_fwhm * k * (z**2 - 1)
 
 
-@wraps(convolve_signal)
 def _convolve_signal(
     signal: FloatVector, 
     kernel: FloatVector,
@@ -197,7 +191,6 @@ def _convolve_signal(
     )
 
 
-@wraps(identify_closest_idx)
 def _identify_closest_idx(
     fwhm: FloatVector,
     fwhm_final: float,
@@ -213,7 +206,7 @@ def _identify_closest_idx(
 
     return idx
 
-@wraps(identify_closest)
+
 def _identify_closest(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -224,7 +217,6 @@ def _identify_closest(
     return fwhm[idx], data[idx]    
 
 
-@wraps(convolve)
 def _convolve(
     data: FloatMatrix,
     fwhm: FloatVector,
@@ -244,7 +236,6 @@ def _convolve(
     return _convolve_signal(signal, k)
 
 
-@wraps(convolve_deriv)
 def _convolve_deriv(
     data: FloatMatrix,
     fwhm: FloatVector,
