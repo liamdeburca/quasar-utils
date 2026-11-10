@@ -1,5 +1,3 @@
-from typing import TypeVar
-
 import numpy as np
 from quasar_typing.astropy import (
     CompositeUnitType,
@@ -11,10 +9,6 @@ from quasar_typing.literals import LawName, MapName
 from quasar_typing.numpy import CoordsTuple, FloatVector
 
 from quasar_utils.setup import Info
-
-N = TypeVar("N", bound=int)
-O = TypeVar("O", bound=int)
-K = TypeVar("K", bound=int)
 
 
 def _transform_coords(
@@ -71,15 +65,19 @@ def _redshift_correct_coords(
 ) -> tuple[CoordsTuple, FloatVector]:
     """
     Correct for cosmological redshift.
+
+    This function only accounts for the correction for a change from observed- 
+    to rest-frame wavelengths. This means, the wavelength coordinates are 
+    divided by (1 + z) and the flux coordinates are multiplied by (1 + z).
     """
     w_corr = 1.0 + z
-    f_corr = w_corr ** 3
+    # f_corr = w_corr ** 3
 
     x, y, dy = coords
     x_corr = x / w_corr
     dx_corr = dx / w_corr
-    y_corr = y * f_corr
-    dy_corr = dy * f_corr
+    y_corr = y * w_corr
+    dy_corr = dy * w_corr
 
     return (x_corr, y_corr, dy_corr), dx_corr
 

@@ -5,10 +5,14 @@ from typing import Annotated, ClassVar
 
 from pydantic import (
     BaseModel,
-    Field,
-    NonNegativeFloat,
     PositiveInt,
     StringConstraints,
+)
+from quasar_typing.numbers import (
+    Declination,
+    Distance,
+    Redshift,
+    RightAscension,
 )
 from quasar_typing.pathlib import FITSPath
 
@@ -53,11 +57,11 @@ class BaseMeta(BaseModel, frozen=True):
     """
     path: FITSPath
     title: Annotated[str, StringConstraints(min_length=1)]
-    ra: Annotated[float, Field(ge=0.0, lt=360.0)]
-    dec: Annotated[float, Field(ge=-90.0, le=90.0)]
+    ra: RightAscension
+    dec: Declination
 
-    z: NonNegativeFloat
-    luminosity_distance_mpc: NonNegativeFloat
+    z: Redshift
+    luminosity_distance_mpc: Distance
 
     ### SDSS
 
