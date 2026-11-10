@@ -1,11 +1,9 @@
 from collections.abc import Iterator
 from itertools import batched
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Literal, Self
 
 from pydantic import BaseModel, Field, validate_call
 from quasar_typing.pathlib import DirPath, FilePath
-
-ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".asc", ".fits"})
 
 
 class InputDir(BaseModel, validate_assignment=True):
@@ -20,7 +18,10 @@ class InputDir(BaseModel, validate_assignment=True):
     directory: DirPath
     files: list[FilePath] = Field(default_factory=list)
 
-    allowed_extensions: ClassVar[frozenset[str]] = ALLOWED_EXTENSIONS
+    allowed_extensions: ClassVar[tuple[
+        Literal[".asc"],
+        Literal[".fits"],
+    ]] = (".asc", ".fits")
 
 
     @classmethod

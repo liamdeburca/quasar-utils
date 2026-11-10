@@ -1,5 +1,3 @@
-__all__ = ["SubDir"]
-
 from logging import DEBUG, INFO, FileHandler, getLogger
 from typing import Any, Literal, Self
 
@@ -13,14 +11,6 @@ from quasar_typing.pathlib import (
     DirPath,
     FilePath,
     LogPath,
-)
-
-from quasar_utils.logging import (
-    CONFIG_KWARGS,
-    FlagFilter,
-    # FlagFormatter,
-    QuasarFilter,
-    QuasarFormatter,
 )
 
 logger = getLogger(__name__)
@@ -64,42 +54,56 @@ class SubDir(BaseModel, validate_assignment=True):
 
     @property
     def _debug_log(self) -> AnyLogPath:
+        """Path to the '/debug.log' file"""
         return self.out_dir / "debug.log"
 
     
     @property
     def _main_log(self) -> AnyLogPath:
+        """Path to the '/main.log' file"""
         return self.out_dir / "main.log"
     
     
     @property
     def _flags_log(self) -> AnyLogPath:
+        """Path to the '/flags.log' file"""
         return self.out_dir / "flags.log"
     
     
     @property
     def _profile(self) -> AnyCSVPath:
+        """Path to the '/profile.csv' file"""
         return self.out_dir / "profile.csv"
 
 
     @property
+    def _context(self) -> AnyDirPath:
+        """Path to the '/.context' directory"""
+        return self.out_dir / ".context"
+
+
+    @property
     def _plots(self) -> AnyDirPath:
+        """Path to the '/plots' directory"""
         return self.out_dir / "plots"
 
     @property
     def _line_results(self) -> AnyDirPath:
+        """Path to the '/line_results' directory"""
         return self.out_dir / "line_results"
 
     ###
 
     @property
     def debug_log(self) -> LogPath:
+        """Get the path to the '/debug.log' file, creating it if necessary."""
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self._debug_log.touch(exist_ok=True)
         return self._debug_log
 
     @property
     def main_log(self) -> LogPath:
+        """Get the path to the '/main.log' file, creating it if necessary."""
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self._main_log.touch(exist_ok=True)
         return self._main_log
@@ -107,6 +111,7 @@ class SubDir(BaseModel, validate_assignment=True):
     
     @property
     def flags_log(self) -> LogPath:
+        """Get the path to the '/flags.log' file, creating it if necessary."""
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self._flags_log.touch(exist_ok=True)
         return self._flags_log
@@ -114,18 +119,32 @@ class SubDir(BaseModel, validate_assignment=True):
     
     @property
     def profile(self) -> CSVPath:
+        """Get the path to the '/profile.csv' file, creating it if necessary."""
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self._profile.touch(exist_ok=True)
         return self._profile
 
 
     @property
+    def context(self) -> DirPath:
+        """Get the path to the '/.context' directory, creating it if necessary.
+        """
+        self._context.mkdir(parents=True, exist_ok=True)
+        return self._context
+
+
+    @property
     def plots(self) -> DirPath:
+        """Get the path to the '/plots' directory, creating it if necessary.
+        """
         self._plots.mkdir(parents=True, exist_ok=True)
         return self._plots
 
     @property
     def line_results(self) -> DirPath:
+        """
+        Get the path to the '/line_results' directory, creating it if necessary.
+        """
         self._line_results.mkdir(parents=True, exist_ok=True)
         return self._line_results
 
@@ -149,6 +168,12 @@ class SubDir(BaseModel, validate_assignment=True):
         non-colored CustomFormatter and the quasar_filter, then store them in
         self.handlers.
         """
+        from quasar_utils.logging import (
+            FlagFilter,
+            QuasarFilter,
+            QuasarFormatter,
+        )
+
         # Ensure output directory exists
         _ = self.getOutDir()
 
@@ -197,6 +222,8 @@ class SubDir(BaseModel, validate_assignment=True):
         Handlers are created here so log files are only made when the SubDir is
         actually used in a with-block.
         """
+        from quasar_utils.logging import CONFIG_KWARGS
+
         # create handlers for this subdir
         self.createHandlers()
 
